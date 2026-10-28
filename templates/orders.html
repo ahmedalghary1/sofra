@@ -1,0 +1,27 @@
+{% extends 'app_base.html' %}
+{% block title %}الطلبات{% endblock %}{% block crumb %}الطلبات{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">إدارة الخدمة</span><h1>الطلبات</h1><p>طلبات {{ branch.name }} من لحظة وصولها حتى تقديمها.</p></div><span class="usage-pill">آخر 100 طلب</span></div>
+{% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'cashier' or membership.role == 'waiter' %}
+<section class="panel add-panel"><div><h2>طلب تقليدي من الفريق</h2><p>للطلبات التي تُؤخذ شفهيًا أو من الكاشير.</p></div>
+  <form id="staffOrderForm" method="post" class="staff-order-form">{% csrf_token %}<select name="table_id" required><option value="">اختر الطاولة</option>{% for table in tables %}<option value="{{ table.pk }}">{{ table.name }}</option>{% endfor %}</select><select id="staffItem" required><option value="">اختر الصنف</option>{% for item in items %}<option value="{{ item.pk }}">{{ item.name }} — {{ item.price }} ج.م</option>{% endfor %}</select><input id="staffQty" type="number" min="1" max="30" value="1" aria-label="الكمية"><input type="hidden" name="payload" id="staffPayload"><button class="btn btn-primary">إنشاء الطلب</button></form>
+</section>
+<script>document.getElementById('staffOrderForm').addEventListener('submit',e=>{const i=document.getElementById('staffItem').value;if(!i){e.preventDefault();return}document.getElementById('staffPayload').value=JSON.stringify({idempotency_key:crypto.randomUUID(),lines:[{item_id:Number(i),quantity:Number(document.getElementById('staffQty').value),options:[]}]})})</script>
+{% endif %}
+<section class="panel"><div class="panel-head"><div><h2>سجل الطلبات</h2><p>الأسعار هنا إجمالي الطلب، وليست إيرادات محصلة.</p></div></div>
+{% if orders %}<div class="table-scroll"><table class="data-table"><thead><tr><th>رقم الطلب</th><th>الطاولة والتفاصيل</th><th>الوقت</th><th>الإجمالي</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>
+{% for order in orders %}<tr>
+  <td><strong>#{{ order.pk }}</strong><small class="block muted">{{ order.get_source_display }}</small></td>
+  <td><strong>{{ order.table.name }}</strong><small class="block muted">{% for line in order.lines.all %}{{ line.quantity }}× {{ line.item_name }}{% if not forloop.last %}، {% endif %}{% endfor %}</small></td>
+  <td>{{ order.created_at|date:'j M، H:i' }}</td><td>{{ order.total }} ج.م</td><td><span class="status status-{{ order.status }}">{{ order.get_status_display }}</span></td>
+  <td>
+  {% if order.status == 'new' and membership.role == 'owner' or order.status == 'new' and membership.role == 'manager' or order.status == 'new' and membership.role == 'kitchen' %}<form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="accepted"><button class="text-button">استلام ←</button></form>
+  {% elif order.status == 'accepted' and membership.role == 'owner' or order.status == 'accepted' and membership.role == 'manager' or order.status == 'accepted' and membership.role == 'kitchen' %}<form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="preparing"><button class="text-button">بدء التحضير ←</button></form>
+  {% elif order.status == 'preparing' and membership.role == 'owner' or order.status == 'preparing' and membership.role == 'manager' or order.status == 'preparing' and membership.role == 'kitchen' %}<form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="ready"><button class="text-button">جاهز ←</button></form>
+  {% elif order.status == 'ready' and membership.role != 'kitchen' %}<form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="served"><button class="text-button">تم التقديم ✓</button></form>
+  {% else %}—{% endif %}
+  </td>
+</tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="empty-state"><span>▤</span><h3>لا توجد طلبات بعد</h3><p>عندما يرسل الضيف طلبًا سيظهر هنا وفي شاشة المطبخ.</p></div>{% endif %}
+</section>
+{% endblock %}

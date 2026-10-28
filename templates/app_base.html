@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block bodyclass %}app-body{% endblock %}
+{% block body %}
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="{% url 'dashboard' restaurant.slug %}"><span class="brand-mark">✳</span><span>سفرة<small>مساحة المطعم</small></span></a>
+    <div class="workspace-label">مساحة العمل</div>
+    <div class="restaurant-switch"><span class="restaurant-avatar">{{ restaurant.name|slice:':1' }}</span><span><strong>{{ restaurant.name }}</strong><small>{{ branch.name }}</small></span></div>
+    {% if available_branches.count > 1 %}
+    <form class="branch-selector" method="post" action="{% url 'select_branch' restaurant.slug %}">{% csrf_token %}
+      <label for="branch-select">الفرع الحالي</label>
+      <select id="branch-select" name="branch_id" onchange="this.form.submit()">
+        {% for choice in available_branches %}<option value="{{ choice.pk }}" {% if choice.pk == branch.pk %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit">اختيار</button></noscript>
+    </form>
+    {% endif %}
+    <div class="nav-label">الرئيسية</div>
+    <nav class="side-nav" aria-label="القائمة الرئيسية">
+      <a class="{% if page == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' restaurant.slug %}"><span>◫</span> نظرة عامة</a>
+      <a class="{% if page == 'orders' %}active{% endif %}" href="{% url 'manage_orders' restaurant.slug %}"><span>▤</span> الطلبات</a>
+      {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'kitchen' %}<a class="{% if page == 'kitchen' %}active{% endif %}" href="{% url 'kitchen' restaurant.slug %}"><span>▣</span> شاشة المطبخ</a>{% endif %}
+      {% if membership.role != 'kitchen' %}<a class="{% if page == 'calls' %}active{% endif %}" href="{% url 'manage_calls' restaurant.slug %}"><span>♧</span> طلبات الخدمة</a>{% endif %}
+    </nav>
+    {% if membership.role == 'owner' or membership.role == 'manager' %}
+    <div class="nav-label">إدارة المطعم</div>
+    <nav class="side-nav" aria-label="إدارة المطعم">
+      <a class="{% if page == 'menu_manage' %}active{% endif %}" href="{% url 'manage_menu' restaurant.slug %}"><span>◈</span> قائمة الطعام</a>
+      <a class="{% if page == 'tables' %}active{% endif %}" href="{% url 'manage_tables' restaurant.slug %}"><span>▦</span> الطاولات وQR</a>
+      <a class="{% if page == 'branches' %}active{% endif %}" href="{% url 'manage_branches' restaurant.slug %}"><span>◫</span> الفروع</a>
+      <a class="{% if page == 'reports' %}active{% endif %}" href="{% url 'reports' restaurant.slug %}"><span>▥</span> التقارير</a>
+      <a class="{% if page == 'staff' %}active{% endif %}" href="{% url 'staff' restaurant.slug %}"><span>♙</span> فريق العمل</a>
+      <a class="{% if page == 'settings' %}active{% endif %}" href="{% url 'restaurant_settings' restaurant.slug %}"><span>⚙</span> الإعدادات</a>
+    </nav>
+    {% endif %}
+    <div class="sidebar-bottom">
+      <div class="help-card"><span>✦</span><strong>كل شيء جاهز لبدء الخدمة؟</strong><p>أضف الأصناف والطاولات ثم شارك رمز QR مع ضيوفك.</p></div>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout" type="submit">↪ &nbsp; تسجيل الخروج</button></form>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="main-wrap">
+    <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="فتح القائمة">☰</button><div class="breadcrumb">مساحة العمل <span>/</span> {% block crumb %}نظرة عامة{% endblock %}</div><div class="topbar-actions"><span class="today-date">{% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
+    <main class="main-content">{% block content %}{% endblock %}</main>
+  </div>
+</div>
+<script>const t=document.getElementById('menuToggle'),s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');t?.addEventListener('click',()=>{s.classList.toggle('open');o.classList.toggle('show')});o?.addEventListener('click',()=>{s.classList.remove('open');o.classList.remove('show')});</script>
+{% endblock %}

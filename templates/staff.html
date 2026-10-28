@@ -1,0 +1,21 @@
+{% extends 'app_base.html' %}
+{% block title %}فريق العمل{% endblock %}{% block crumb %}فريق العمل{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">الفريق</span><h1>فريق العمل</h1><p>إدارة الوصول والأدوار والفروع المسموحة لكل عضو.</p></div><span class="usage-pill">{{ members.count }} / {{ limit }} عضو</span></div>
+<section class="panel"><div class="panel-head"><div><h2>أضف عضوًا جديدًا</h2><p>سيُضاف إلى {{ branch.name }}. اختر فرعًا آخر من القائمة قبل الإضافة إذا لزم.</p></div></div>
+  <form method="post" class="staff-order-form">{% csrf_token %}<input type="hidden" name="action" value="create"><input type="email" name="email" required placeholder="البريد الإلكتروني"><select name="role" required><option value="">اختر الدور</option><option value="manager">مدير</option><option value="cashier">كاشير</option><option value="kitchen">مطبخ</option><option value="waiter">ويتر</option></select><input type="password" name="password" required minlength="8" placeholder="كلمة مرور مؤقتة"><button class="btn btn-primary">إضافة عضو ＋</button></form>
+</section>
+<section class="panel spaced-panel"><div class="panel-head"><div><h2>أعضاء الفريق</h2><p>تعطيل العضو يوقف عملياته الجديدة دون حذف سجلاته.</p></div></div>
+  <div class="staff-list">
+  {% for member in members %}<div class="staff-row">
+    <div class="staff-person"><span class="member-avatar">{{ member.user.first_name|default:member.user.username|slice:':1' }}</span><span><strong>{{ member.user.first_name|default:member.user.username }}</strong><small>{{ member.user.email }}</small></span></div>
+    <div class="staff-meta"><span class="status {% if member.active %}status-ready{% else %}status-cancelled{% endif %}">{% if member.active %}نشط{% else %}معطل{% endif %}</span><span>{{ member.get_role_display }}</span><small>{% for allowed in member.branches.all %}{{ allowed.name }}{% if not forloop.last %}، {% endif %}{% empty %}كل الفروع للمدير{% endfor %}</small></div>
+    {% if member.role != 'owner' and member.user_id != request.user.pk %}
+    <div class="staff-actions">
+      {% if membership.role == 'owner' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="role"><input type="hidden" name="membership_id" value="{{ member.pk }}"><select name="role" aria-label="دور {{ member.user.email }}"><option value="manager" {% if member.role == 'manager' %}selected{% endif %}>مدير</option><option value="cashier" {% if member.role == 'cashier' %}selected{% endif %}>كاشير</option><option value="kitchen" {% if member.role == 'kitchen' %}selected{% endif %}>مطبخ</option><option value="waiter" {% if member.role == 'waiter' %}selected{% endif %}>ويتر</option></select><button class="text-button">حفظ الدور</button></form>{% endif %}
+      {% if membership.role == 'owner' or member.role != 'manager' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="branch"><input type="hidden" name="membership_id" value="{{ member.pk }}"><select name="branch_id" aria-label="فرع {{ member.user.email }}">{% for choice in available_branches %}<option value="{{ choice.pk }}">{{ choice.name }}</option>{% endfor %}</select><button class="text-button">تغيير الفرع</button></form><form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="membership_id" value="{{ member.pk }}"><button class="text-button">{% if member.active %}تعطيل{% else %}تفعيل{% endif %}</button></form>{% endif %}
+    </div>{% endif %}
+  </div>{% endfor %}
+  </div>
+</section>
+{% endblock %}
