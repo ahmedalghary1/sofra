@@ -216,12 +216,28 @@ def dashboard(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     orders = Order.objects.filter(branch=branch)
+    setup_steps = None
+    if membership.role in ('owner', 'manager'):
+        setup_steps = [
+            {'label': 'أكمل وصف المطعم', 'done': bool(restaurant.description.strip()), 'url': 'restaurant_settings',
+             'hint': 'عرّف الضيف بمطعمك في صفحة المنيو.'},
+            {'label': 'أضف صنفًا متاحًا في المنيو',
+             'done': MenuItem.objects.filter(category__branch=branch, category__visible=True, available=True).exists(),
+             'url': 'manage_menu', 'hint': 'يمكن للضيف طلب الأصناف المتاحة فقط.'},
+            {'label': 'جهّز طاولة نشطة', 'done': branch.tables.filter(active=True).exists(),
+             'url': 'manage_tables', 'hint': 'حمّل رمز QR وضعه على الطاولة.'},
+            {'label': 'عيّن موظفًا للمطبخ',
+             'done': Membership.objects.filter(restaurant=restaurant, role='kitchen', active=True,
+                                               branches=branch, user__is_active=True).exists(),
+             'url': 'staff', 'hint': 'افتح شاشة المطبخ على جهاز الموظف بعد تعيينه.'},
+        ]
     return shell(request, restaurant, membership, 'dashboard',
         recent=orders.select_related('table').prefetch_related('lines')[:6],
         today_orders=orders.filter(created_at__date=timezone.localdate()).count(),
         open_orders=orders.exclude(status__in=['served','cancelled']).count(),
         open_calls=ServiceCall.objects.filter(table__branch=branch, status__in=['open','acknowledged','in_progress']).count(),
-        tables_count=branch.tables.count(), items_count=MenuItem.objects.filter(category__branch=branch).count())
+        tables_count=branch.tables.count(), items_count=MenuItem.objects.filter(category__branch=branch).count(),
+        setup_steps=setup_steps, setup_done=sum(step['done'] for step in setup_steps) if setup_steps else 0)
 
 def manage_menu(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])

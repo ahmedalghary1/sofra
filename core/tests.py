@@ -441,3 +441,33 @@ class SafraTests(TestCase):
             response = self.client.post(endpoint,{'email':self.owner.email})
             self.assertRedirects(response,reverse('password_reset_done'))
         self.assertEqual(len(mail.outbox),5)
+
+    def test_onboarding_steps_follow_current_branch_data(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('dashboard', args=[self.restaurant.slug])
+        response = self.client.get(endpoint)
+        self.assertEqual(response.context['setup_done'], 2)
+        self.assertContains(response, 'جهّز الفرع الرئيسي')
+        self.restaurant.description = 'مطبخ مصري'
+        self.restaurant.save(update_fields=['description'])
+        chef = User.objects.create_user(username='chef@example.com', password='StrongPass!123')
+        chef_membership = Membership.objects.create(user=chef, restaurant=self.restaurant, role='kitchen')
+        second_branch = Branch.objects.create(restaurant=self.restaurant, name='الثاني')
+        chef_membership.branches.add(second_branch)
+        self.assertEqual(self.client.get(endpoint).context['setup_done'], 3)
+        chef_membership.branches.set([self.branch])
+        response = self.client.get(endpoint)
+        self.assertEqual(response.context['setup_done'], 4)
+        self.assertNotContains(response, 'setup-panel')
+        self.item.available = False
+        self.item.save(update_fields=['available'])
+        self.assertEqual(self.client.get(endpoint).context['setup_done'], 3)
+
+    def test_onboarding_is_hidden_from_non_manager(self):
+        waiter = User.objects.create_user(username='waiter@example.com', password='StrongPass!123')
+        membership = Membership.objects.create(user=waiter, restaurant=self.restaurant, role='waiter')
+        membership.branches.add(self.branch)
+        self.client.login(username=waiter.username, password='StrongPass!123')
+        response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'setup-panel')

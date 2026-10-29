@@ -1,0 +1,7 @@
+{% if setup_steps and setup_done < 4 %}
+<section class="panel setup-panel" aria-labelledby="setup-title">
+  <div class="panel-head"><div><span class="eyebrow">البدء في التشغيل</span><h2 id="setup-title">جهّز {{ branch.name }}</h2><p>هذه الخطوات تُحسب من بيانات الفرع الحالية.</p></div><strong class="setup-count">{{ setup_done }} / 4</strong></div>
+  <div class="setup-progress" role="progressbar" aria-label="اكتمال إعداد الفرع" aria-valuemin="0" aria-valuemax="4" aria-valuenow="{{ setup_done }}"><span style="width:{% widthratio setup_done 4 100 %}%"></span></div>
+  <div class="setup-list">{% for step in setup_steps %}<a href="{% url step.url restaurant.slug %}" class="setup-step {% if step.done %}is-done{% endif %}"><span class="setup-check" aria-hidden="true">{% if step.done %}✓{% else %}{{ forloop.counter }}{% endif %}</span><span><strong>{{ step.label }}</strong><small>{{ step.hint }}</small></span><b aria-hidden="true">←</b></a>{% endfor %}</div>
+</section>
+{% endif %}
