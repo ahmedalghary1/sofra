@@ -1,0 +1,15 @@
+{% extends 'app_base.html' %}
+{% block title %}الإعدادات{% endblock %}{% block crumb %}الإعدادات{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">إعدادات المطعم</span><h1>الإعدادات</h1><p>بيانات المطعم وحالة استقبال الطلبات في {{ branch.name }}.</p></div></div>
+{% if not restaurant.active %}<div class="account-notice"><strong>المطعم معلق حاليًا</strong><p>البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة.</p></div>{% elif not subscription.valid %}<div class="account-notice"><strong>انتهت فترة الاشتراك أو التجربة</strong><p>يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة.</p></div>{% elif over_limit %}<div class="account-notice"><strong>الاستخدام أعلى من حدود الباقة الحالية</strong><p>بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام.</p></div>{% endif %}
+<div class="two-cols">
+  <section class="panel"><div class="panel-head"><div><h2>{{ restaurant.name }}</h2><p>{{ branch.name }}</p></div></div>
+    <form method="post" class="stack-form compact">{% csrf_token %}<label>وصف يظهر في المنيو<input name="description" value="{{ restaurant.description }}" maxlength="240" placeholder="جملة قصيرة عن مطعمك"></label><label class="check-row"><input type="checkbox" name="accepting_orders" {% if branch.accepting_orders %}checked{% endif %}> استقبال طلبات جديدة من طاولات هذا الفرع</label><button class="btn btn-primary">حفظ الإعدادات</button></form>
+  </section>
+  <section class="panel subscription-panel"><div class="panel-head"><div><h2>الباقة الحالية</h2><p>الحدود الفعلية والاستخدام الحالي</p></div></div>
+    <div class="plan-icon">✳</div><h3>{{ subscription.plan.name }}</h3><p>الحالة: {{ subscription.get_status_display }}</p><p>تنتهي في {{ subscription.ends_at|date:'j F Y' }}</p>
+    <div class="plan-limits"><span>الفروع <b>{{ usage.branches }} / {{ subscription.plan.max_branches }}</b></span><span>طاولات هذا الفرع <b>{{ usage.tables }} / {{ subscription.plan.max_tables }}</b></span><span>أصناف هذا الفرع <b>{{ usage.items }} / {{ subscription.plan.max_items }}</b></span><span>أعضاء الفريق <b>{{ usage.staff }} / {{ subscription.plan.max_staff }}</b></span></div>
+  </section>
+</div>
+{% endblock %}

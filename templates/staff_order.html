@@ -1,0 +1,14 @@
+{% extends 'app_base.html' %}{% load static %}
+{% block title %}طلب جديد{% endblock %}{% block crumb %}الطلبات / طلب جديد{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">طلب من فريق العمل</span><h1>أنشئ طلبًا جديدًا</h1><p>اختر الطاولة والأصناف، وستُحسب الأسعار من المنيو الحالي.</p></div><a class="btn btn-outline" href="{% url 'manage_orders' restaurant.slug %}">العودة للطلبات</a></div>
+<section class="panel staff-order-select"><label for="staffTable">الطاولة</label><select id="staffTable" required><option value="">اختر طاولة الطلب</option>{% for table in tables %}<option value="{{ table.pk }}">{{ table.name }}</option>{% endfor %}</select><small>الفرع: {{ branch.name }}</small></section>
+<div class="guest-section-head"><span class="eyebrow">قائمة الطعام</span><h2>أضف الأصناف للسلة</h2><p>تستطيع إضافة أكثر من صنف واختيار الإضافات والكمية.</p></div>
+<div class="category-pills" id="categoryPills"><button class="active" data-category="all">كل الأصناف</button>{% for category in categories %}<button data-category="{{ category.pk }}">{{ category.name }}</button>{% endfor %}</div>
+<div class="food-grid" id="foodGrid">{% for category in categories %}{% for item in category.items.all %}{% if item.available %}<article class="food-card" data-category="{{ category.pk }}" data-item="{{ item.pk }}"><div class="food-card-image">{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.name }}">{% else %}<span>✳</span>{% endif %}</div><div class="food-card-copy"><span class="food-card-category">{{ category.name }}</span><h3>{{ item.name }}</h3><p>{{ item.description|default:'طبق محضّر بعناية' }}</p><div class="food-card-bottom"><strong>{{ item.price }} <small>ج.م</small></strong><button class="add-item" data-id="{{ item.pk }}" aria-label="أضف {{ item.name }}">＋</button></div></div></article>{% endif %}{% endfor %}{% endfor %}</div>
+{% if not items_json %}<div class="panel empty-state"><span>◈</span><h3>المنيو فارغ</h3><p>أضف أصنافًا متاحة قبل إنشاء طلب.</p></div>{% endif %}
+<div class="cart-bar" id="cartBar" hidden><span><b id="cartCount">0</b> أصناف في سلتك</span><button id="openCart">راجع الطلب <span id="cartTotal">0</span> ج.م ←</button></div>
+<div class="modal-backdrop" id="modalBackdrop" hidden><div class="guest-modal" role="dialog" aria-modal="true"><button class="modal-close" id="closeModal" aria-label="إغلاق">×</button><div id="modalContent"></div></div></div>
+{{ items_json|json_script:'menu-data' }}
+<script>window.SAFRA={orderUrl:'{% url "staff_order" restaurant.slug %}',csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},staffMode:true};</script><script src="{% static 'js/guest.js' %}"></script>
+{% endblock %}

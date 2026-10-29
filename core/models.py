@@ -100,6 +100,7 @@ class Order(models.Model):
     source = models.CharField(max_length=8, choices=[('qr','QR'),('staff','موظف')], default='qr')
     status = models.CharField(max_length=12, choices=STATUSES, default='new')
     payment_status = models.CharField(max_length=10, choices=[('unpaid','غير مدفوع'),('paid','مدفوع')], default='unpaid')
+    paid_at = models.DateTimeField(null=True, blank=True)
     total = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.CharField(max_length=500, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
@@ -133,6 +134,8 @@ class ServiceCall(models.Model):
     status = models.CharField(max_length=14, choices=[('open','جديد'),('acknowledged','تم الاستلام'),('in_progress','قيد التنفيذ'),('done','مكتمل'),('cancelled','ملغي')], default='open')
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         constraints = [models.UniqueConstraint(fields=['table','kind'], condition=models.Q(status__in=['open','acknowledged','in_progress']), name='unique_active_service_call')]
@@ -143,3 +146,9 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=80)
     detail = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class LoginAttempt(models.Model):
+    key = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        indexes = [models.Index(fields=['key','created_at'])]

@@ -108,13 +108,30 @@ def advance_order(order, actor, status, reason=''):
     return order
 
 @transaction.atomic
+def record_manual_payment(order, actor):
+    order = Order.objects.select_for_update().get(pk=order.pk)
+    if order.status == 'cancelled':
+        raise ValidationError('لا يمكن تسجيل تحصيل لطلب ملغي.')
+    if order.payment_status == 'paid':
+        raise ValidationError('تم تسجيل تحصيل هذا الطلب بالفعل.')
+    order.payment_status = 'paid'
+    order.paid_at = timezone.now()
+    order.save(update_fields=['payment_status','paid_at','updated_at'])
+    audit(order.branch.restaurant, actor, 'order.payment.manual', str(order.pk))
+    return order
+
+@transaction.atomic
 def advance_call(call, actor, status):
     call = ServiceCall.objects.select_for_update().get(pk=call.pk)
     if CALL_NEXT.get(call.status) != status:
         raise ValidationError('الانتقال إلى هذه الحالة غير مسموح.')
     call.status = status
-    if status == 'acknowledged': call.assigned_to = actor
-    call.save(update_fields=['status', 'assigned_to', 'updated_at'])
+    if status == 'acknowledged':
+        call.assigned_to = actor
+        call.acknowledged_at = timezone.now()
+    if status == 'done':
+        call.done_at = timezone.now()
+    call.save(update_fields=['status', 'assigned_to', 'acknowledged_at', 'done_at', 'updated_at'])
     audit(call.table.branch.restaurant, actor, 'call.status', f'{call.pk}: {status}')
     return call
 

@@ -8,6 +8,8 @@ DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 if not DEBUG and SECRET_KEY == 'dev-only-change-this-key-before-deployment':
     raise RuntimeError('Set DJANGO_SECRET_KEY before running in production.')
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+if not DEBUG and not os.getenv('DJANGO_ALLOWED_HOSTS'):
+    raise RuntimeError('Set DJANGO_ALLOWED_HOSTS before running in production.')
 CSRF_TRUSTED_ORIGINS = [x for x in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if x]
 INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'core']
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
@@ -39,6 +41,8 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = not DEBUG and os.getenv('DJANGO_SECURE_SSL_REDIRECT', '1') == '1'
 SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+if os.getenv('DJANGO_TRUST_PROXY_TLS', '0') == '1':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 PASSWORD_RESET_TIMEOUT = 3600
 DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'Sofra <no-reply@example.com>')
 EMAIL_BACKEND = ('django.core.mail.backends.console.EmailBackend' if DEBUG
