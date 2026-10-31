@@ -22,6 +22,7 @@ urlpatterns = [
     path('platform/<int:restaurant_id>/update/', views.platform_update_restaurant, name='platform_update_restaurant'),
     path('app/<slug:slug>/', views.dashboard, name='dashboard'),
     path('app/<slug:slug>/menu/', views.manage_menu, name='manage_menu'),
+    path('app/<slug:slug>/menu/import/', views.menu_import, name='menu_import'),
     path('app/<slug:slug>/tables/', views.manage_tables, name='manage_tables'),
     path('app/<slug:slug>/orders/', views.manage_orders, name='manage_orders'),
     path('app/<slug:slug>/orders/new/', views.staff_order, name='staff_order'),

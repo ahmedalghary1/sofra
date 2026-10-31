@@ -1,0 +1,14 @@
+{% extends 'app_base.html' %}
+{% block title %}استيراد المنيو{% endblock %}{% block crumb %}المنيو / استيراد{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">إدارة المنيو · {{ branch.name }}</span><h1>استيراد الأصناف</h1><p>ارفع ملف CSV لمراجعة الأصناف قبل إضافتها إلى منيو هذا الفرع.</p></div><a class="btn btn-outline" href="{% url 'manage_menu' restaurant.slug %}">العودة للمنيو</a></div>
+<div class="two-cols"><section class="panel"><div class="panel-head"><div><h2>ارفع الملف</h2><p>المتاح في الباقة: {{ remaining }} صنف. الحد الأقصى 200 سطر و1 ميجابايت.</p></div></div>
+  <form method="post" enctype="multipart/form-data" class="stack-form compact">{% csrf_token %}<input type="hidden" name="action" value="preview"><label>ملف CSV بترميز UTF-8<input type="file" name="file" accept=".csv,text/csv" required></label><button class="btn btn-primary">اعرض المعاينة</button></form>
+  <a class="text-link" href="{% url 'menu_import' restaurant.slug %}?template=1">تنزيل قالب CSV جاهز ↓</a>
+  <p class="form-hint">الأعمدة بالترتيب: <code>category,name,price,description</code>. الوصف اختياري، والسعر بالجنيه المصري بدقتين عشريتين. الاستيراد ينشئ التصنيفات الناقصة داخل هذا الفرع.</p>
+</section><section class="panel"><div class="panel-head"><div><h2>قبل الاعتماد</h2><p>تُراجع كل الصفوف أولًا، ثم تُضاف دفعة واحدة.</p></div></div><div class="plan-limits"><span>1. نزّل القالب وأدخل البيانات.</span><span>2. ارفع الملف وصحّح الأخطاء المعروضة.</span><span>3. راجع الأصناف والأسعار ثم اضغط اعتماد.</span></div></section></div>
+{% if errors %}<div class="account-notice import-errors" role="alert"><strong>تعذر اعتماد الملف</strong>{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+{% if rows %}<section class="panel spaced-panel"><div class="panel-head"><div><h2>معاينة {{ rows|length }} صنف</h2><p>المعاينة صالحة 15 دقيقة. لا تُضاف الأصناف قبل الاعتماد.</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>التصنيف</th><th>الصنف</th><th>السعر</th><th>الوصف</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.category }}</td><td>{{ row.name }}</td><td>{{ row.price }} ج.م</td><td>{{ row.description|default:'—' }}</td></tr>{% endfor %}</tbody></table></div>
+  {% if batch and not errors %}<form method="post" class="import-commit">{% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="batch" value="{{ batch.token }}"><button class="btn btn-primary">اعتماد واستيراد {{ rows|length }} صنف</button></form>{% endif %}
+</section>{% endif %}
+{% endblock %}

@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import secrets
+import uuid
 from datetime import timedelta
 from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
@@ -23,10 +24,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
+from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
 from .services import advance_call, advance_order, audit, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm
+from .menu_import import commit_menu_import, parse_menu_csv
 
 def error_text(exc): return ' '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
 def health(request): return JsonResponse({'status': 'ok'})
@@ -352,6 +354,54 @@ def manage_menu(request, slug):
     categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'menu_manage', categories=categories,
                  item_count=MenuItem.objects.filter(category__branch=branch).count(), limit=restaurant.subscription.plan.max_items)
+
+def menu_import(request, slug):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
+    if denied: return denied
+    branch = branch_for(request, restaurant, membership)
+    if request.method == 'GET' and request.GET.get('template') == '1':
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="safra-menu-template.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response)
+        writer.writerow(['category', 'name', 'price', 'description'])
+        writer.writerow(['الأطباق الرئيسية', 'طبق تجريبي', '120.00', 'وصف اختياري'])
+        return response
+    remaining = max(0, restaurant.subscription.plan.max_items - MenuItem.objects.filter(category__branch=branch).count())
+    errors, rows, batch = [], [], None
+    if request.method == 'POST':
+        try:
+            ensure_active_subscription(restaurant)
+            if not branch.active:
+                raise ValidationError('الفرع متوقف حاليًا.')
+            action = request.POST.get('action')
+            if action == 'preview':
+                if MenuImportBatch.objects.filter(user=request.user,
+                        created_at__gte=timezone.now()-timedelta(hours=1)).count() >= 10:
+                    raise ValidationError('بلغت حد المعاينات المؤقتة. حاول لاحقًا.')
+                rows, errors = parse_menu_csv(request.FILES.get('file'))
+                if not errors and len(rows) > remaining:
+                    errors.append(f'الملف يحتوي {len(rows)} صنفًا، والمتاح في الباقة {remaining}.')
+                if not errors:
+                    batch = MenuImportBatch.objects.create(branch=branch, user=request.user, rows=rows)
+            elif action == 'commit':
+                try:
+                    token = uuid.UUID(request.POST.get('batch', ''))
+                except (ValueError, TypeError):
+                    raise ValidationError('معاينة الاستيراد غير صالحة.')
+                batch = get_object_or_404(MenuImportBatch, token=token, branch=branch, user=request.user)
+                rows = batch.rows
+                count = commit_menu_import(batch, request.user)
+                messages.success(request, f'تم استيراد {count} صنف.' if count else 'هذه الدفعة اعتُمدت سابقًا.')
+                return redirect('manage_menu', slug=slug)
+            else:
+                raise ValidationError('إجراء الاستيراد غير معروف.')
+        except ValidationError as exc:
+            errors = [error_text(exc)]
+        except IntegrityError:
+            errors = ['تغيرت بيانات المنيو أثناء الاستيراد. راجع الملف وحاول مجددًا.']
+    return shell(request, restaurant, membership, 'menu_import', errors=errors, rows=rows,
+                 batch=batch, remaining=remaining)
 
 def manage_tables(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])

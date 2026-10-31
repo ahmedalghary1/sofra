@@ -7,11 +7,12 @@ from django.contrib.auth.models import User
 from django.contrib.admin.models import LogEntry
 from django.core import mail
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, Subscription
 from .services import advance_call, advance_order, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
@@ -622,3 +623,56 @@ class SafraTests(TestCase):
         self.assertEqual(self.client.get(reverse('order_edit', args=[self.other_restaurant.slug, order.pk])).status_code, 403)
         self.client.login(username=self.other.username, password='StrongPass!123')
         self.assertEqual(self.client.get(reverse('order_edit', args=[self.other_restaurant.slug, order.pk])).status_code, 404)
+
+    def test_menu_import_preview_commit_and_replay(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('menu_import', args=[self.restaurant.slug])
+        template = self.client.get(endpoint + '?template=1')
+        self.assertEqual(template.status_code, 200)
+        self.assertIn(b'category,name,price,description', template.content)
+        content = 'category,name,price,description\nمشروبات,عصير,25.50,طازج\nأطباق,أرز,40.00,\n'
+        upload = SimpleUploadedFile('menu.csv', content.encode('utf-8'), content_type='text/csv')
+        preview = self.client.post(endpoint, {'action': 'preview', 'file': upload})
+        self.assertEqual(preview.status_code, 200)
+        batch = preview.context['batch']
+        self.assertIsNotNone(batch)
+        self.assertEqual(MenuItem.objects.count(), 1)
+        commit = self.client.post(endpoint, {'action': 'commit', 'batch': str(batch.token)})
+        self.assertEqual(commit.status_code, 302)
+        self.assertEqual(MenuItem.objects.filter(category__branch=self.branch).count(), 3)
+        self.assertTrue(Category.objects.filter(branch=self.branch, name='مشروبات').exists())
+        self.assertEqual(self.client.post(endpoint, {'action': 'commit', 'batch': str(batch.token)}).status_code, 302)
+        self.assertEqual(MenuItem.objects.count(), 3)
+        self.assertEqual(AuditLog.objects.filter(action='menu.import', restaurant=self.restaurant).count(), 1)
+
+    def test_menu_import_rejects_bad_rows_and_plan_change_atomically(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('menu_import', args=[self.restaurant.slug])
+        bad = SimpleUploadedFile('bad.csv', b'category,name,price,description\nDrinks,Tea,NaN,\n')
+        response = self.client.post(endpoint, {'action': 'preview', 'file': bad})
+        self.assertContains(response, 'السعر يجب أن يكون')
+        self.assertIsNone(response.context['batch'])
+        self.assertEqual(MenuImportBatch.objects.count(), 0)
+        content = b'category,name,price,description\nDrinks,Tea,20.00,\nDrinks,Coffee,30.00,\n'
+        preview = self.client.post(endpoint, {'action': 'preview', 'file': SimpleUploadedFile('ok.csv', content)})
+        batch = preview.context['batch']
+        plan = self.restaurant.subscription.plan
+        plan.max_items = 2; plan.save(update_fields=['max_items'])
+        response = self.client.post(endpoint, {'action': 'commit', 'batch': str(batch.token)})
+        self.assertContains(response, 'يتجاوز حد الأصناف')
+        self.assertEqual(MenuItem.objects.count(), 1)
+        self.assertFalse(Category.objects.filter(branch=self.branch, name='Drinks').exists())
+        batch.refresh_from_db()
+        self.assertIsNone(batch.committed_at)
+
+    def test_menu_import_batch_cannot_cross_restaurants(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('menu_import', args=[self.restaurant.slug])
+        upload = SimpleUploadedFile('menu.csv', b'category,name,price,description\nDrinks,Tea,20.00,\n')
+        batch = self.client.post(endpoint, {'action': 'preview', 'file': upload}).context['batch']
+        Subscription.objects.create(restaurant=self.other_restaurant,
+            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        other_endpoint = reverse('menu_import', args=[self.other_restaurant.slug])
+        self.assertEqual(self.client.post(other_endpoint, {'action': 'commit', 'batch': str(batch.token)}).status_code, 404)
+        self.assertEqual(MenuItem.objects.count(), 1)

@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -80,6 +81,14 @@ class MenuSize(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['item', 'name'], name='unique_item_size')]
     def __str__(self): return f'{self.item.name} · {self.name}'
+
+class MenuImportBatch(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='menu_imports')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rows = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    committed_at = models.DateTimeField(null=True, blank=True)
 
 class ModifierGroup(models.Model):
     item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='modifier_groups')

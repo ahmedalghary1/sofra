@@ -1,7 +1,7 @@
 {% extends 'app_base.html' %}
 {% block title %}قائمة الطعام{% endblock %}{% block crumb %}قائمة الطعام{% endblock %}
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">إدارة المنيو</span><h1>قائمة الطعام</h1><p>نظّم أصناف {{ branch.name }} وقدّم لضيوفك منيو واضحًا ومحدّثًا.</p></div><span class="usage-pill">{{ item_count }} / {{ limit }} صنف</span></div>
+<div class="page-head"><div><span class="eyebrow">إدارة المنيو</span><h1>قائمة الطعام</h1><p>نظّم أصناف {{ branch.name }} وقدّم لضيوفك منيو واضحًا ومحدّثًا.</p></div><div class="page-actions"><span class="usage-pill">{{ item_count }} / {{ limit }} صنف</span><a class="btn btn-outline btn-sm" href="{% url 'menu_import' restaurant.slug %}">استيراد CSV ↓</a></div></div>
 <div class="two-cols">
   <section class="panel"><div class="panel-head"><div><h2>أضف تصنيفًا</h2><p>مثل المقبلات أو الأطباق الرئيسية</p></div></div><form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="category"><input name="name" maxlength="80" placeholder="اسم التصنيف" required><button class="btn btn-dark">إضافة</button></form></section>
   <section class="panel"><div class="panel-head"><div><h2>أضف صنفًا جديدًا</h2><p>السعر والوصف يظهران في منيو الضيوف</p></div></div>
