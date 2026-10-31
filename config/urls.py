@@ -25,6 +25,7 @@ urlpatterns = [
     path('app/<slug:slug>/tables/', views.manage_tables, name='manage_tables'),
     path('app/<slug:slug>/orders/', views.manage_orders, name='manage_orders'),
     path('app/<slug:slug>/orders/new/', views.staff_order, name='staff_order'),
+    path('app/<slug:slug>/orders/<int:order_id>/edit/', views.order_edit, name='order_edit'),
     path('app/<slug:slug>/kitchen/', views.kitchen, name='kitchen'),
     path('app/<slug:slug>/kitchen/feed/', views.kitchen_feed, name='kitchen_feed'),
     path('app/<slug:slug>/calls/', views.manage_calls, name='manage_calls'),

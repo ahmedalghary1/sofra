@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
-from .services import advance_call, advance_order, audit, create_order, create_service_call, record_manual_payment
+from .services import advance_call, advance_order, audit, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm
 
@@ -433,6 +433,29 @@ def staff_order(request, slug):
     return shell(request, restaurant, membership, 'staff_order', categories=categories,
                  items_json=serialize_menu_items(categories), tables=branch.tables.filter(active=True),
                  accepting=restaurant.active and branch.active and branch.accepting_orders and restaurant.subscription.valid())
+
+def order_edit(request, slug, order_id):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager', 'cashier', 'waiter'])
+    if denied: return denied
+    branch = branch_for(request, restaurant, membership)
+    order = get_object_or_404(Order.objects.select_related('table').prefetch_related('lines', 'revisions'),
+                              pk=order_id, branch=branch)
+    if request.method == 'POST':
+        try:
+            updated = edit_order(order, request.user, json.loads(request.body))
+            return JsonResponse({'ok': True, 'order_url': reverse('manage_orders', args=[slug]),
+                                 'version': updated.version})
+        except (json.JSONDecodeError, ValidationError) as exc:
+            return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
+    existing = [{'id': line.pk, 'item_name': line.item_name, 'size_name': line.size_name,
+                 'quantity': line.quantity, 'unit_price': str(line.unit_price),
+                 'modifiers': [mod['name'] for mod in line.modifiers]}
+                for line in order.lines.all()]
+    categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
+    return shell(request, restaurant, membership, 'order_edit', order=order, existing_json=existing,
+                 categories=categories, items_json=serialize_menu_items(categories),
+                 can_edit=order.status in ('new', 'accepted') and order.payment_status == 'unpaid'
+                          and restaurant.active and branch.active and restaurant.subscription.valid())
 
 def kitchen(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','kitchen'])

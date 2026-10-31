@@ -11,8 +11,8 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, Plan, Restaurant, ServiceCall, Subscription
-from .services import advance_call, advance_order, create_order, create_service_call
+from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, Subscription
+from .services import advance_call, advance_order, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
     def setUp(self):
@@ -564,3 +564,61 @@ class SafraTests(TestCase):
             'name': 'مخترق', 'price': '1'}).status_code, 404)
         size.refresh_from_db()
         self.assertEqual(size.name, 'وسط')
+
+    def test_order_edit_preserves_existing_prices_and_records_revision(self):
+        order = create_order(self.table, self.payload())
+        old_line = order.lines.get()
+        self.item.price = Decimal('150.00'); self.item.save(update_fields=['price'])
+        second = MenuItem.objects.create(category=self.category, name='مشروب', price=Decimal('50.00'))
+        key = str(uuid.uuid4())
+        change = {'edit_key': key, 'expected_version': 0, 'reason': 'تغيير طلب العميل',
+                  'existing': [{'id': old_line.pk, 'quantity': 1}],
+                  'add': [{'item_id': second.pk, 'quantity': 1, 'options': []}]}
+        edited = edit_order(order, self.owner, change)
+        self.assertEqual((edited.total, edited.version), (Decimal('150.00'), 1))
+        old_line.refresh_from_db()
+        self.assertEqual((old_line.unit_price, old_line.line_total), (Decimal('100.00'), Decimal('100.00')))
+        revision = OrderRevision.objects.get(order=order)
+        self.assertEqual((revision.old_total, revision.new_total), (Decimal('200.00'), Decimal('150.00')))
+        self.assertEqual(revision.before[0]['quantity'], 2)
+        self.assertEqual(len(revision.after), 2)
+        self.assertEqual(edit_order(order, self.owner, change).pk, order.pk)
+        self.assertEqual(OrderRevision.objects.filter(order=order).count(), 1)
+        with self.assertRaises(ValidationError): edit_order(order, self.owner, {**change, 'reason': 'تغيير آخر'})
+        with self.assertRaises(ValidationError): edit_order(order, self.owner, {**change, 'edit_key': str(uuid.uuid4())})
+
+    def test_order_edit_rejects_paid_preparing_and_foreign_lines(self):
+        order = create_order(self.table, self.payload())
+        foreign_table = DiningTable.objects.create(branch=self.other_branch, name='بعيدة')
+        foreign_category = Category.objects.create(branch=self.other_branch, name='منيو')
+        foreign_item = MenuItem.objects.create(category=foreign_category, name='غريب', price=10)
+        foreign_order = create_order(foreign_table, {'idempotency_key': str(uuid.uuid4()),
+            'lines': [{'item_id': foreign_item.pk, 'quantity': 1, 'options': []}]})
+        change = {'edit_key': str(uuid.uuid4()), 'expected_version': 0, 'reason': 'تعديل تجريبي',
+                  'existing': [{'id': foreign_order.lines.get().pk, 'quantity': 1}], 'add': []}
+        with self.assertRaises(ValidationError): edit_order(order, self.owner, change)
+        self.assertEqual(order.total, Decimal('200.00'))
+        change['existing'] = [{'id': order.lines.get().pk, 'quantity': 1}]
+        order.payment_status = 'paid'; order.save(update_fields=['payment_status'])
+        with self.assertRaises(ValidationError): edit_order(order, self.owner, change)
+        order.payment_status = 'unpaid'; order.status = 'preparing'
+        order.save(update_fields=['payment_status', 'status'])
+        with self.assertRaises(ValidationError): edit_order(order, self.owner, change)
+        self.assertEqual(OrderRevision.objects.count(), 0)
+
+    def test_order_edit_endpoint_scopes_branch_and_refreshes_kitchen(self):
+        order = create_order(self.table, self.payload())
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('order_edit', args=[self.restaurant.slug, order.pk])
+        self.assertContains(self.client.get(endpoint), 'سبب التعديل')
+        before = self.client.get(reverse('kitchen_feed', args=[self.restaurant.slug])).json()['signature']
+        change = {'edit_key': str(uuid.uuid4()), 'expected_version': 0, 'reason': 'تعديل الكمية',
+                  'existing': [{'id': order.lines.get().pk, 'quantity': 1}], 'add': []}
+        response = self.client.post(endpoint, data=json.dumps(change), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal('100.00'))
+        self.assertNotEqual(before, self.client.get(reverse('kitchen_feed', args=[self.restaurant.slug])).json()['signature'])
+        self.assertEqual(self.client.get(reverse('order_edit', args=[self.other_restaurant.slug, order.pk])).status_code, 403)
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertEqual(self.client.get(reverse('order_edit', args=[self.other_restaurant.slug, order.pk])).status_code, 404)

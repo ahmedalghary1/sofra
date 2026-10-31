@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import AuditLog, Branch, Category, DiningTable, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, Subscription
 
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
@@ -61,6 +61,6 @@ class AuditAdmin(ReadOnlyAdmin):
     list_filter = ('action',)
     readonly_fields = ('restaurant','actor','action','detail','created_at')
 
-for model in (Branch,Category,DiningTable,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,ServiceCall):
+for model in (Branch,Category,DiningTable,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,OrderRevision,ServiceCall):
     if not admin.site.is_registered(model):
         admin.site.register(model, ReadOnlyAdmin)

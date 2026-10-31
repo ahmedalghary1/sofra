@@ -116,6 +116,7 @@ class Order(models.Model):
     paid_at = models.DateTimeField(null=True, blank=True)
     total = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.CharField(max_length=500, blank=True)
+    version = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -142,6 +143,21 @@ class OrderHistory(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     reason = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class OrderRevision(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='revisions')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    key = models.UUIDField()
+    request_hash = models.CharField(max_length=64)
+    version = models.PositiveIntegerField()
+    reason = models.CharField(max_length=240)
+    old_total = models.DecimalField(max_digits=10, decimal_places=2)
+    new_total = models.DecimalField(max_digits=10, decimal_places=2)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['order', 'key'], name='unique_order_revision_key')]
 
 class ServiceCall(models.Model):
     table = models.ForeignKey(DiningTable, on_delete=models.PROTECT, related_name='calls')

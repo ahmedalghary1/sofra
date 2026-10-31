@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .models import AuditLog, MenuItem, ModifierOption, Order, OrderHistory, OrderLine, ServiceCall
+from .models import AuditLog, MenuItem, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, ServiceCall
 
 ORDER_NEXT = {'new': 'accepted', 'accepted': 'preparing', 'preparing': 'ready', 'ready': 'served'}
 CALL_NEXT = {'open': 'acknowledged', 'acknowledged': 'in_progress', 'in_progress': 'done'}
@@ -14,30 +14,9 @@ CALL_NEXT = {'open': 'acknowledged', 'acknowledged': 'in_progress', 'in_progress
 def audit(restaurant, actor, action, detail=''):
     AuditLog.objects.create(restaurant=restaurant, actor=actor, action=action, detail=detail[:240])
 
-def create_order(table, payload, user=None):
-    if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
-        raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
-    subscription = getattr(table.branch.restaurant, 'subscription', None)
-    if subscription and not subscription.valid():
-        raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
-    try:
-        key = uuid.UUID(str(payload['idempotency_key']))
-    except (KeyError, ValueError, TypeError):
-        raise ValidationError('تعذر التحقق من الطلب. حدّث الصفحة وحاول مجددًا.')
-    raw_lines = payload.get('lines', [])
-    if not isinstance(raw_lines, list) or not 1 <= len(raw_lines) <= 40:
+def normalize_order_lines(table, raw_lines, allow_empty=False):
+    if not isinstance(raw_lines, list) or len(raw_lines) > 40 or (not raw_lines and not allow_empty):
         raise ValidationError('أضف صنفًا واحدًا على الأقل للسلة.')
-    note = str(payload.get('note', '')).strip()
-    if len(note) > 500:
-        raise ValidationError('الملاحظة طويلة جدًا.')
-    digest = hashlib.sha256(json.dumps({'lines': raw_lines, 'note': note}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    existing = Order.objects.filter(table=table, idempotency_key=key).first()
-    if existing:
-        if existing.request_hash != digest:
-            raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
-        return existing
-    if Order.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
-        raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
     normalized, total = [], Decimal('0.00')
     for line in raw_lines:
         try:
@@ -86,6 +65,33 @@ def create_order(table, payload, user=None):
         total += line_total
     if total > Decimal('99999999.99'):
         raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
+    return normalized, total
+
+def create_order(table, payload, user=None):
+    if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
+        raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
+    subscription = getattr(table.branch.restaurant, 'subscription', None)
+    if subscription and not subscription.valid():
+        raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
+    try:
+        key = uuid.UUID(str(payload['idempotency_key']))
+    except (KeyError, ValueError, TypeError):
+        raise ValidationError('تعذر التحقق من الطلب. حدّث الصفحة وحاول مجددًا.')
+    raw_lines = payload.get('lines', [])
+    if not isinstance(raw_lines, list) or not 1 <= len(raw_lines) <= 40:
+        raise ValidationError('أضف صنفًا واحدًا على الأقل للسلة.')
+    note = str(payload.get('note', '')).strip()
+    if len(note) > 500:
+        raise ValidationError('الملاحظة طويلة جدًا.')
+    digest = hashlib.sha256(json.dumps({'lines': raw_lines, 'note': note}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    existing = Order.objects.filter(table=table, idempotency_key=key).first()
+    if existing:
+        if existing.request_hash != digest:
+            raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
+        return existing
+    if Order.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
+        raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
+    normalized, total = normalize_order_lines(table, raw_lines)
     try:
         with transaction.atomic():
             order = Order.objects.create(branch=table.branch, table=table, idempotency_key=key,
@@ -102,6 +108,84 @@ def create_order(table, payload, user=None):
         if existing.request_hash != digest:
             raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
         return existing
+
+def revision_lines(order):
+    return [{'id': line.pk, 'item_name': line.item_name, 'size_name': line.size_name,
+             'base_price': str(line.base_price) if line.base_price is not None else None,
+             'unit_price': str(line.unit_price), 'quantity': line.quantity,
+             'modifiers': line.modifiers, 'line_total': str(line.line_total)}
+            for line in order.lines.order_by('pk')]
+
+@transaction.atomic
+def edit_order(order, actor, payload):
+    if not isinstance(payload, dict):
+        raise ValidationError('بيانات التعديل غير صالحة.')
+    try:
+        key = uuid.UUID(str(payload['edit_key']))
+    except (KeyError, ValueError, TypeError):
+        raise ValidationError('مفتاح التعديل غير صالح.')
+    reason = str(payload.get('reason', '')).strip()
+    if not 3 <= len(reason) <= 240:
+        raise ValidationError('اكتب سبب التعديل بين 3 و240 حرفًا.')
+    retained = payload.get('existing')
+    added = payload.get('add')
+    if not isinstance(retained, list) or not isinstance(added, list) or len(retained) + len(added) > 40:
+        raise ValidationError('تفاصيل التعديل غير صالحة.')
+    digest = hashlib.sha256(json.dumps({'existing': retained, 'add': added, 'reason': reason,
+                                        'expected_version': payload.get('expected_version')},
+                                       sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    order = Order.objects.select_for_update().select_related('table__branch__restaurant').get(pk=order.pk)
+    prior = OrderRevision.objects.filter(order=order, key=key).first()
+    if prior:
+        if prior.request_hash != digest:
+            raise ValidationError('مفتاح التعديل مستخدم لتغيير مختلف.')
+        return order
+    if order.status not in ('new', 'accepted') or order.payment_status != 'unpaid':
+        raise ValidationError('يمكن تعديل طلب جديد أو مستلم وغير مدفوع فقط. أنشئ طلبًا إضافيًا عند بدء التحضير.')
+    subscription = getattr(order.branch.restaurant, 'subscription', None)
+    if not order.branch.active or not order.branch.restaurant.active or not subscription or not subscription.valid():
+        raise ValidationError('التعديل متوقف لهذا المطعم حاليًا.')
+    if isinstance(payload.get('expected_version'), bool) or str(payload.get('expected_version')) != str(order.version):
+        raise ValidationError('تغير الطلب منذ فتح الصفحة. حدّث الصفحة وراجع التعديل مجددًا.')
+    current = {line.pk: line for line in order.lines.all()}
+    chosen = {}
+    for row in retained:
+        if not isinstance(row, dict) or isinstance(row.get('id'), bool) or isinstance(row.get('quantity'), bool):
+            raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
+        try:
+            line_id, quantity = int(row['id']), int(row['quantity'])
+        except (KeyError, ValueError, TypeError):
+            raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
+        if line_id not in current or line_id in chosen or not 1 <= quantity <= 30:
+            raise ValidationError('عنصر غير صالح أو كمية غير مسموحة.')
+        chosen[line_id] = quantity
+    if not chosen and not added:
+        raise ValidationError('يجب أن يحتوي الطلب على صنف واحد على الأقل.')
+    normalized, added_total = normalize_order_lines(order.table, added, allow_empty=True)
+    new_total = added_total + sum((current[line_id].unit_price * qty for line_id, qty in chosen.items()), Decimal('0.00'))
+    if new_total > Decimal('99999999.99'):
+        raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
+    before = revision_lines(order)
+    old_total = order.total
+    order.lines.exclude(pk__in=chosen).delete()
+    for line_id, qty in chosen.items():
+        line = current[line_id]
+        if line.quantity != qty:
+            line.quantity = qty
+            line.line_total = line.unit_price * qty
+            line.save(update_fields=['quantity', 'line_total'])
+    OrderLine.objects.bulk_create([OrderLine(order=order, item=item, item_name=item.name,
+        size_name=size_name, base_price=base_price, unit_price=unit,
+        quantity=quantity, modifiers=mods, line_total=subtotal)
+        for item, quantity, size_name, base_price, mods, unit, subtotal in normalized])
+    order.total = new_total
+    order.version += 1
+    order.save(update_fields=['total', 'version', 'updated_at'])
+    OrderRevision.objects.create(order=order, actor=actor, key=key, request_hash=digest,
+        version=order.version, reason=reason, old_total=old_total, new_total=new_total,
+        before=before, after=revision_lines(order))
+    audit(order.branch.restaurant, actor, 'order.edit', f'{order.pk}: {old_total} → {new_total}; {reason}')
+    return order
 
 @transaction.atomic
 def advance_order(order, actor, status, reason=''):
