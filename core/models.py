@@ -16,6 +16,7 @@ class Plan(models.Model):
 
 class Restaurant(models.Model):
     name = models.CharField(max_length=120)
+    name_en = models.CharField(max_length=120, blank=True)
     slug = models.SlugField(unique=True)
     description = models.CharField(max_length=240, blank=True)
     active = models.BooleanField(default=True)
@@ -26,6 +27,9 @@ class Branch(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.PROTECT, related_name='branches')
     name = models.CharField(max_length=120, default='الفرع الرئيسي')
     address = models.CharField(max_length=240, blank=True)
+    phone = models.CharField(max_length=24, blank=True)
+    opening_hours = models.CharField(max_length=160, blank=True)
+    show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
     def __str__(self): return f'{self.restaurant.name} · {self.name}'

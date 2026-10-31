@@ -471,3 +471,41 @@ class SafraTests(TestCase):
         response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'setup-panel')
+
+    def test_profile_validation_and_public_contact_opt_in(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('restaurant_settings', args=[self.restaurant.slug])
+        menu_url = reverse('public_menu', args=[self.table.public_token])
+        data = {'name': 'مطعم جديد', 'name_en': 'New Restaurant', 'description': 'وصف جديد',
+                'branch_name': 'وسط البلد', 'address': '١ شارع النيل', 'phone': '+20 100 123 4567',
+                'opening_hours': 'يوميًا ١٠–٢٢', 'accepting_orders': 'on'}
+        response = self.client.post(endpoint, {**data, 'phone': 'javascript:alert(1)'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'أدخل رقم تواصل صالحًا')
+        self.restaurant.refresh_from_db(); self.branch.refresh_from_db()
+        self.assertEqual(self.restaurant.name, 'مطعم سفرة')
+        self.assertEqual(self.branch.name, 'الفرع الرئيسي')
+        self.assertEqual(self.client.post(endpoint, data).status_code, 302)
+        self.branch.refresh_from_db(); self.restaurant.refresh_from_db()
+        self.assertEqual(self.branch.phone, '+20 100 123 4567')
+        self.assertFalse(self.branch.show_contact_on_menu)
+        self.assertNotContains(self.client.get(menu_url), '١ شارع النيل')
+        self.assertNotContains(self.client.get(menu_url), '+20 100 123 4567')
+        self.assertEqual(self.client.post(endpoint, {**data, 'show_contact_on_menu': 'on'}).status_code, 302)
+        response = self.client.get(menu_url)
+        self.assertContains(response, '١ شارع النيل')
+        self.assertContains(response, '+20 100 123 4567')
+        self.assertContains(response, 'New Restaurant')
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant, action='restaurant.settings').exists())
+
+    def test_profile_update_is_scoped_to_current_restaurant_and_branch(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        second = Branch.objects.create(restaurant=self.restaurant, name='فرع ثان')
+        data = {'name': 'سفرة', 'branch_name': 'الفرع الجديد', 'address': 'عنوان محلي',
+                'phone': '', 'description': '', 'opening_hours': ''}
+        endpoint = reverse('restaurant_settings', args=[self.restaurant.slug])
+        self.assertEqual(self.client.post(endpoint, data).status_code, 302)
+        second.refresh_from_db(); self.other_branch.refresh_from_db()
+        self.assertEqual(second.name, 'فرع ثان')
+        self.assertEqual(self.other_branch.address, '')
+        self.assertEqual(self.client.post(reverse('restaurant_settings', args=[self.other_restaurant.slug]), data).status_code, 403)

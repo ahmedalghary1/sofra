@@ -26,6 +26,7 @@ from django.views.decorators.http import require_POST
 from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
 from .services import advance_call, advance_order, audit, create_order, create_service_call, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
+from .forms import RestaurantProfileForm
 
 def error_text(exc): return ' '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
 def health(request): return JsonResponse({'status': 'ok'})
@@ -640,12 +641,28 @@ def restaurant_settings(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
-    if request.method == 'POST':
-        restaurant.description = request.POST.get('description','').strip()[:240]
-        branch.accepting_orders = request.POST.get('accepting_orders') == 'on'
-        restaurant.save(update_fields=['description'])
-        branch.save(update_fields=['accepting_orders'])
-        audit(restaurant, request.user, 'restaurant.settings')
+    initial = {'name': restaurant.name, 'name_en': restaurant.name_en,
+               'description': restaurant.description, 'branch_name': branch.name,
+               'address': branch.address, 'phone': branch.phone,
+               'opening_hours': branch.opening_hours, 'show_contact_on_menu': branch.show_contact_on_menu,
+               'accepting_orders': branch.accepting_orders}
+    profile_form = RestaurantProfileForm(request.POST if request.method == 'POST' else None, initial=initial)
+    if request.method == 'POST' and profile_form.is_valid():
+        data = profile_form.cleaned_data
+        with transaction.atomic():
+            restaurant.name = data['name']
+            restaurant.name_en = data['name_en']
+            restaurant.description = data['description']
+            restaurant.save(update_fields=['name','name_en','description'])
+            branch.name = data['branch_name']
+            branch.address = data['address']
+            branch.phone = data['phone']
+            branch.opening_hours = data['opening_hours']
+            branch.show_contact_on_menu = data['show_contact_on_menu']
+            branch.accepting_orders = data['accepting_orders']
+            branch.save(update_fields=['name','address','phone','opening_hours',
+                                       'show_contact_on_menu','accepting_orders'])
+            audit(restaurant, request.user, 'restaurant.settings', f'branch={branch.pk}')
         messages.success(request, 'تم حفظ الإعدادات.')
         return redirect('restaurant_settings', slug=slug)
     subscription = restaurant.subscription
@@ -659,7 +676,8 @@ def restaurant_settings(request, slug):
                   usage['tables'] > subscription.plan.max_tables or
                   usage['items'] > subscription.plan.max_items or
                   usage['staff'] > subscription.plan.max_staff)
-    return shell(request, restaurant, membership, 'settings', subscription=subscription,
+    return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
+                 preview_table=branch.tables.filter(active=True).first(),
                  usage=usage, over_limit=over_limit)
 
 def public_menu(request, token):

@@ -5,7 +5,18 @@
 {% if not restaurant.active %}<div class="account-notice"><strong>المطعم معلق حاليًا</strong><p>البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة.</p></div>{% elif not subscription.valid %}<div class="account-notice"><strong>انتهت فترة الاشتراك أو التجربة</strong><p>يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة.</p></div>{% elif over_limit %}<div class="account-notice"><strong>الاستخدام أعلى من حدود الباقة الحالية</strong><p>بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام.</p></div>{% endif %}
 <div class="two-cols">
   <section class="panel"><div class="panel-head"><div><h2>{{ restaurant.name }}</h2><p>{{ branch.name }}</p></div></div>
-    <form method="post" class="stack-form compact">{% csrf_token %}<label>وصف يظهر في المنيو<input name="description" value="{{ restaurant.description }}" maxlength="240" placeholder="جملة قصيرة عن مطعمك"></label><label class="check-row"><input type="checkbox" name="accepting_orders" {% if branch.accepting_orders %}checked{% endif %}> استقبال طلبات جديدة من طاولات هذا الفرع</label><button class="btn btn-primary">حفظ الإعدادات</button></form>
+    <form method="post" class="stack-form compact">{% csrf_token %}
+      {% if profile_form.non_field_errors %}<div class="form-errors">{{ profile_form.non_field_errors }}</div>{% endif %}
+      {% for field in profile_form %}
+        {% if field.name == 'show_contact_on_menu' or field.name == 'accepting_orders' %}
+          <label class="check-row">{{ field }} {{ field.label }}</label>
+        {% else %}<label>{{ field.label }}{{ field }}</label>{% endif %}
+        {% if field.errors %}<small class="form-errors">{{ field.errors|striptags }}</small>{% endif %}
+      {% endfor %}
+      <p class="form-hint">يظهر اسم المطعم والوصف للضيف. لا تظهر بيانات الاتصال والعنوان وساعات العمل إلا عند تفعيل خيار النشر أعلاه.</p>
+      <button class="btn btn-primary">حفظ الإعدادات</button>
+      {% if preview_table and branch.active and restaurant.active %}<a class="btn btn-outline" href="{% url 'public_menu' preview_table.public_token %}" target="_blank" rel="noopener">معاينة منيو الضيف ↗</a>{% endif %}
+    </form>
   </section>
   <section class="panel subscription-panel"><div class="panel-head"><div><h2>الباقة الحالية</h2><p>الحدود الفعلية والاستخدام الحالي</p></div></div>
     <div class="plan-icon">✳</div><h3>{{ subscription.plan.name }}</h3><p>الحالة: {{ subscription.get_status_display }}</p><p>تنتهي في {{ subscription.ends_at|date:'j F Y' }}</p>

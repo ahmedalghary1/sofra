@@ -1,0 +1,10 @@
+{% if table.branch.restaurant.name_en %}<p class="guest-english-name" lang="en" dir="ltr">{{ table.branch.restaurant.name_en }}</p>{% endif %}
+{% if table.branch.show_contact_on_menu %}
+  {% if table.branch.address or table.branch.phone or table.branch.opening_hours %}
+  <div class="guest-contact" aria-label="معلومات الفرع">
+    {% if table.branch.address %}<span>⌖ {{ table.branch.address }}</span>{% endif %}
+    {% if table.branch.phone %}<span>☎ <b dir="ltr">{{ table.branch.phone }}</b></span>{% endif %}
+    {% if table.branch.opening_hours %}<span>◷ {{ table.branch.opening_hours }}</span>{% endif %}
+  </div>
+  {% endif %}
+{% endif %}
