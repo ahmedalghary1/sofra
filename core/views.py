@@ -23,7 +23,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
+from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
 from .services import advance_call, advance_order, audit, create_order, create_service_call, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm
@@ -186,7 +186,8 @@ def branch_for(request, restaurant, membership):
     return branch
 
 def ensure_active_subscription(restaurant):
-    if not restaurant.subscription.valid():
+    subscription = getattr(restaurant, 'subscription', None)
+    if not subscription or not subscription.valid():
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. البيانات متاحة للعرض، لكن الإضافة متوقفة.')
 
 def validate_menu_image(image):
@@ -321,11 +322,34 @@ def manage_menu(request, slug):
                 option.available = not option.available
                 option.save(update_fields=['available'])
                 audit(restaurant, request.user, 'modifier.toggle', str(option.pk))
+            elif action == 'size':
+                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
+                name = request.POST.get('name', '').strip()[:80]
+                if not name: raise ValidationError('أدخل اسم الحجم.')
+                price = Decimal(request.POST.get('price', ''))
+                if not 0 <= price <= 9999999: raise ValidationError('السعر غير صالح.')
+                if item.sizes.count() >= 12: raise ValidationError('الحد الأقصى 12 حجمًا للصنف.')
+                size = MenuSize.objects.create(item=item, name=name, price=price)
+                audit(restaurant, request.user, 'size.create', str(size.pk))
+            elif action == 'size_edit':
+                size = get_object_or_404(MenuSize, pk=request.POST.get('size_id'), item__category__branch=branch)
+                name = request.POST.get('name', '').strip()[:80]
+                if not name: raise ValidationError('أدخل اسم الحجم.')
+                price = Decimal(request.POST.get('price', ''))
+                if not 0 <= price <= 9999999: raise ValidationError('السعر غير صالح.')
+                size.name, size.price = name, price
+                size.save(update_fields=['name', 'price'])
+                audit(restaurant, request.user, 'size.edit', str(size.pk))
+            elif action == 'size_toggle':
+                size = get_object_or_404(MenuSize, pk=request.POST.get('size_id'), item__category__branch=branch)
+                size.available = not size.available
+                size.save(update_fields=['available'])
+                audit(restaurant, request.user, 'size.toggle', str(size.pk))
             else: raise ValidationError('إجراء غير معروف.')
             messages.success(request, 'تم حفظ التغيير بنجاح.')
         except (ValidationError, InvalidOperation, IntegrityError, ValueError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_menu', slug=slug)
-    categories = Category.objects.filter(branch=branch).prefetch_related('items__modifier_groups__options')
+    categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'menu_manage', categories=categories,
                  item_count=MenuItem.objects.filter(category__branch=branch).count(), limit=restaurant.subscription.plan.max_items)
 
@@ -405,7 +429,7 @@ def staff_order(request, slug):
             return JsonResponse({'ok': True, 'order_url': reverse('manage_orders', args=[slug]), 'order_number': order.pk})
         except (json.JSONDecodeError, ValidationError) as exc:
             return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
-    categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__modifier_groups__options')
+    categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'staff_order', categories=categories,
                  items_json=serialize_menu_items(categories), tables=branch.tables.filter(active=True),
                  accepting=restaurant.active and branch.active and branch.accepting_orders and restaurant.subscription.valid())
@@ -684,7 +708,7 @@ def public_menu(request, token):
     table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant'), public_token=token)
     if not table.active or not table.branch.active or not table.branch.restaurant.active:
         return render(request, 'table_closed.html', status=404)
-    categories = Category.objects.filter(branch=table.branch, visible=True).prefetch_related('items__modifier_groups__options')
+    categories = Category.objects.filter(branch=table.branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
     items = serialize_menu_items(categories)
     subscription = getattr(table.branch.restaurant, 'subscription', None)
     accepting = table.branch.accepting_orders and (subscription is None or subscription.valid())
@@ -697,6 +721,8 @@ def serialize_menu_items(categories):
             if item.available:
                 items.append({'id': item.pk, 'category': category.pk, 'name': item.name, 'description': item.description,
                               'price': str(item.price), 'image': item.image.url if item.image else '',
+                              'sizes': [{'id': size.pk, 'name': size.name, 'price': str(size.price)}
+                                        for size in item.sizes.all() if size.available],
                               'groups': [{'name': g.name, 'min': g.min_select, 'max': g.max_select,
                                           'options': [{'id': o.pk, 'name': o.name, 'price': str(o.price)} for o in g.options.all() if o.available]}
                                          for g in item.modifier_groups.all()]})

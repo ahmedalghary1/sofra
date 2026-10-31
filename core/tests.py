@@ -11,7 +11,7 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, ModifierGroup, ModifierOption, Order, Plan, Restaurant, ServiceCall, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, Plan, Restaurant, ServiceCall, Subscription
 from .services import advance_call, advance_order, create_order, create_service_call
 
 class SafraTests(TestCase):
@@ -509,3 +509,58 @@ class SafraTests(TestCase):
         self.assertEqual(second.name, 'فرع ثان')
         self.assertEqual(self.other_branch.address, '')
         self.assertEqual(self.client.post(reverse('restaurant_settings', args=[self.other_restaurant.slug]), data).status_code, 403)
+
+    def test_size_price_and_name_are_snapshotted_with_modifiers(self):
+        size = MenuSize.objects.create(item=self.item, name='كبير', price=Decimal('150.00'))
+        group = ModifierGroup.objects.create(item=self.item, name='إضافات', min_select=0, max_select=1)
+        option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('20.00'))
+        payload = self.payload([option.pk])
+        payload['lines'][0]['size_id'] = size.pk
+        order = create_order(self.table, payload)
+        line = order.lines.get()
+        self.assertEqual(order.total, Decimal('340.00'))
+        self.assertEqual(line.base_price, Decimal('150.00'))
+        self.assertEqual(line.size_name, 'كبير')
+        self.assertEqual(line.unit_price, Decimal('170.00'))
+        size.name, size.price = 'أكبر', Decimal('200.00')
+        size.save(update_fields=['name', 'price'])
+        line.refresh_from_db()
+        self.assertEqual((line.size_name, line.base_price), ('كبير', Decimal('150.00')))
+        self.assertEqual(create_order(self.table, payload).pk, order.pk)
+
+    def test_size_must_belong_to_item_and_remain_available(self):
+        size = MenuSize.objects.create(item=self.item, name='صغير', price=Decimal('80.00'))
+        foreign_category = Category.objects.create(branch=self.other_branch, name='أطباق أخرى')
+        foreign_item = MenuItem.objects.create(category=foreign_category, name='صنف آخر', price=Decimal('25.00'))
+        foreign_size = MenuSize.objects.create(item=foreign_item, name='كبير', price=Decimal('40.00'))
+        payload = self.payload(); payload['lines'][0]['size_id'] = foreign_size.pk
+        with self.assertRaises(ValidationError): create_order(self.table, payload)
+        size.available = False; size.save(update_fields=['available'])
+        payload['lines'][0]['size_id'] = size.pk
+        with self.assertRaises(ValidationError): create_order(self.table, payload)
+        payload['lines'][0]['size_id'] = float(size.pk)
+        with self.assertRaises(ValidationError): create_order(self.table, payload)
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_size_management_is_tenant_scoped(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.assertEqual(self.client.post(endpoint, {'action': 'size', 'item_id': self.item.pk,
+            'name': 'كبير', 'price': '155.00'}).status_code, 302)
+        size = MenuSize.objects.get(item=self.item)
+        menu = self.client.get(reverse('public_menu', args=[self.table.public_token]))
+        self.assertEqual(menu.context['items_json'][0]['sizes'][0]['name'], 'كبير')
+        self.client.post(endpoint, {'action': 'size_edit', 'size_id': size.pk, 'name': 'وسط', 'price': '125.00'})
+        size.refresh_from_db()
+        self.assertEqual(size.price, Decimal('125.00'))
+        self.client.post(endpoint, {'action': 'size_toggle', 'size_id': size.pk})
+        size.refresh_from_db()
+        self.assertFalse(size.available)
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        Subscription.objects.create(restaurant=self.other_restaurant,
+            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
+        other_endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
+        self.assertEqual(self.client.post(other_endpoint, {'action': 'size_edit', 'size_id': size.pk,
+            'name': 'مخترق', 'price': '1'}).status_code, 404)
+        size.refresh_from_db()
+        self.assertEqual(size.name, 'وسط')

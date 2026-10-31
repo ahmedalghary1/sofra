@@ -44,13 +44,23 @@ def create_order(table, payload, user=None):
             item_id = int(line['item_id'])
             quantity = int(line['quantity'])
             selected = line.get('options', [])
+            size_id = line.get('size_id')
         except (KeyError, ValueError, TypeError, AttributeError):
             raise ValidationError('توجد بيانات غير صالحة في السلة.')
         if not 1 <= quantity <= 30 or not isinstance(selected, list):
             raise ValidationError('كمية أو خيارات غير صالحة.')
-        item = MenuItem.objects.select_related('category').prefetch_related('modifier_groups__options').filter(pk=item_id, category__branch=table.branch, category__visible=True, available=True).first()
+        item = MenuItem.objects.select_related('category').prefetch_related('sizes', 'modifier_groups__options').filter(pk=item_id, category__branch=table.branch, category__visible=True, available=True).first()
         if not item:
             raise ValidationError('أحد الأصناف لم يعد متاحًا. حدّث المنيو.')
+        size_name, base_price = '', item.price
+        if size_id not in (None, ''):
+            if isinstance(size_id, bool) or len(str(size_id)) > 18 or not str(size_id).isdigit():
+                raise ValidationError('حجم الصنف غير صالح.')
+            chosen_size_id = int(size_id)
+            size = next((s for s in item.sizes.all() if s.pk == chosen_size_id and s.available), None)
+            if not size:
+                raise ValidationError('حجم الصنف لم يعد متاحًا. حدّث المنيو.')
+            size_name, base_price = size.name, size.price
         try:
             chosen = {int(x) for x in selected}
         except (ValueError, TypeError):
@@ -70,9 +80,9 @@ def create_order(table, payload, user=None):
             chosen -= found
         if chosen:
             raise ValidationError('أحد الخيارات لا يخص الصنف المحدد.')
-        unit = item.price + extra
+        unit = base_price + extra
         line_total = unit * quantity
-        normalized.append((item, quantity, snapshot, unit, line_total))
+        normalized.append((item, quantity, size_name, base_price, snapshot, unit, line_total))
         total += line_total
     if total > Decimal('99999999.99'):
         raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
@@ -82,8 +92,9 @@ def create_order(table, payload, user=None):
                                          request_hash=digest, source='staff' if user else 'qr',
                                          total=total, note=note, created_by=user)
             OrderLine.objects.bulk_create([OrderLine(order=order, item=item, item_name=item.name,
-                unit_price=unit, quantity=quantity, modifiers=mods, line_total=subtotal)
-                for item, quantity, mods, unit, subtotal in normalized])
+                size_name=size_name, base_price=base_price, unit_price=unit,
+                quantity=quantity, modifiers=mods, line_total=subtotal)
+                for item, quantity, size_name, base_price, mods, unit, subtotal in normalized])
             OrderHistory.objects.create(order=order, old_status='', new_status='new', actor=user)
             return order
     except IntegrityError:

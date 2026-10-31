@@ -9,7 +9,7 @@
 {% if orders %}<div class="table-scroll"><table class="data-table"><thead><tr><th>رقم الطلب</th><th>الطاولة والتفاصيل</th><th>الوقت</th><th>الإجمالي</th><th>الحالة</th><th>الدفع</th><th>الإجراء</th></tr></thead><tbody>
 {% for order in orders %}<tr>
   <td><strong>#{{ order.pk }}</strong><small class="block muted">{{ order.get_source_display }}</small></td>
-  <td><strong>{{ order.table.name }}</strong><small class="block muted">{% for line in order.lines.all %}{{ line.quantity }}× {{ line.item_name }}{% if not forloop.last %}، {% endif %}{% endfor %}</small></td>
+  <td><strong>{{ order.table.name }}</strong><small class="block muted">{% for line in order.lines.all %}{{ line.quantity }}× {{ line.item_name }}{% if line.size_name %} ({{ line.size_name }}){% endif %}{% if not forloop.last %}، {% endif %}{% endfor %}</small></td>
   <td>{{ order.created_at|date:'j M، H:i' }}</td><td>{{ order.total }} ج.م</td><td><span class="status status-{{ order.status }}">{{ order.get_status_display }}</span></td>
   <td>{% if order.payment_status == 'paid' %}<span class="status status-done">تحصيل مسجل</span>{% elif order.status == 'cancelled' %}—{% elif membership.role == 'owner' or membership.role == 'manager' or membership.role == 'cashier' %}<form method="post" action="{% url 'order_payment_change' restaurant.slug order.pk %}" onsubmit="return confirm('تأكيد تسجيل التحصيل اليدوي لهذا الطلب؟')">{% csrf_token %}<button class="text-button">تسجيل التحصيل</button></form>{% else %}<span class="muted">غير مدفوع</span>{% endif %}</td>
   <td>

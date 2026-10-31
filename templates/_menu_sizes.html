@@ -1,0 +1,7 @@
+<div class="modifier-section size-section">
+  <strong>أحجام الصنف</strong><p>السعر الأساسي متاح دائمًا؛ أضف أحجامًا بأسعار مستقلة. تعطيل حجم يمنع طلبه الجديد ويحفظ الطلبات السابقة.</p>
+  <form method="post" class="modifier-form">{% csrf_token %}<input type="hidden" name="action" value="size"><input type="hidden" name="item_id" value="{{ item.pk }}"><input name="name" maxlength="80" required placeholder="اسم الحجم، مثال: كبير" aria-label="اسم الحجم"><input name="price" type="number" step="0.01" min="0" max="9999999" required placeholder="سعر الحجم" aria-label="سعر الحجم"><button>＋ إضافة حجم</button></form>
+  {% for size in item.sizes.all %}
+  <div class="modifier-option size-row"><form method="post" class="size-edit-form">{% csrf_token %}<input type="hidden" name="action" value="size_edit"><input type="hidden" name="size_id" value="{{ size.pk }}"><input name="name" maxlength="80" value="{{ size.name }}" required aria-label="اسم الحجم"><input name="price" type="number" step="0.01" min="0" max="9999999" value="{{ size.price|stringformat:'.2f' }}" required aria-label="سعر الحجم"><button class="text-button">حفظ</button></form><span class="status {% if size.available %}status-ready{% else %}status-cancelled{% endif %}">{% if size.available %}متاح{% else %}متوقف{% endif %}</span><form method="post">{% csrf_token %}<input type="hidden" name="action" value="size_toggle"><input type="hidden" name="size_id" value="{{ size.pk }}"><button class="text-button">{% if size.available %}إيقاف{% else %}تفعيل{% endif %}</button></form></div>
+  {% endfor %}
+</div>

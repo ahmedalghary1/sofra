@@ -72,6 +72,15 @@ class MenuItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name
 
+class MenuSize(models.Model):
+    item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='sizes')
+    name = models.CharField(max_length=80)
+    price = models.DecimalField(max_digits=9, decimal_places=2)
+    available = models.BooleanField(default=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['item', 'name'], name='unique_item_size')]
+    def __str__(self): return f'{self.item.name} · {self.name}'
+
 class ModifierGroup(models.Model):
     item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='modifier_groups')
     name = models.CharField(max_length=80)
@@ -119,6 +128,8 @@ class OrderLine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='lines')
     item = models.ForeignKey(MenuItem, null=True, on_delete=models.SET_NULL)
     item_name = models.CharField(max_length=120)
+    size_name = models.CharField(max_length=80, blank=True)
+    base_price = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
     unit_price = models.DecimalField(max_digits=9, decimal_places=2)
     quantity = models.PositiveSmallIntegerField()
     modifiers = models.JSONField(default=list)
