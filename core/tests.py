@@ -8,11 +8,13 @@ from django.contrib.admin.models import LogEntry
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from unittest.mock import patch
 from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
 from .services import advance_call, advance_order, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
@@ -449,6 +451,7 @@ class SafraTests(TestCase):
         response = self.client.get(endpoint)
         self.assertEqual(response.context['setup_done'], 2)
         self.assertContains(response, 'جهّز الفرع الرئيسي')
+        self.assertContains(response, 'class="setup-count">2 من 4')
         self.restaurant.description = 'مطبخ مصري'
         self.restaurant.save(update_fields=['description'])
         chef = User.objects.create_user(username='chef@example.com', password='StrongPass!123')
@@ -676,3 +679,132 @@ class SafraTests(TestCase):
         other_endpoint = reverse('menu_import', args=[self.other_restaurant.slug])
         self.assertEqual(self.client.post(other_endpoint, {'action': 'commit', 'batch': str(batch.token)}).status_code, 404)
         self.assertEqual(MenuItem.objects.count(), 1)
+
+    def test_reports_filter_period_applies_to_metrics_and_csv(self):
+        old = create_order(self.table, self.payload())
+        Order.objects.filter(pk=old.pk).update(created_at=timezone.now()-timedelta(days=10))
+        recent = create_order(self.table, self.payload())
+        advance_order(recent, self.owner, 'accepted')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        day = timezone.localdate().isoformat()
+        endpoint = reverse('reports', args=[self.restaurant.slug])
+        response = self.client.get(endpoint, {'from': day, 'to': day})
+        self.assertEqual(response.context['total'], 1)
+        self.assertEqual(response.context['accepted_samples'], 1)
+        self.assertEqual(response.context['ready_samples'], 0)
+        self.assertEqual(response.context['top_items'][0]['quantity'], 2)
+        export = self.client.get(endpoint, {'from': day, 'to': day, 'export': 'csv'})
+        self.assertEqual(export.status_code, 200)
+        self.assertIn(str(recent.pk).encode(), export.content)
+        self.assertFalse(any(row.startswith(f'{old.pk},'.encode()) for row in export.content.splitlines()[1:]))
+
+    def test_reports_reject_invalid_period_without_silent_export(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('reports', args=[self.restaurant.slug])
+        response = self.client.get(endpoint, {'from': '2026-02-30', 'to': '2026-03-01'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'تعرض الأرقام أدناه جميع الفترات')
+        self.assertEqual(self.client.get(endpoint, {'from': '2026-02-30', 'to': '2026-03-01',
+            'export': 'csv'}).status_code, 400)
+
+    def test_kitchen_filters_render_only_current_branch_options(self):
+        create_order(self.table, self.payload())
+        foreign_table = DiningTable.objects.create(branch=self.other_branch, name='طاولة أخرى')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        response = self.client.get(reverse('kitchen', args=[self.restaurant.slug]))
+        self.assertContains(response, 'id="kitchenStatus"')
+        self.assertContains(response, f'data-table="{self.table.pk}"')
+        self.assertNotContains(response, f'<option value="{foreign_table.pk}">{foreign_table.name}</option>')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_staff_invitation_new_user_accepts_once_in_own_branch(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('staff', args=[self.restaurant.slug])
+        response = self.client.post(endpoint, {'action': 'invite', 'email': 'newstaff@example.com',
+            'role': 'waiter', 'branch_id': self.branch.pk})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        invitation = StaffInvitation.objects.get(email='newstaff@example.com')
+        token = re.search(r'/invitation/([^/]+)/', mail.outbox[0].body).group(1)
+        self.assertNotEqual(token, invitation.token_hash)
+        self.client.logout()
+        accept = reverse('accept_staff_invitation', args=[token])
+        self.assertContains(self.client.get(accept), 'newstaff@example.com')
+        response = self.client.post(accept, {'name': 'ليلى', 'password': 'StrongPass!123'})
+        self.assertRedirects(response, reverse('dashboard', args=[self.restaurant.slug]))
+        member = Membership.objects.get(user__username='newstaff@example.com', restaurant=self.restaurant)
+        self.assertEqual(member.role, 'waiter')
+        self.assertEqual(list(member.branches.all()), [self.branch])
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.accepted_at)
+        self.assertEqual(self.client.get(accept).status_code, 410)
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant, action='staff.invite.accept').exists())
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_existing_user_invitation_preserves_other_restaurant_role(self):
+        self.other.email = self.other.username
+        self.other.save(update_fields=['email'])
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        response = self.client.post(reverse('staff', args=[self.restaurant.slug]), {'action': 'invite',
+            'email': self.other.email, 'role': 'cashier', 'branch_id': self.branch.pk})
+        self.assertEqual(len(mail.outbox), 1, [str(message) for message in response.wsgi_request._messages])
+        token = re.search(r'/invitation/([^/]+)/', mail.outbox[-1].body).group(1)
+        accept = reverse('accept_staff_invitation', args=[token])
+        self.client.logout()
+        response = self.client.get(accept)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/?next=', response.url)
+        login_response = self.client.post(reverse('login'), {'email': self.other.email,
+            'password': 'StrongPass!123', 'next': accept})
+        self.assertRedirects(login_response, accept)
+        self.assertEqual(self.client.post(accept).status_code, 302)
+        self.assertEqual(Membership.objects.get(user=self.other, restaurant=self.restaurant).role, 'cashier')
+        self.assertEqual(Membership.objects.get(user=self.other, restaurant=self.other_restaurant).role, 'owner')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_invitation_permissions_expiry_limit_and_delivery_failure(self):
+        manager = User.objects.create_user(username='manager@example.com', password='StrongPass!123')
+        Membership.objects.create(user=manager, restaurant=self.restaurant, role='manager')
+        endpoint = reverse('staff', args=[self.restaurant.slug])
+        self.client.login(username=manager.username, password='StrongPass!123')
+        self.client.post(endpoint, {'action': 'invite', 'email': 'bad@example.com',
+            'role': 'manager', 'branch_id': self.branch.pk})
+        self.assertFalse(StaffInvitation.objects.filter(email='bad@example.com').exists())
+        self.client.post(endpoint, {'action': 'create', 'email': 'direct@example.com',
+            'role': 'manager', 'password': 'StrongPass!123'})
+        self.assertFalse(Membership.objects.filter(user__username='direct@example.com').exists())
+        self.client.post(endpoint, {'action': 'invite', 'email': 'bad@example.com',
+            'role': 'waiter', 'branch_id': self.other_branch.pk})
+        self.assertFalse(StaffInvitation.objects.filter(email='bad@example.com').exists())
+        with patch('core.views.send_mail', side_effect=OSError('mail unavailable')):
+            self.client.post(endpoint, {'action': 'invite', 'email': 'bad@example.com',
+                'role': 'waiter', 'branch_id': self.branch.pk})
+        self.assertFalse(StaffInvitation.objects.filter(email='bad@example.com').exists())
+        plan = self.restaurant.subscription.plan
+        plan.max_staff = 2; plan.save(update_fields=['max_staff'])
+        self.client.post(endpoint, {'action': 'invite', 'email': 'full@example.com',
+            'role': 'waiter', 'branch_id': self.branch.pk})
+        self.assertFalse(StaffInvitation.objects.filter(email='full@example.com').exists())
+        plan.max_staff = 5; plan.save(update_fields=['max_staff'])
+        self.client.post(endpoint, {'action': 'invite', 'email': 'pending@example.com',
+            'role': 'waiter', 'branch_id': self.branch.pk})
+        invitation = StaffInvitation.objects.get(email='pending@example.com')
+        token = re.search(r'/invitation/([^/]+)/', mail.outbox[-1].body).group(1)
+        invitation.expires_at = timezone.now()-timedelta(seconds=1)
+        invitation.save(update_fields=['expires_at'])
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('accept_staff_invitation', args=[token])).status_code, 410)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_revoked_invitation_cannot_be_accepted(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('staff', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'invite', 'email': 'revoked@example.com',
+            'role': 'kitchen', 'branch_id': self.branch.pk})
+        invitation = StaffInvitation.objects.get(email='revoked@example.com')
+        token = re.search(r'/invitation/([^/]+)/', mail.outbox[-1].body).group(1)
+        self.assertEqual(self.client.post(endpoint, {'action': 'invite_revoke',
+            'invitation_id': invitation.pk}).status_code, 302)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('accept_staff_invitation', args=[token])).status_code, 410)
+        self.assertFalse(Membership.objects.filter(user__username='revoked@example.com').exists())

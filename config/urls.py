@@ -9,6 +9,7 @@ urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('register/', views.register, name='register'),
+    path('invitation/<str:token>/', views.accept_invitation_view, name='accept_staff_invitation'),
     path('login/', views.login_view, name='login'),
     path('password-reset/', views.LimitedPasswordResetView.as_view(
         template_name='password_reset.html', email_template_name='password_reset_email.txt',

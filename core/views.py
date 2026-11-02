@@ -4,6 +4,8 @@ import io
 import json
 import secrets
 import uuid
+from smtplib import SMTPException
+from urllib.parse import urlencode
 from datetime import timedelta
 from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
@@ -12,6 +14,8 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.views import PasswordResetView
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
@@ -22,13 +26,16 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
-from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, Subscription
+from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
 from .services import advance_call, advance_order, audit, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm
 from .menu_import import commit_menu_import, parse_menu_csv
+from .invitations import accept_staff_invitation, invitation_for_token
 
 def error_text(exc): return ' '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
 def health(request): return JsonResponse({'status': 'ok'})
@@ -81,6 +88,10 @@ def login_view(request):
         if user and (user.is_superuser or user.memberships.filter(active=True).exists()):
             LoginAttempt.objects.filter(key=key).delete()
             login(request, user)
+            target = request.POST.get('next', '')
+            if target and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()},
+                                                          require_https=request.is_secure()):
+                return redirect(target)
             return redirect('home')
         LoginAttempt.objects.create(key=key)
         messages.error(request, 'البريد أو كلمة المرور غير صحيحة.')
@@ -512,7 +523,7 @@ def kitchen(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     orders = list(Order.objects.filter(branch=branch, status__in=['new','accepted','preparing','ready']).select_related('table').prefetch_related('lines'))
-    return shell(request, restaurant, membership, 'kitchen', orders=orders,
+    return shell(request, restaurant, membership, 'kitchen', orders=orders, tables=branch.tables.all(),
                  kitchen_signature=order_feed_signature(orders))
 
 def order_feed_signature(orders):
@@ -581,7 +592,31 @@ def reports(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     orders = Order.objects.filter(branch=branch)
+    start_raw, end_raw = request.GET.get('from', '').strip(), request.GET.get('to', '').strip()
+    start_date, end_date, filter_error = None, None, ''
+    if start_raw or end_raw:
+        try:
+            start_date, end_date = parse_date(start_raw), parse_date(end_raw)
+        except ValueError:
+            start_date = end_date = None
+        if not start_date or not end_date:
+            filter_error = 'اختر تاريخ بداية ونهاية صالحين.'
+        elif end_date < start_date or (end_date - start_date).days > 366:
+            filter_error = 'نطاق التاريخ يجب أن يكون مرتبًا وألا يتجاوز 366 يومًا.'
+        else:
+            zone = timezone.get_current_timezone()
+            start_at = timezone.make_aware(datetime.combine(start_date, time.min), zone)
+            end_at = timezone.make_aware(datetime.combine(end_date + timedelta(days=1), time.min), zone)
+            orders = orders.filter(created_at__gte=start_at, created_at__lt=end_at)
+    if filter_error:
+        start_date = end_date = None
+    calls = ServiceCall.objects.filter(table__branch=branch)
+    if start_date and end_date:
+        calls = calls.filter(created_at__gte=start_at, created_at__lt=end_at)
+    export_query = f'?export=csv&from={start_date.isoformat()}&to={end_date.isoformat()}' if start_date else '?export=csv'
     if request.GET.get('export') == 'csv':
+        if filter_error:
+            return HttpResponse(filter_error, status=400)
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="orders.csv"'
         response.write('\ufeff')
@@ -595,20 +630,23 @@ def reports(request, slug):
     status_names = dict(Order.STATUSES)
     by_status = [{'label': status_names.get(row['status'], row['status']), 'count': row['count']}
                  for row in orders.values('status').annotate(count=Count('id'))]
-    accepted_avg = OrderHistory.objects.filter(order__branch=branch, new_status='accepted').aggregate(
-        value=Avg(F('created_at') - F('order__created_at')))['value']
-    ready_avg = OrderHistory.objects.filter(order__branch=branch, new_status='ready').aggregate(
-        value=Avg(F('created_at') - F('order__created_at')))['value']
-    call_avg = ServiceCall.objects.filter(table__branch=branch, acknowledged_at__isnull=False).aggregate(
-        value=Avg(F('acknowledged_at') - F('created_at')))['value']
+    accepted = OrderHistory.objects.filter(order__in=orders, new_status='accepted')
+    ready = OrderHistory.objects.filter(order__in=orders, new_status='ready')
+    responded = calls.filter(acknowledged_at__isnull=False)
+    accepted_avg = accepted.aggregate(value=Avg(F('created_at') - F('order__created_at')))['value']
+    ready_avg = ready.aggregate(value=Avg(F('created_at') - F('order__created_at')))['value']
+    call_avg = responded.aggregate(value=Avg(F('acknowledged_at') - F('created_at')))['value']
     return shell(request, restaurant, membership, 'reports', total=orders.count(),
                  by_status=by_status,
                  by_source=orders.values('source').annotate(count=Count('id')),
                  total_value=orders.exclude(status='cancelled').aggregate(sum=Sum('total'))['sum'] or 0,
                  paid_value=orders.filter(payment_status='paid').aggregate(sum=Sum('total'))['sum'] or 0,
-                 top_items=OrderLine.objects.filter(order__branch=branch).exclude(order__status='cancelled').values('item_name').annotate(quantity=Sum('quantity')).order_by('-quantity')[:5],
+                 top_items=OrderLine.objects.filter(order__in=orders).exclude(order__status='cancelled').values('item_name').annotate(quantity=Sum('quantity')).order_by('-quantity')[:5],
                  accepted_time=format_duration(accepted_avg), ready_time=format_duration(ready_avg),
-                 call_response_time=format_duration(call_avg))
+                 call_response_time=format_duration(call_avg), accepted_samples=accepted.count(),
+                 ready_samples=ready.count(), call_samples=responded.count(),
+                 start_date=start_date, end_date=end_date, filter_error=filter_error,
+                 start_raw=start_raw, end_raw=end_raw, export_query=export_query)
 
 def format_duration(duration):
     if duration is None:
@@ -621,6 +659,55 @@ def staff(request, slug):
     if denied: return denied
     if request.method == 'POST':
         action = request.POST.get('action', 'create')
+        if action == 'invite':
+            try:
+                email = request.POST.get('email', '').strip().lower()
+                role = request.POST.get('role', '')
+                validate_email(email)
+                if role not in ('manager', 'cashier', 'kitchen', 'waiter') or (
+                        role == 'manager' and membership.role != 'owner'):
+                    raise ValidationError('الدور المختار غير مسموح.')
+                branch = get_object_or_404(Branch, pk=request.POST.get('branch_id'),
+                                           restaurant=restaurant, active=True)
+                existing_user = User.objects.filter(username__iexact=email).first()
+                if existing_user and Membership.objects.filter(user=existing_user, restaurant=restaurant).exists():
+                    raise ValidationError('هذا البريد عضو في المطعم بالفعل.')
+                with transaction.atomic():
+                    subscription = check_creation_limit(restaurant, 'staff')
+                    pending = StaffInvitation.objects.filter(restaurant=restaurant, accepted_at__isnull=True,
+                        revoked_at__isnull=True, expires_at__gt=timezone.now())
+                    if pending.filter(email=email).exists():
+                        raise ValidationError('توجد دعوة نشطة لهذا البريد بالفعل.')
+                    if restaurant.memberships.count() + pending.count() >= subscription.plan.max_staff:
+                        raise ValidationError('الدعوات الحالية تملأ المقاعد المتاحة في الباقة.')
+                    if StaffInvitation.objects.filter(restaurant=restaurant,
+                            created_at__gte=timezone.now()-timedelta(hours=1)).count() >= 20:
+                        raise ValidationError('بلغت حد الدعوات لهذه الساعة. حاول لاحقًا.')
+                    raw_token = secrets.token_urlsafe(32)
+                    invitation = StaffInvitation.objects.create(restaurant=restaurant, branch=branch,
+                        email=email, role=role, token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+                        invited_by=request.user, expires_at=timezone.now()+timedelta(days=7))
+                    link = request.build_absolute_uri(reverse('accept_staff_invitation', args=[raw_token]))
+                    delivered = send_mail('دعوة للانضمام إلى سفرة',
+                        f'دعاك {restaurant.name} للانضمام إلى فريق {branch.name}.\nافتح الرابط خلال 7 أيام: {link}',
+                        settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
+                    if delivered != 1:
+                        raise ValidationError('تعذر إرسال الدعوة. حاول مجددًا بعد فحص إعدادات البريد.')
+                    audit(restaurant, request.user, 'staff.invite', f'{email}: {role}; branch={branch.pk}')
+                messages.success(request, 'أُرسلت الدعوة إلى البريد المحدد.')
+            except (ValidationError, SMTPException, OSError) as exc:
+                messages.error(request, error_text(exc))
+            return redirect('staff', slug=slug)
+        if action == 'invite_revoke':
+            invitation = get_object_or_404(StaffInvitation, pk=request.POST.get('invitation_id'), restaurant=restaurant)
+            if membership.role == 'manager' and invitation.role == 'manager':
+                return render(request, '403.html', status=403)
+            if invitation.pending():
+                invitation.revoked_at = timezone.now()
+                invitation.save(update_fields=['revoked_at'])
+                audit(restaurant, request.user, 'staff.invite.revoke', str(invitation.pk))
+                messages.success(request, 'أُلغيت الدعوة.')
+            return redirect('staff', slug=slug)
         if action in ('role','toggle','branch'):
             target = get_object_or_404(Membership, pk=request.POST.get('membership_id'), restaurant=restaurant)
             if target.role == 'owner' or target.user_id == request.user.pk:
@@ -662,7 +749,7 @@ def staff(request, slug):
         password = request.POST.get('password','')
         if not restaurant.subscription.valid():
             messages.error(request, 'انتهت فترة التجربة أو الاشتراك. إضافة الموظفين متوقفة مؤقتًا.')
-        elif role not in ('manager','cashier','kitchen','waiter') or not email:
+        elif role not in ('manager','cashier','kitchen','waiter') or (role == 'manager' and membership.role != 'owner') or not email:
             messages.error(request, 'تحقق من البريد والدور.')
         elif User.objects.filter(username=email).exists():
             messages.error(request, 'البريد مستخدم بالفعل. تواصل مع مدير المنصة لإضافته.')
@@ -687,7 +774,34 @@ def staff(request, slug):
         return redirect('staff', slug=slug)
     return shell(request, restaurant, membership, 'staff',
         members=restaurant.memberships.select_related('user').prefetch_related('branches'),
+        invitations=restaurant.invitations.filter(accepted_at__isnull=True, revoked_at__isnull=True,
+            expires_at__gt=timezone.now()).select_related('branch'),
         limit=restaurant.subscription.plan.max_staff)
+
+def accept_invitation_view(request, token):
+    invitation = invitation_for_token(token)
+    if not invitation or not invitation.pending():
+        return render(request, 'invitation_invalid.html', status=410)
+    existing_user = User.objects.filter(username__iexact=invitation.email).first()
+    if existing_user and not request.user.is_authenticated:
+        return redirect(reverse('login') + '?' + urlencode({'next': request.path}))
+    if request.user.is_authenticated and (not existing_user or request.user.pk != existing_user.pk):
+        return render(request, '403.html', status=403)
+    if request.method == 'POST':
+        try:
+            user, restaurant = accept_staff_invitation(token,
+                request.POST.get('name', ''), request.POST.get('password', ''),
+                request.user if request.user.is_authenticated else None)
+            if not request.user.is_authenticated:
+                login(request, user)
+            messages.success(request, 'انضممت إلى فريق المطعم بنجاح.')
+            return redirect('dashboard', slug=restaurant.slug)
+        except ValidationError as exc:
+            messages.error(request, error_text(exc))
+    response = render(request, 'invitation_accept.html',
+                      {'invitation': invitation, 'existing_user': bool(existing_user)})
+    response['Cache-Control'] = 'no-store'
+    return response
 
 def manage_branches(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])

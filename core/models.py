@@ -45,6 +45,24 @@ class Membership(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user','restaurant'], name='unique_restaurant_member')]
 
+class StaffInvitation(models.Model):
+    ROLES = [('manager', 'مدير'), ('cashier', 'كاشير'), ('kitchen', 'مطبخ'), ('waiter', 'ويتر')]
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='invitations')
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    email = models.EmailField()
+    role = models.CharField(max_length=12, choices=ROLES)
+    token_hash = models.CharField(max_length=64, unique=True)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+                                   related_name='sent_staff_invitations')
+    accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name='accepted_staff_invitations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    def pending(self):
+        return not self.accepted_at and not self.revoked_at and self.expires_at > timezone.now()
+
 class Subscription(models.Model):
     restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name='subscription')
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
