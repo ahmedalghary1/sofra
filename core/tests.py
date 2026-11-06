@@ -72,6 +72,62 @@ class SafraTests(TestCase):
         self.assertEqual(order.status, 'served')
         self.assertEqual(order.history.count(), 5)
 
+    def test_manager_can_correct_one_step_with_reason_and_audit(self):
+        order = create_order(self.table, self.payload())
+        advance_order(order, self.owner, 'accepted')
+        advance_order(order, self.owner, 'preparing')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('order_status_correct', args=[self.restaurant.slug, order.pk])
+        signature = self.client.get(reverse('kitchen_feed', args=[self.restaurant.slug])).json()['signature']
+        self.assertContains(self.client.get(reverse('manage_orders', args=[self.restaurant.slug])), 'تصحيح الحالة السابقة')
+        self.client.post(endpoint, {'reason': ' ', 'expected_status': 'preparing'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'preparing')
+        self.client.post(endpoint, {'reason': 'ضغطت بالخطأ', 'expected_status': 'preparing'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'accepted')
+        history = order.history.order_by('-pk').first()
+        self.assertEqual((history.old_status, history.new_status, history.actor, history.reason),
+                         ('preparing', 'accepted', self.owner, 'ضغطت بالخطأ'))
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant, action='order.status.correct').exists())
+        self.assertNotEqual(signature, self.client.get(reverse('kitchen_feed', args=[self.restaurant.slug])).json()['signature'])
+        self.client.post(endpoint, {'reason': 'ضغطت بالخطأ', 'expected_status': 'preparing'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'accepted')
+        change = {'edit_key': str(uuid.uuid4()), 'expected_version': 0, 'reason': 'تغيير الصنف',
+                  'existing': [{'id': order.lines.get().pk, 'quantity': 1}], 'add': []}
+        with self.assertRaises(ValidationError):
+            edit_order(order, self.owner, change)
+        manager = User.objects.create_user(username='correction-manager@example.com', password='StrongPass!123')
+        Membership.objects.create(user=manager, restaurant=self.restaurant, role='manager')
+        self.client.login(username=manager.username, password='StrongPass!123')
+        self.client.post(endpoint, {'reason': 'تصحيح استلام الطلب', 'expected_status': 'accepted'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'new')
+
+    def test_correction_rejects_other_roles_foreign_paid_and_terminal_orders(self):
+        order = create_order(self.table, self.payload())
+        advance_order(order, self.owner, 'accepted')
+        endpoint = reverse('order_status_correct', args=[self.restaurant.slug, order.pk])
+        waiter = User.objects.create_user(username='correction-waiter@example.com', password='StrongPass!123')
+        member = Membership.objects.create(user=waiter, restaurant=self.restaurant, role='waiter')
+        member.branches.add(self.branch)
+        self.client.login(username=waiter.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(endpoint, {'reason': 'خطأ تشغيلي', 'expected_status': 'accepted'}).status_code, 403)
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(endpoint, {'reason': 'خطأ تشغيلي', 'expected_status': 'accepted'}).status_code, 403)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        order.payment_status = 'paid'; order.save(update_fields=['payment_status'])
+        self.client.post(endpoint, {'reason': 'خطأ تشغيلي', 'expected_status': 'accepted'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'accepted')
+        order.payment_status = 'unpaid'; order.save(update_fields=['payment_status'])
+        for status in ('preparing', 'ready', 'served'):
+            advance_order(order, self.owner, status)
+        self.client.post(endpoint, {'reason': 'خطأ تشغيلي', 'expected_status': 'served'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'served')
+
     def test_tenant_access_and_public_order(self):
         self.client.login(username='other@example.com', password='StrongPass!123')
         self.assertEqual(self.client.get(reverse('dashboard', args=[self.restaurant.slug])).status_code, 403)
@@ -88,6 +144,38 @@ class SafraTests(TestCase):
         with self.assertRaises(ValidationError): create_service_call(self.table, 'waiter')
         create_service_call(self.table, 'bill')
         self.assertEqual(ServiceCall.objects.count(), 2)
+
+    def test_service_call_response_thresholds_use_server_timestamps(self):
+        self.branch.waiter_response_minutes = 3
+        self.branch.bill_response_minutes = 10
+        self.branch.save(update_fields=['waiter_response_minutes', 'bill_response_minutes'])
+        waiter_call = create_service_call(self.table, 'waiter')
+        bill_call = create_service_call(self.table, 'bill')
+        past = timezone.now() - timedelta(minutes=5)
+        ServiceCall.objects.filter(pk__in=[waiter_call.pk, bill_call.pk]).update(created_at=past)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        response = self.client.get(reverse('manage_calls', args=[self.restaurant.slug]))
+        self.assertEqual(response.context['overdue_count'], 1)
+        self.assertContains(response, 'تجاوز حد الاستجابة وينتظر الاستلام', count=1)
+        advance_call(waiter_call, self.owner, 'acknowledged')
+        response = self.client.get(reverse('manage_calls', args=[self.restaurant.slug]))
+        self.assertEqual(response.context['overdue_count'], 0)
+        self.assertContains(response, 'استجابة بعد الحد المحدد')
+
+    def test_response_threshold_settings_are_scoped_and_validated(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('restaurant_settings', args=[self.restaurant.slug])
+        data = {'name': self.restaurant.name, 'branch_name': self.branch.name,
+                'waiter_response_minutes': '7', 'bill_response_minutes': '12'}
+        self.assertEqual(self.client.post(endpoint, data).status_code, 302)
+        self.branch.refresh_from_db()
+        self.assertEqual((self.branch.waiter_response_minutes, self.branch.bill_response_minutes), (7, 12))
+        response = self.client.post(endpoint, {**data, 'waiter_response_minutes': '0'})
+        self.assertEqual(response.status_code, 200)
+        self.branch.refresh_from_db()
+        self.assertEqual(self.branch.waiter_response_minutes, 7)
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(endpoint, data).status_code, 403)
 
     def test_admin_pages_render(self):
         self.client.login(username='owner@example.com', password='StrongPass!123')

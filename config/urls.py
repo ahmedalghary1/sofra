@@ -37,6 +37,7 @@ urlpatterns = [
     path('app/<slug:slug>/branches/select/', views.select_branch, name='select_branch'),
     path('app/<slug:slug>/settings/', views.restaurant_settings, name='restaurant_settings'),
     path('app/<slug:slug>/orders/<int:order_id>/status/', views.order_status_change, name='order_status_change'),
+    path('app/<slug:slug>/orders/<int:order_id>/correct/', views.order_status_correct, name='order_status_correct'),
     path('app/<slug:slug>/orders/<int:order_id>/payment/', views.order_payment_change, name='order_payment_change'),
     path('app/<slug:slug>/calls/<int:call_id>/status/', views.call_status_change, name='call_status_change'),
     path('app/<slug:slug>/tables/<int:table_id>/qr/', views.table_qr, name='table_qr'),

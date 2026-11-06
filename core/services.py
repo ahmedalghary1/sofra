@@ -140,7 +140,8 @@ def edit_order(order, actor, payload):
         if prior.request_hash != digest:
             raise ValidationError('مفتاح التعديل مستخدم لتغيير مختلف.')
         return order
-    if order.status not in ('new', 'accepted') or order.payment_status != 'unpaid':
+    if (order.status not in ('new', 'accepted') or order.payment_status != 'unpaid'
+            or order.history.filter(new_status='preparing').exists()):
         raise ValidationError('يمكن تعديل طلب جديد أو مستلم وغير مدفوع فقط. أنشئ طلبًا إضافيًا عند بدء التحضير.')
     subscription = getattr(order.branch.restaurant, 'subscription', None)
     if not order.branch.active or not order.branch.restaurant.active or not subscription or not subscription.valid():
@@ -200,6 +201,27 @@ def advance_order(order, actor, status, reason=''):
     order.save(update_fields=['status', 'updated_at'])
     OrderHistory.objects.create(order=order, old_status=old, new_status=status, actor=actor, reason=reason[:240])
     audit(order.branch.restaurant, actor, 'order.status', f'{order.pk}: {old} → {status}')
+    return order
+
+
+@transaction.atomic
+def correct_order_status(order, actor, reason, expected_status):
+    reason = str(reason).strip()
+    if not 3 <= len(reason) <= 240:
+        raise ValidationError('اكتب سبب التصحيح بين 3 و240 حرفًا.')
+    order = Order.objects.select_for_update().select_related('branch__restaurant').get(pk=order.pk)
+    if order.status != expected_status:
+        raise ValidationError('تغيرت حالة الطلب منذ فتح الصفحة. حدّث القائمة وراجع الطلب.')
+    previous = {'accepted': 'new', 'preparing': 'accepted', 'ready': 'preparing'}
+    target = previous.get(order.status)
+    if not target or order.payment_status != 'unpaid':
+        raise ValidationError('يمكن تصحيح آخر خطوة لطلب جارٍ وغير مدفوع فقط.')
+    old = order.status
+    order.status = target
+    order.save(update_fields=['status', 'updated_at'])
+    OrderHistory.objects.create(order=order, old_status=old, new_status=target, actor=actor,
+                                reason=reason)
+    audit(order.branch.restaurant, actor, 'order.status.correct', f'{order.pk}: {old} → {target}; {reason}')
     return order
 
 @transaction.atomic

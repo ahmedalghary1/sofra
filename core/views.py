@@ -31,7 +31,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
-from .services import advance_call, advance_order, audit, create_order, create_service_call, edit_order, record_manual_payment
+from .services import advance_call, advance_order, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm
 from .menu_import import commit_menu_import, parse_menu_csv
@@ -568,6 +568,20 @@ def order_status_change(request, slug, order_id):
     return redirect('kitchen' if membership.role == 'kitchen' else 'manage_orders', slug=slug)
 
 @require_POST
+def order_status_correct(request, slug, order_id):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
+    if denied: return denied
+    branch = branch_for(request, restaurant, membership)
+    order = get_object_or_404(Order, pk=order_id, branch=branch)
+    try:
+        correct_order_status(order, request.user, request.POST.get('reason', ''),
+                             request.POST.get('expected_status', ''))
+        messages.success(request, 'صُححت حالة الطلب وسُجل السبب.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+    return redirect('manage_orders', slug=slug)
+
+@require_POST
 def order_payment_change(request, slug, order_id):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','cashier'])
     if denied: return denied
@@ -584,8 +598,15 @@ def manage_calls(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','waiter','cashier'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
-    calls = ServiceCall.objects.filter(table__branch=branch).select_related('table','assigned_to')[:100]
-    return shell(request, restaurant, membership, 'calls', calls=calls)
+    calls = list(ServiceCall.objects.filter(table__branch=branch).select_related('table','assigned_to').order_by('-created_at')[:100])
+    now = timezone.now()
+    for call in calls:
+        limit = branch.bill_response_minutes if call.kind == 'bill' else branch.waiter_response_minutes
+        response_at = call.acknowledged_at or now
+        call.response_overdue = response_at > call.created_at + timedelta(minutes=limit)
+        call.awaiting_overdue = call.status == 'open' and call.response_overdue
+    return shell(request, restaurant, membership, 'calls', calls=calls,
+                 overdue_count=sum(call.awaiting_overdue for call in calls))
 
 @require_POST
 def call_status_change(request, slug, call_id):
@@ -867,7 +888,10 @@ def restaurant_settings(request, slug):
     initial = {'name': restaurant.name, 'name_en': restaurant.name_en,
                'description': restaurant.description, 'branch_name': branch.name,
                'address': branch.address, 'phone': branch.phone,
-               'opening_hours': branch.opening_hours, 'show_contact_on_menu': branch.show_contact_on_menu,
+               'opening_hours': branch.opening_hours,
+               'waiter_response_minutes': branch.waiter_response_minutes,
+               'bill_response_minutes': branch.bill_response_minutes,
+               'show_contact_on_menu': branch.show_contact_on_menu,
                'accepting_orders': branch.accepting_orders}
     profile_form = RestaurantProfileForm(request.POST if request.method == 'POST' else None, initial=initial)
     if request.method == 'POST' and profile_form.is_valid():
@@ -881,9 +905,12 @@ def restaurant_settings(request, slug):
             branch.address = data['address']
             branch.phone = data['phone']
             branch.opening_hours = data['opening_hours']
+            branch.waiter_response_minutes = data['waiter_response_minutes'] or branch.waiter_response_minutes
+            branch.bill_response_minutes = data['bill_response_minutes'] or branch.bill_response_minutes
             branch.show_contact_on_menu = data['show_contact_on_menu']
             branch.accepting_orders = data['accepting_orders']
             branch.save(update_fields=['name','address','phone','opening_hours',
+                                       'waiter_response_minutes','bill_response_minutes',
                                        'show_contact_on_menu','accepting_orders'])
             audit(restaurant, request.user, 'restaurant.settings', f'branch={branch.pk}')
         messages.success(request, 'تم حفظ الإعدادات.')

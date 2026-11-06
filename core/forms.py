@@ -14,6 +14,10 @@ class RestaurantProfileForm(forms.Form):
                             widget=forms.TextInput(attrs={'inputmode': 'tel', 'dir': 'ltr'}))
     opening_hours = forms.CharField(label='ساعات العمل', max_length=160, required=False,
                                     widget=forms.TextInput(attrs={'placeholder': 'يوميًا ١٠ صباحًا – ١١ مساءً'}))
+    waiter_response_minutes = forms.IntegerField(label='حد استجابة استدعاء الويتر بالدقائق',
+                                                  min_value=1, max_value=120, required=False)
+    bill_response_minutes = forms.IntegerField(label='حد استجابة طلب الحساب بالدقائق',
+                                                min_value=1, max_value=120, required=False)
     show_contact_on_menu = forms.BooleanField(label='إظهار العنوان والتواصل وساعات العمل للضيف', required=False)
     accepting_orders = forms.BooleanField(label='استقبال طلبات جديدة من طاولات هذا الفرع', required=False)
 

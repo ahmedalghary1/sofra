@@ -30,6 +30,8 @@ class Branch(models.Model):
     address = models.CharField(max_length=240, blank=True)
     phone = models.CharField(max_length=24, blank=True)
     opening_hours = models.CharField(max_length=160, blank=True)
+    waiter_response_minutes = models.PositiveSmallIntegerField(default=5)
+    bill_response_minutes = models.PositiveSmallIntegerField(default=5)
     show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
