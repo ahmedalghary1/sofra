@@ -5,7 +5,7 @@ import json
 import secrets
 import uuid
 from smtplib import SMTPException
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from datetime import timedelta
 from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
@@ -25,7 +25,7 @@ from django.db.models import Avg, Count, F, Q, Sum
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -77,25 +77,37 @@ def register(request):
     return render(request, 'auth.html', {'mode': 'register'})
 
 def login_view(request):
+    login_next = request.POST.get('next') or request.GET.get('next', '')
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
         key = hashlib.sha256(f"{request.META.get('REMOTE_ADDR','')}:{email}".encode()).hexdigest()
         attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(minutes=15))
         if attempts.count() >= 8:
             messages.error(request, 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.')
-            return render(request, 'auth.html', {'mode': 'login'}, status=429)
+            return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next}, status=429)
         user = authenticate(request, username=email, password=request.POST.get('password', ''))
-        if user and (user.is_superuser or user.memberships.filter(active=True).exists()):
+        target = request.POST.get('next', '')
+        safe_target = target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+        invitation_login = False
+        if user and safe_target:
+            try:
+                match = resolve(urlparse(target).path)
+            except Resolver404:
+                match = None
+            if match and match.url_name == 'accept_staff_invitation':
+                invitation = invitation_for_token(match.kwargs['token'])
+                invitation_login = bool(invitation and invitation.pending() and
+                                        invitation.email.lower() == user.username.lower())
+        if user and (user.is_superuser or user.memberships.filter(active=True).exists() or invitation_login):
             LoginAttempt.objects.filter(key=key).delete()
             login(request, user)
-            target = request.POST.get('next', '')
-            if target and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()},
-                                                          require_https=request.is_secure()):
+            if safe_target:
                 return redirect(target)
             return redirect('home')
         LoginAttempt.objects.create(key=key)
         messages.error(request, 'البريد أو كلمة المرور غير صحيحة.')
-    return render(request, 'auth.html', {'mode': 'login'})
+    return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next})
 
 class LimitedPasswordResetView(PasswordResetView):
     def form_valid(self, form):

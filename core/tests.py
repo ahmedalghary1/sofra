@@ -762,6 +762,24 @@ class SafraTests(TestCase):
         self.assertEqual(Membership.objects.get(user=self.other, restaurant=self.other_restaurant).role, 'owner')
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_existing_user_without_membership_can_log_in_for_valid_invitation_only(self):
+        unattached = User.objects.create_user(username='unattached@example.com',
+            email='unattached@example.com', password='StrongPass!123')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        self.client.post(reverse('staff', args=[self.restaurant.slug]), {'action': 'invite',
+            'email': unattached.email, 'role': 'waiter', 'branch_id': self.branch.pk})
+        token = re.search(r'/invitation/([^/]+)/', mail.outbox[-1].body).group(1)
+        accept = reverse('accept_staff_invitation', args=[token])
+        self.client.logout()
+        login_url = reverse('login')
+        self.assertEqual(self.client.post(login_url, {'email': unattached.email,
+            'password': 'StrongPass!123', 'next': '/'}).status_code, 200)
+        self.assertRedirects(self.client.post(login_url, {'email': unattached.email,
+            'password': 'StrongPass!123', 'next': accept}), accept)
+        self.assertRedirects(self.client.post(accept), reverse('dashboard', args=[self.restaurant.slug]))
+        self.assertTrue(Membership.objects.filter(user=unattached, restaurant=self.restaurant).exists())
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_invitation_permissions_expiry_limit_and_delivery_failure(self):
         manager = User.objects.create_user(username='manager@example.com', password='StrongPass!123')
         Membership.objects.create(user=manager, restaurant=self.restaurant, role='manager')
