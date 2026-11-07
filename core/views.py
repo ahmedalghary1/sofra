@@ -30,10 +30,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
-from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
+from .models import Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
-from .forms import RestaurantProfileForm
+from .forms import RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv
 from .invitations import accept_staff_invitation, invitation_for_token
 
@@ -182,6 +182,31 @@ def platform_update_restaurant(request, restaurant_id):
         messages.success(request, 'تم حفظ التغيير وتسجيل السبب.')
     except ValidationError as exc:
         messages.error(request, error_text(exc))
+    return redirect('platform_dashboard')
+
+@require_POST
+def platform_record_payment(request, restaurant_id):
+    denied = platform_scope(request)
+    if denied: return denied
+    restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
+    form = SubscriptionPaymentForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'بيانات التحصيل غير صالحة: ' + ' '.join(
+            str(error) for errors in form.errors.values() for error in errors))
+        return redirect('platform_dashboard')
+    data = form.cleaned_data
+    try:
+        with transaction.atomic():
+            payment = SubscriptionPayment.objects.create(
+                restaurant=restaurant, amount=data['amount'], currency='EGP',
+                period_start=data['period_start'], period_end=data['period_end'],
+                method=data['method'], reference=data['reference'], recorded_by=request.user)
+            audit(restaurant, request.user, 'platform.subscription.payment',
+                  f'payment={payment.pk}; amount={payment.amount} EGP; reference={payment.reference}')
+    except IntegrityError:
+        messages.error(request, 'مرجع التحصيل مسجل بالفعل لهذا المطعم.')
+        return redirect('platform_dashboard')
+    messages.success(request, 'سُجل التحصيل اليدوي. صلاحية الاشتراك لا تتغير تلقائيًا.')
     return redirect('platform_dashboard')
 
 def scope(request, slug, roles=None):
@@ -928,6 +953,7 @@ def restaurant_settings(request, slug):
                   usage['staff'] > subscription.plan.max_staff)
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
                  preview_table=branch.tables.filter(active=True).first(),
+                 subscription_payments=SubscriptionPayment.objects.filter(restaurant=restaurant)[:20],
                  usage=usage, over_limit=over_limit)
 
 def public_menu(request, token):

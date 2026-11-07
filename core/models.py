@@ -72,6 +72,21 @@ class Subscription(models.Model):
     ends_at = models.DateTimeField()
     def valid(self): return self.status in ('trial','active') and self.ends_at > timezone.now()
 
+class SubscriptionPayment(models.Model):
+    METHODS = [('cash', 'نقدًا'), ('bank', 'تحويل بنكي'), ('other', 'وسيلة أخرى')]
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.PROTECT, related_name='subscription_payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='EGP')
+    period_start = models.DateField()
+    period_end = models.DateField()
+    method = models.CharField(max_length=8, choices=METHODS)
+    reference = models.CharField(max_length=80)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['restaurant', 'reference'], name='unique_subscription_payment_reference')]
+        ordering = ['-recorded_at', '-id']
+
 class Category(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='categories')
     name = models.CharField(max_length=80)

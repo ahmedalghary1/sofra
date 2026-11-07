@@ -23,4 +23,7 @@
     <div class="plan-limits"><span>الفروع <b>{{ usage.branches }} / {{ subscription.plan.max_branches }}</b></span><span>طاولات هذا الفرع <b>{{ usage.tables }} / {{ subscription.plan.max_tables }}</b></span><span>أصناف هذا الفرع <b>{{ usage.items }} / {{ subscription.plan.max_items }}</b></span><span>أعضاء الفريق <b>{{ usage.staff }} / {{ subscription.plan.max_staff }}</b></span></div>
   </section>
 </div>
+{% if membership.role == 'owner' %}<section class="panel"><div class="panel-head"><div><h2>سجل تحصيل الاشتراك</h2><p>المبالغ المسجلة يدويًا لدى إدارة المنصة؛ ليست مدفوعات إلكترونية.</p></div></div>
+{% if subscription_payments %}<div class="table-scroll"><table class="data-table"><thead><tr><th>رقم السجل</th><th>المبلغ</th><th>الفترة</th><th>الطريقة</th><th>المرجع</th><th>تاريخ التسجيل</th></tr></thead><tbody>{% for payment in subscription_payments %}<tr><td>#{{ payment.pk }}</td><td>{{ payment.amount }} {{ payment.currency }}</td><td>{{ payment.period_start|date:'j M Y' }} – {{ payment.period_end|date:'j M Y' }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference }}</td><td>{{ payment.recorded_at|date:'j M Y، H:i' }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="form-hint">لا يوجد تحصيل اشتراك مسجل حتى الآن.</p>{% endif %}
+</section>{% endif %}
 {% endblock %}

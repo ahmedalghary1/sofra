@@ -2,6 +2,26 @@ import re
 
 from django import forms
 
+from .models import SubscriptionPayment
+
+
+class SubscriptionPaymentForm(forms.Form):
+    amount = forms.DecimalField(label='المبلغ بالجنيه المصري', max_digits=10, decimal_places=2,
+                                min_value=0.01)
+    period_start = forms.DateField(label='بداية الفترة', widget=forms.DateInput(attrs={'type': 'date'}))
+    period_end = forms.DateField(label='نهاية الفترة', widget=forms.DateInput(attrs={'type': 'date'}))
+    method = forms.ChoiceField(label='طريقة التحصيل', choices=SubscriptionPayment.METHODS)
+    reference = forms.CharField(label='مرجع التحصيل', min_length=3, max_length=80)
+
+    def clean_reference(self):
+        return self.cleaned_data['reference'].strip().upper()
+
+    def clean(self):
+        data = super().clean()
+        if data.get('period_start') and data.get('period_end') and data['period_end'] < data['period_start']:
+            self.add_error('period_end', 'نهاية الفترة يجب ألا تسبق بدايتها.')
+        return data
+
 
 class RestaurantProfileForm(forms.Form):
     name = forms.CharField(label='اسم المطعم بالعربية', max_length=120)

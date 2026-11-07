@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import AuditLog, Branch, Category, DiningTable, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
@@ -42,6 +42,11 @@ class PlanAdmin(admin.ModelAdmin):
 class SubscriptionAdmin(ReadOnlyAdmin):
     list_display = ('restaurant','plan','status','ends_at')
     list_filter = ('status',)
+
+@admin.register(SubscriptionPayment)
+class SubscriptionPaymentAdmin(ReadOnlyAdmin):
+    list_display = ('id', 'restaurant', 'amount', 'currency', 'period_start', 'period_end', 'method', 'reference', 'recorded_by', 'recorded_at')
+    search_fields = ('restaurant__name', 'reference')
 
 @admin.register(Membership)
 class MembershipAdmin(ReadOnlyAdmin):

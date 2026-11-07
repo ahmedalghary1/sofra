@@ -14,7 +14,7 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription
+from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
@@ -484,6 +484,49 @@ class SafraTests(TestCase):
         self.assertEqual(self.restaurant.subscription.plan_id,plan.pk)
         self.assertEqual(self.restaurant.subscription.status,'active')
         self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant,action='platform.subscription.update').exists())
+
+    def test_subscription_payment_is_recorded_once_and_visible_only_to_own_owner(self):
+        endpoint = reverse('platform_record_payment', args=[self.restaurant.pk])
+        data = {'amount': '799.50', 'period_start': '2026-11-01', 'period_end': '2026-11-30',
+                'method': 'bank', 'reference': ' transfer-123 '}
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(endpoint, data).status_code, 403)
+        operator = User.objects.create_superuser(username='billing@example.com', email='billing@example.com',
+                                                 password='StrongPass!123')
+        self.client.login(username=operator.username, password='StrongPass!123')
+        original_end = self.restaurant.subscription.ends_at
+        self.assertContains(self.client.get(reverse('platform_dashboard')), 'تسجيل تحصيل اشتراك')
+        self.assertEqual(self.client.post(endpoint, data).status_code, 302)
+        payment = SubscriptionPayment.objects.get(restaurant=self.restaurant)
+        self.assertEqual((payment.amount, payment.currency, payment.reference, payment.recorded_by),
+                         (Decimal('799.50'), 'EGP', 'TRANSFER-123', operator))
+        self.assertEqual(payment.period_start.isoformat(), '2026-11-01')
+        self.restaurant.subscription.refresh_from_db()
+        self.assertEqual(self.restaurant.subscription.ends_at, original_end)
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant,
+                        action='platform.subscription.payment', actor=operator).exists())
+        self.client.post(endpoint, {**data, 'reference': 'TRANSFER-123'})
+        self.assertEqual(SubscriptionPayment.objects.count(), 1)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        self.assertContains(self.client.get(reverse('restaurant_settings', args=[self.restaurant.slug])), 'TRANSFER-123')
+        Subscription.objects.create(restaurant=self.other_restaurant, plan=self.restaurant.subscription.plan,
+                                    ends_at=timezone.now()+timedelta(days=14))
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertNotContains(self.client.get(reverse('restaurant_settings', args=[self.other_restaurant.slug])),
+                               'TRANSFER-123')
+
+    def test_subscription_payment_rejects_invalid_amount_period_and_reference(self):
+        operator = User.objects.create_superuser(username='billing-check@example.com',
+            email='billing-check@example.com', password='StrongPass!123')
+        self.client.login(username=operator.username, password='StrongPass!123')
+        endpoint = reverse('platform_record_payment', args=[self.restaurant.pk])
+        valid = {'amount': '10.00', 'period_start': '2026-11-01', 'period_end': '2026-11-30',
+                 'method': 'cash', 'reference': 'CASH-1'}
+        for changes in ({'amount': '-10'}, {'amount': 'NaN'}, {'amount': '1.001'},
+                        {'period_end': '2026-10-31'}, {'method': 'card'}, {'reference': '  '}):
+            with self.subTest(changes=changes):
+                self.client.post(endpoint, {**valid, **changes})
+                self.assertFalse(SubscriptionPayment.objects.exists())
 
     def test_suspended_restaurant_is_read_only_for_staff(self):
         self.restaurant.active = False

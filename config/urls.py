@@ -21,6 +21,7 @@ urlpatterns = [
     path('health/', views.health, name='health'),
     path('platform/', views.platform_dashboard, name='platform_dashboard'),
     path('platform/<int:restaurant_id>/update/', views.platform_update_restaurant, name='platform_update_restaurant'),
+    path('platform/<int:restaurant_id>/payments/', views.platform_record_payment, name='platform_record_payment'),
     path('app/<slug:slug>/', views.dashboard, name='dashboard'),
     path('app/<slug:slug>/menu/', views.manage_menu, name='manage_menu'),
     path('app/<slug:slug>/menu/import/', views.menu_import, name='menu_import'),
