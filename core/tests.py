@@ -1,5 +1,6 @@
 import json
 import io
+import csv
 import os
 import re
 import subprocess
@@ -430,7 +431,9 @@ class SafraTests(TestCase):
         kitchen = self.client.get(reverse('kitchen',args=[self.restaurant.slug]))
         self.assertContains(kitchen,f'طلب #{second_order.pk}')
         self.assertNotContains(kitchen,f'طلب #{first_order.pk}')
-        export = self.client.get(reverse('reports',args=[self.restaurant.slug])+'?export=csv').content.decode('utf-8-sig')
+        export_response = self.client.get(reverse('reports',args=[self.restaurant.slug])+'?export=csv')
+        self.assertTrue(export_response.streaming)
+        export = b''.join(export_response.streaming_content).decode('utf-8-sig')
         self.assertIn(str(second_order.pk),export)
         self.assertNotIn(f'{first_order.pk},',export)
         self.assertEqual(self.client.post(reverse('order_status_change',args=[self.restaurant.slug,first_order.pk]),{'status':'accepted'}).status_code,404)
@@ -1225,8 +1228,23 @@ class SafraTests(TestCase):
         self.assertEqual(response.context['top_items'][0]['quantity'], 2)
         export = self.client.get(endpoint, {'from': day, 'to': day, 'export': 'csv'})
         self.assertEqual(export.status_code, 200)
-        self.assertIn(str(recent.pk).encode(), export.content)
-        self.assertFalse(any(row.startswith(f'{old.pk},'.encode()) for row in export.content.splitlines()[1:]))
+        content = b''.join(export.streaming_content)
+        self.assertIn(str(recent.pk).encode(), content)
+        self.assertFalse(any(row.startswith(f'{old.pk},'.encode()) for row in content.splitlines()[1:]))
+
+    def test_csv_export_streams_and_escapes_formula_after_whitespace(self):
+        self.table.name = '  =HYPERLINK("bad")'
+        self.table.save(update_fields=['name'])
+        create_order(self.table, self.payload())
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        response = self.client.get(reverse('reports', args=[self.restaurant.slug]), {'export': 'csv'})
+        self.assertTrue(response.streaming)
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        content = b''.join(response.streaming_content)
+        self.assertTrue(content.startswith(b'\xef\xbb\xbf'))
+        self.assertEqual(content.count(b'\xef\xbb\xbf'), 1)
+        rows = list(csv.reader(io.StringIO(content.decode('utf-8-sig'))))
+        self.assertEqual(rows[1][1], "'  =HYPERLINK(\"bad\")")
 
     def test_reports_reject_invalid_period_without_silent_export(self):
         self.client.login(username=self.owner.username, password='StrongPass!123')

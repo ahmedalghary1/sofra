@@ -934,7 +934,7 @@ def reports(request, slug):
                 writer.writerow([order.pk,name,order.get_status_display(),order.get_payment_status_display(),
                                  order.get_source_display(),order.total,order.created_at.isoformat()])
                 yield buffer.getvalue()
-        response = StreamingHttpResponse(csv_rows(), content_type='text/csv; charset=utf-8-sig')
+        response = StreamingHttpResponse(csv_rows(), content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="orders.csv"'
         response['Cache-Control'] = 'no-store'
         return response
