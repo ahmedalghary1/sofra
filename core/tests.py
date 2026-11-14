@@ -12,6 +12,8 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.contrib.admin.models import LogEntry
 from django.core import mail
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -23,6 +25,88 @@ from django.urls import reverse
 from django.utils import timezone
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
+
+
+@override_settings(DEBUG=True)
+class DemoSeedTests(TestCase):
+    def seed(self):
+        output = io.StringIO()
+        call_command('seed_demo', stdout=output)
+        return output.getvalue()
+
+    def test_seed_is_repeatable_and_guest_order_reaches_kitchen(self):
+        output = self.seed()
+        restaurant = Restaurant.objects.get(slug='demo-sofra')
+        self.assertIn('demo-owner@example.com', output)
+        self.assertIn('demo-kitchen@example.com', output)
+        self.assertEqual(restaurant.branches.count(), 2)
+        main = restaurant.branches.get(name='الفرع الرئيسي')
+        self.assertEqual(main.stations.count(), 2)
+        self.assertEqual(main.tables.count(), 3)
+        self.assertEqual(MenuItem.objects.filter(category__branch=main).count(), 5)
+        self.assertEqual(Order.objects.filter(branch=main, status='served', payment_status='paid').count(), 3)
+        admin_user = User.objects.get(username='demo-admin@example.com')
+        self.assertTrue(admin_user.is_superuser)
+        admin_client = Client()
+        admin_client.force_login(admin_user)
+        self.assertEqual(admin_client.get(reverse('platform_dashboard')).status_code, 200)
+        self.assertEqual(
+            Membership.objects.get(user__username='demo-owner@example.com', restaurant=restaurant).role,
+            'owner')
+        kitchen_user = User.objects.get(username='demo-kitchen@example.com')
+        self.assertEqual(
+            Membership.objects.get(user=kitchen_user, restaurant=restaurant).branches.get(), main)
+
+        kitchen_client = Client()
+        kitchen_password = re.search(r'demo-kitchen@example\.com \| كلمة المرور: ([a-f0-9]+)', output)
+        self.assertIsNotNone(kitchen_password)
+        self.assertEqual(kitchen_client.post(reverse('login'), {
+            'email': kitchen_user.username, 'password': kitchen_password.group(1),
+        }).status_code, 302)
+        kitchen_url = reverse('kitchen', args=[restaurant.slug])
+        feed_url = reverse('kitchen_feed', args=[restaurant.slug])
+        self.assertEqual(kitchen_client.get(kitchen_url).status_code, 200)
+        self.assertEqual(kitchen_client.get(feed_url).json()['count'], 0)
+
+        table = main.tables.get(name='طاولة 01')
+        guest_client = Client()
+        self.assertEqual(guest_client.get(reverse('public_menu', args=[table.public_token])).status_code, 200)
+        item = MenuItem.objects.get(category__branch=main, name='برجر سفرة')
+        payload = {'idempotency_key': str(uuid.uuid4()), 'session_token': str(table.session_token),
+                   'lines': [{'item_id': item.pk, 'quantity': 1, 'options': []}]}
+        response = guest_client.post(reverse('place_order', args=[table.public_token]),
+                                     data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['ok'])
+        order = Order.objects.get(pk=response.json()['order_number'])
+        self.assertEqual(order.source, 'qr')
+        self.assertEqual(order.total, Decimal('175.00'))
+        self.assertEqual(order.lines.get().item_name, 'برجر سفرة')
+        self.assertEqual(kitchen_client.get(feed_url).json()['count'], 1)
+        self.assertContains(kitchen_client.get(kitchen_url), f'طلب #{order.pk}')
+
+        old_password = kitchen_user.password
+        old_public_token = table.public_token
+        self.seed()
+        kitchen_user.refresh_from_db()
+        table.refresh_from_db()
+        self.assertNotEqual(kitchen_user.password, old_password)
+        self.assertEqual(table.public_token, old_public_token)
+        self.assertEqual(Order.objects.filter(branch=main).count(), 4)
+
+    @override_settings(DEBUG=False)
+    def test_seed_refuses_non_debug_mode(self):
+        with self.assertRaises(CommandError):
+            self.seed()
+        self.assertFalse(Restaurant.objects.filter(slug='demo-sofra').exists())
+
+    def test_seed_refuses_existing_non_demo_account_without_partial_data(self):
+        existing = User.objects.create_user(username='demo-owner@example.com', password='Original!123')
+        with self.assertRaises(CommandError):
+            self.seed()
+        existing.refresh_from_db()
+        self.assertTrue(existing.check_password('Original!123'))
+        self.assertFalse(Restaurant.objects.filter(slug='demo-sofra').exists())
 
 class SafraTests(TestCase):
     def setUp(self):

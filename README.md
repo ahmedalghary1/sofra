@@ -30,6 +30,10 @@ python manage.py runserver
 
 للتطوير عبر PostgreSQL: `docker compose up --build` ثم `docker compose exec web python manage.py migrate`. إعدادات التطوير داخل Compose فقط.
 
+## عرض محلي
+
+لعرض النظام محليًا بحسابات وبيانات جاهزة وسيناريو طلب يظهر في المطبخ، راجع [دليل العرض المحلي](docs/DEMO_GUIDE.md).
+
 ## الاختبارات
 
 ```powershell
