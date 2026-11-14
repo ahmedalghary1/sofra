@@ -2,6 +2,10 @@ import csv
 import io
 from decimal import Decimal, InvalidOperation
 
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+from zipfile import BadZipFile
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -15,6 +19,40 @@ from .services import audit
 HEADERS = ('category', 'name', 'price', 'description')
 
 
+def validate_menu_rows(sources):
+    rows, errors, seen = [], [], set()
+    for number, source in enumerate(sources, start=2):
+        if number > 201:
+            errors.append('الحد الأقصى 200 صنف في الدفعة.')
+            break
+        if None in source or all(not str(source.get(key) or '').strip() for key in HEADERS):
+            errors.append(f'السطر {number}: عدد الأعمدة أو البيانات غير صالح.')
+            continue
+        category = str(source['category'] or '').strip()
+        name = str(source['name'] or '').strip()
+        description = str(source['description'] or '').strip()
+        if not category or len(category) > 80 or not name or len(name) > 120 or len(description) > 300:
+            errors.append(f'السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح.')
+            continue
+        try:
+            price = Decimal(str(source['price'] or '').strip())
+            if not price.is_finite() or price < 0 or price > 9999999 or price.as_tuple().exponent < -2:
+                raise InvalidOperation
+        except InvalidOperation:
+            errors.append(f'السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين.')
+            continue
+        signature = (category.casefold(), name.casefold())
+        if signature in seen:
+            errors.append(f'السطر {number}: الصنف مكرر داخل الملف.')
+            continue
+        seen.add(signature)
+        rows.append({'category': category, 'name': name, 'description': description,
+                     'price': str(price.quantize(Decimal('0.01')))})
+    if not rows and not errors:
+        errors.append('الملف لا يحتوي أصنافًا.')
+    return rows, errors
+
+
 def parse_menu_csv(upload):
     if not upload or not upload.name.lower().endswith('.csv'):
         raise ValidationError('اختر ملف CSV.')
@@ -25,39 +63,43 @@ def parse_menu_csv(upload):
         reader = csv.DictReader(io.StringIO(content, newline=''))
         if not reader.fieldnames or tuple(name.strip() for name in reader.fieldnames) != HEADERS:
             raise ValidationError('الأعمدة المطلوبة بالترتيب: category,name,price,description.')
-        rows, errors, seen = [], [], set()
-        for number, source in enumerate(reader, start=2):
-            if number > 201:
-                errors.append('الحد الأقصى 200 صنف في الدفعة.')
-                break
-            if None in source or all(not str(source.get(key) or '').strip() for key in HEADERS):
-                errors.append(f'السطر {number}: عدد الأعمدة أو البيانات غير صالح.')
-                continue
-            category = str(source['category'] or '').strip()
-            name = str(source['name'] or '').strip()
-            description = str(source['description'] or '').strip()
-            if not category or len(category) > 80 or not name or len(name) > 120 or len(description) > 300:
-                errors.append(f'السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح.')
-                continue
-            try:
-                price = Decimal(str(source['price'] or '').strip())
-                if not price.is_finite() or price < 0 or price > 9999999 or price.as_tuple().exponent < -2:
-                    raise InvalidOperation
-            except InvalidOperation:
-                errors.append(f'السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين.')
-                continue
-            signature = (category.casefold(), name.casefold())
-            if signature in seen:
-                errors.append(f'السطر {number}: الصنف مكرر داخل الملف.')
-                continue
-            seen.add(signature)
-            rows.append({'category': category, 'name': name, 'description': description,
-                         'price': str(price.quantize(Decimal('0.01')))})
-        if not rows and not errors:
-            errors.append('الملف لا يحتوي أصنافًا.')
-        return rows, errors
+        return validate_menu_rows(reader)
     except (UnicodeDecodeError, csv.Error):
         raise ValidationError('تعذر قراءة الملف. استخدم CSV بترميز UTF-8.')
+
+
+def parse_menu_xlsx(upload):
+    if not upload or not upload.name.lower().endswith('.xlsx'):
+        raise ValidationError('اختر ملف Excel بصيغة XLSX.')
+    if upload.size > 1_000_000:
+        raise ValidationError('الحد الأقصى للملف 1 ميجابايت.')
+    try:
+        workbook = load_workbook(upload, read_only=True, data_only=False)
+        try:
+            if len(workbook.worksheets) != 1:
+                raise ValidationError('استخدم ورقة عمل واحدة للاستيراد.')
+            sheet = workbook.active
+            header = next(sheet.iter_rows(min_row=1, max_row=1, max_col=5, values_only=True), ())
+            if tuple(str(value or '').strip() for value in header[:4]) != HEADERS or len(header) > 4 and header[4] is not None:
+                raise ValidationError('الأعمدة المطلوبة بالترتيب: category,name,price,description.')
+            def sources():
+                for cells in sheet.iter_rows(min_row=2, max_row=202, max_col=5):
+                    if any(cell.data_type == 'f' for cell in cells):
+                        yield {'category': '', 'name': '', 'price': '', 'description': '', None: 'formula'}
+                    else:
+                        values = [cell.value for cell in cells]
+                        row = dict(zip(HEADERS, values[:4]))
+                        if values[4] is not None:
+                            row[None] = values[4]
+                        yield row
+            rows, errors = validate_menu_rows(sources())
+            if sheet.max_row and sheet.max_row > 201:
+                errors.append('الحد الأقصى 200 صنف في الدفعة.')
+            return rows, errors
+        finally:
+            workbook.close()
+    except (BadZipFile, InvalidFileException, OSError, ValueError, TypeError, EOFError):
+        raise ValidationError('تعذر قراءة ملف Excel. استخدم ملف XLSX صالحًا.')
 
 
 @transaction.atomic

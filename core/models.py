@@ -13,6 +13,7 @@ class Plan(models.Model):
     max_items = models.PositiveIntegerField(default=50)
     max_staff = models.PositiveIntegerField(default=5)
     max_branches = models.PositiveIntegerField(default=1)
+    max_stations = models.PositiveIntegerField(default=1)
     def __str__(self): return self.name
 
 class Restaurant(models.Model):
@@ -32,6 +33,7 @@ class Branch(models.Model):
     opening_hours = models.CharField(max_length=160, blank=True)
     waiter_response_minutes = models.PositiveSmallIntegerField(default=5)
     bill_response_minutes = models.PositiveSmallIntegerField(default=5)
+    kitchen_delay_minutes = models.PositiveSmallIntegerField(default=20)
     show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
@@ -97,8 +99,18 @@ class Category(models.Model):
         constraints = [models.UniqueConstraint(fields=['branch','name'], name='unique_branch_category')]
     def __str__(self): return self.name
 
+class KitchenStation(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='stations')
+    name = models.CharField(max_length=80)
+    active = models.BooleanField(default=True)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['branch', 'name'], name='unique_branch_station_name')]
+        ordering = ['id']
+    def __str__(self): return self.name
+
 class MenuItem(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='items')
+    station = models.ForeignKey(KitchenStation, null=True, blank=True, on_delete=models.PROTECT)
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=300, blank=True)
     price = models.DecimalField(max_digits=9, decimal_places=2)
@@ -136,11 +148,15 @@ class ModifierOption(models.Model):
     name = models.CharField(max_length=80)
     price = models.DecimalField(max_digits=9, decimal_places=2, default=0)
     available = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    class Meta:
+        ordering = ['sort_order', 'id']
 
 class DiningTable(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='tables')
     name = models.CharField(max_length=40)
     public_token = models.CharField(max_length=48, unique=True, default=token)
+    session_token = models.UUIDField(default=uuid.uuid4)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
@@ -153,6 +169,7 @@ class Order(models.Model):
     table = models.ForeignKey(DiningTable, on_delete=models.PROTECT, related_name='orders')
     public_token = models.CharField(max_length=48, unique=True, default=token)
     idempotency_key = models.UUIDField()
+    session_token = models.UUIDField(null=True, blank=True)
     request_hash = models.CharField(max_length=64)
     source = models.CharField(max_length=8, choices=[('qr','QR'),('staff','موظف')], default='qr')
     status = models.CharField(max_length=12, choices=STATUSES, default='new')
@@ -170,8 +187,11 @@ class Order(models.Model):
         indexes = [models.Index(fields=['branch','status','created_at'])]
 
 class OrderLine(models.Model):
+    PREP_STATUSES = [('new', 'لم يبدأ'), ('preparing', 'قيد التحضير'), ('ready', 'جاهز')]
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='lines')
     item = models.ForeignKey(MenuItem, null=True, on_delete=models.SET_NULL)
+    station = models.ForeignKey(KitchenStation, null=True, blank=True, on_delete=models.PROTECT)
+    prep_status = models.CharField(max_length=12, choices=PREP_STATUSES, default='new')
     item_name = models.CharField(max_length=120)
     size_name = models.CharField(max_length=80, blank=True)
     base_price = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
@@ -179,6 +199,13 @@ class OrderLine(models.Model):
     quantity = models.PositiveSmallIntegerField()
     modifiers = models.JSONField(default=list)
     line_total = models.DecimalField(max_digits=10, decimal_places=2)
+
+class OrderLinePrepHistory(models.Model):
+    line = models.ForeignKey(OrderLine, on_delete=models.CASCADE, related_name='prep_history')
+    old_status = models.CharField(max_length=12)
+    new_status = models.CharField(max_length=12)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class OrderHistory(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='history')

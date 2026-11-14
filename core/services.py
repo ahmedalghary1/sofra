@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .models import AuditLog, MenuItem, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, ServiceCall
+from .models import AuditLog, MenuItem, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OrderRevision, ServiceCall
 
 ORDER_NEXT = {'new': 'accepted', 'accepted': 'preparing', 'preparing': 'ready', 'ready': 'served'}
 CALL_NEXT = {'open': 'acknowledged', 'acknowledged': 'in_progress', 'in_progress': 'done'}
@@ -67,7 +67,7 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
         raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
     return normalized, total
 
-def create_order(table, payload, user=None):
+def create_order(table, payload, user=None, require_session=False):
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
         raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
     subscription = getattr(table.branch.restaurant, 'subscription', None)
@@ -89,15 +89,22 @@ def create_order(table, payload, user=None):
         if existing.request_hash != digest:
             raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
         return existing
+    if require_session and str(payload.get('session_token', '')) != str(table.session_token):
+        raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
     if Order.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
         raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
     normalized, total = normalize_order_lines(table, raw_lines)
     try:
         with transaction.atomic():
+            locked_table = type(table).objects.select_for_update().get(pk=table.pk)
+            if require_session and str(payload.get('session_token', '')) != str(locked_table.session_token):
+                raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
             order = Order.objects.create(branch=table.branch, table=table, idempotency_key=key,
+                                         session_token=locked_table.session_token,
                                          request_hash=digest, source='staff' if user else 'qr',
                                          total=total, note=note, created_by=user)
-            OrderLine.objects.bulk_create([OrderLine(order=order, item=item, item_name=item.name,
+            OrderLine.objects.bulk_create([OrderLine(order=order, item=item, station=item.station,
+                item_name=item.name,
                 size_name=size_name, base_price=base_price, unit_price=unit,
                 quantity=quantity, modifiers=mods, line_total=subtotal)
                 for item, quantity, size_name, base_price, mods, unit, subtotal in normalized])
@@ -175,7 +182,8 @@ def edit_order(order, actor, payload):
             line.quantity = qty
             line.line_total = line.unit_price * qty
             line.save(update_fields=['quantity', 'line_total'])
-    OrderLine.objects.bulk_create([OrderLine(order=order, item=item, item_name=item.name,
+    OrderLine.objects.bulk_create([OrderLine(order=order, item=item, station=item.station,
+        item_name=item.name,
         size_name=size_name, base_price=base_price, unit_price=unit,
         quantity=quantity, modifiers=mods, line_total=subtotal)
         for item, quantity, size_name, base_price, mods, unit, subtotal in normalized])
@@ -196,12 +204,29 @@ def advance_order(order, actor, status, reason=''):
             raise ValidationError('الإلغاء يتطلب سببًا وطلبًا لم يُقدّم بعد.')
     elif ORDER_NEXT.get(order.status) != status:
         raise ValidationError('الانتقال إلى هذه الحالة غير مسموح.')
+    if status == 'ready' and order.lines.filter(station__isnull=False).exists() and order.lines.exclude(prep_status='ready').exists():
+        raise ValidationError('أكمل تحضير جميع أصناف الطلب في محطاتها قبل تحويل الطلب إلى جاهز.')
     old = order.status
     order.status = status
     order.save(update_fields=['status', 'updated_at'])
     OrderHistory.objects.create(order=order, old_status=old, new_status=status, actor=actor, reason=reason[:240])
     audit(order.branch.restaurant, actor, 'order.status', f'{order.pk}: {old} → {status}')
     return order
+
+
+@transaction.atomic
+def advance_order_line(line, actor, status):
+    order = Order.objects.select_for_update().select_related('branch__restaurant').get(pk=line.order_id)
+    line = OrderLine.objects.select_for_update().get(pk=line.pk, order=order)
+    if order.status != 'preparing' or {'new': 'preparing', 'preparing': 'ready'}.get(line.prep_status) != status:
+        raise ValidationError('انتقال حالة الصنف غير مسموح. حدّث شاشة المطبخ وراجع حالة الطلب.')
+    old = line.prep_status
+    line.prep_status = status
+    line.save(update_fields=['prep_status'])
+    OrderLinePrepHistory.objects.create(line=line, old_status=old, new_status=status, actor=actor)
+    order.save(update_fields=['updated_at'])
+    audit(order.branch.restaurant, actor, 'order.line.prep', f'{order.pk}/{line.pk}: {old} → {status}')
+    return line
 
 
 @transaction.atomic
@@ -252,7 +277,9 @@ def advance_call(call, actor, status):
     audit(call.table.branch.restaurant, actor, 'call.status', f'{call.pk}: {status}')
     return call
 
-def create_service_call(table, kind):
+def create_service_call(table, kind, session_token=None):
+    if session_token is not None and str(session_token) != str(table.session_token):
+        raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.')
     if kind not in ('waiter', 'bill'):
         raise ValidationError('نوع الاستدعاء غير صالح.')
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:

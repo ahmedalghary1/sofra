@@ -1,7 +1,9 @@
 import json
+import io
 import re
 import uuid
 from decimal import Decimal
+from openpyxl import Workbook
 from datetime import timedelta
 from django.contrib.auth.models import User
 from django.contrib.admin.models import LogEntry
@@ -14,8 +16,8 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
-from .services import advance_call, advance_order, create_order, create_service_call, edit_order
+from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
+from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
     def setUp(self):
@@ -135,7 +137,7 @@ class SafraTests(TestCase):
         self.assertEqual(self.client.get(reverse('reports', args=[self.restaurant.slug])+'?export=csv').status_code, 403)
         self.client.logout()
         self.assertEqual(self.client.get(reverse('public_menu', args=[self.table.public_token])).status_code, 200)
-        response = self.client.post(reverse('place_order', args=[self.table.public_token]), data=json.dumps(self.payload()), content_type='application/json')
+        response = self.client.post(reverse('place_order', args=[self.table.public_token]), data=json.dumps({**self.payload(), 'session_token': str(self.table.session_token)}), content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Order.objects.count(), 1)
 
@@ -199,7 +201,56 @@ class SafraTests(TestCase):
         response = client.get(reverse('public_menu', args=[self.table.public_token]))
         self.assertEqual(response.status_code, 200)
         token = client.cookies['csrftoken'].value
-        self.assertEqual(client.post(endpoint, data=json.dumps(self.payload()), content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
+        self.assertEqual(client.post(endpoint, data=json.dumps({**self.payload(), 'session_token': str(self.table.session_token)}), content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
+
+    def test_table_session_close_rejects_active_orders_then_rotates_token(self):
+        old_token = str(self.table.session_token)
+        payload = {**self.payload(), 'session_token': old_token}
+        public_endpoint = reverse('place_order', args=[self.table.public_token])
+        response = self.client.post(public_endpoint, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        order = Order.objects.get(table=self.table)
+        self.assertEqual(str(order.session_token), old_token)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_tables', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
+        self.table.refresh_from_db()
+        self.assertEqual(str(self.table.session_token), old_token)
+        for status in ('accepted', 'preparing', 'ready', 'served'):
+            advance_order(order, self.owner, status)
+        self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
+        self.table.refresh_from_db()
+        self.assertEqual(str(self.table.session_token), old_token)
+        order.payment_status = 'paid'; order.save(update_fields=['payment_status'])
+        self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
+        self.table.refresh_from_db()
+        self.assertNotEqual(str(self.table.session_token), old_token)
+        self.assertEqual(order.history.count(), 5)
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant, action='table.close_session').exists())
+        self.client.logout()
+        stale = self.client.post(public_endpoint, data=json.dumps({**self.payload(), 'session_token': old_token}), content_type='application/json')
+        self.assertEqual(stale.status_code, 400)
+        fresh = self.client.post(public_endpoint, data=json.dumps({**self.payload(), 'session_token': str(self.table.session_token)}), content_type='application/json')
+        self.assertEqual(fresh.status_code, 200)
+
+    def test_session_close_scopes_table_and_waits_for_service_calls(self):
+        call = create_service_call(self.table, 'waiter')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_tables', args=[self.restaurant.slug])
+        original = self.table.session_token
+        self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.session_token, original)
+        for status in ('acknowledged', 'in_progress', 'done'):
+            advance_call(call, self.owner, status)
+        self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
+        self.table.refresh_from_db()
+        self.assertNotEqual(self.table.session_token, original)
+        Subscription.objects.create(restaurant=self.other_restaurant,
+            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(reverse('manage_tables', args=[self.other_restaurant.slug]),
+            {'action': 'close_session', 'table_id': self.table.pk}).status_code, 404)
 
     def test_role_cannot_change_order_outside_permissions(self):
         waiter = User.objects.create_user(username='waiter@example.com',password='StrongPass!123')
@@ -228,7 +279,7 @@ class SafraTests(TestCase):
         table = DiningTable.objects.get(branch=self.branch,name='طاولة 2')
         self.assertEqual(self.client.get(reverse('table_qr',args=[self.restaurant.slug,table.pk])).get('Content-Type'),'image/png')
         self.client.logout()
-        data = self.payload(); data['lines'][0]['quantity'] = 1
+        data = self.payload(); data['lines'][0]['quantity'] = 1; data['session_token'] = str(table.session_token)
         response = self.client.post(reverse('place_order',args=[table.public_token]),data=json.dumps(data),content_type='application/json')
         self.assertEqual(response.status_code,200)
         order = Order.objects.get(table=table)
@@ -362,6 +413,92 @@ class SafraTests(TestCase):
         self.assertFalse(option.available)
         with self.assertRaises(ValidationError): create_order(self.table,self.payload([option.pk]))
 
+    def test_modifier_edits_keep_order_snapshot_and_validate_required_options(self):
+        group = ModifierGroup.objects.create(item=self.item, name='إضافات', min_select=1, max_select=1)
+        option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
+        order = create_order(self.table, self.payload([option.pk]))
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.assertContains(self.client.get(endpoint), 'حفظ المجموعة')
+        self.client.post(endpoint, {'action': 'modifier_option_edit', 'option_id': option.pk,
+                                    'name': 'جبن إضافي', 'price': '20.00'})
+        option.refresh_from_db()
+        self.assertEqual((option.name, option.price), ('جبن إضافي', Decimal('20.00')))
+        line = order.lines.get()
+        self.assertEqual(line.modifiers[0], {'name': 'جبن', 'price': '10.00'})
+        self.assertEqual(line.unit_price, Decimal('110.00'))
+        self.client.post(endpoint, {'action': 'modifier_toggle', 'option_id': option.pk})
+        option.refresh_from_db()
+        self.assertTrue(option.available)
+        self.client.post(endpoint, {'action': 'modifier_group_edit', 'group_id': group.pk,
+                                    'name': 'إضافات جديدة', 'min_select': '2', 'max_select': '2'})
+        group.refresh_from_db()
+        self.assertEqual(group.min_select, 1)
+        self.client.post(endpoint, {'action': 'modifier_group_edit', 'group_id': group.pk,
+                                    'name': 'إضافات جديدة', 'min_select': '0', 'max_select': '1'})
+        group.refresh_from_db()
+        self.assertEqual((group.name, group.min_select), ('إضافات جديدة', 0))
+        self.client.post(endpoint, {'action': 'modifier_toggle', 'option_id': option.pk})
+        option.refresh_from_db()
+        self.assertFalse(option.available)
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant,
+                        action='modifier.option.edit').exists())
+
+    def test_modifier_edit_scopes_branch_and_rejects_invalid_price(self):
+        group = ModifierGroup.objects.create(item=self.item, name='إضافات')
+        option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
+        Subscription.objects.create(restaurant=self.other_restaurant,
+            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
+        self.assertEqual(self.client.post(endpoint, {'action': 'modifier_group_edit',
+            'group_id': group.pk, 'name': 'اختراق', 'min_select': '0', 'max_select': '1'}).status_code, 404)
+        self.assertEqual(self.client.post(endpoint, {'action': 'modifier_option_edit',
+            'option_id': option.pk, 'name': 'اختراق', 'price': '1'}).status_code, 404)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'modifier_option_edit', 'option_id': option.pk,
+                                    'name': 'غير صالح', 'price': 'NaN'})
+        option.refresh_from_db()
+        self.assertEqual((option.name, option.price), ('جبن', Decimal('10.00')))
+
+    def test_modifier_order_and_delete_preserve_order_snapshot(self):
+        group = ModifierGroup.objects.create(item=self.item, name='إضافات', min_select=1, max_select=2)
+        first = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
+        second = ModifierOption.objects.create(group=group, name='صلصة', price=Decimal('5.00'))
+        order = create_order(self.table, self.payload([first.pk]))
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'modifier_option_edit', 'option_id': second.pk,
+                                    'name': 'صلصة', 'price': '5.00', 'sort_order': '0'})
+        self.client.post(endpoint, {'action': 'modifier_option_edit', 'option_id': first.pk,
+                                    'name': 'جبن', 'price': '10.00', 'sort_order': '2'})
+        options = self.client.get(reverse('public_menu', args=[self.table.public_token])).context['items_json'][0]['groups'][0]['options']
+        self.assertEqual([option['name'] for option in options], ['صلصة', 'جبن'])
+        self.client.post(endpoint, {'action': 'modifier_option_delete', 'option_id': first.pk})
+        self.assertFalse(ModifierOption.objects.filter(pk=first.pk).exists())
+        self.assertEqual(order.lines.get().modifiers[0], {'name': 'جبن', 'price': '10.00'})
+        self.client.post(endpoint, {'action': 'modifier_option_delete', 'option_id': second.pk})
+        self.assertTrue(ModifierOption.objects.filter(pk=second.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant,
+                        action='modifier.option.delete').exists())
+
+    def test_modifier_sort_and_delete_are_scoped_and_validated(self):
+        group = ModifierGroup.objects.create(item=self.item, name='إضافات')
+        option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
+        Subscription.objects.create(restaurant=self.other_restaurant,
+            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        foreign_endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
+        self.assertEqual(self.client.post(foreign_endpoint, {'action': 'modifier_option_delete',
+                         'option_id': option.pk}).status_code, 404)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'modifier_option_edit', 'option_id': option.pk,
+                                    'name': 'تغيير', 'price': '1.00', 'sort_order': '-1'})
+        option.refresh_from_db()
+        self.assertEqual((option.name, option.sort_order), ('جبن', 0))
+
     def test_kitchen_feed_changes_and_rejects_other_roles(self):
         self.client.login(username='owner@example.com',password='StrongPass!123')
         endpoint = reverse('kitchen_feed',args=[self.restaurant.slug])
@@ -393,6 +530,40 @@ class SafraTests(TestCase):
         second.refresh_from_db()
         self.assertFalse(second.active)
         self.assertEqual(DiningTable.objects.filter(branch=self.branch).count(),2)
+
+    def test_plan_preview_counts_every_branch_without_changing_subscription(self):
+        second = Branch.objects.create(restaurant=self.restaurant, name='فرع آخر')
+        DiningTable.objects.create(branch=self.branch, name='معطلة', active=False)
+        DiningTable.objects.create(branch=second, name='طاولة أخرى')
+        Category.objects.create(branch=second, name='تصنيف آخر')
+        preview = Plan.objects.create(name='باقة أصغر', max_branches=1, max_tables=1,
+                                      max_items=1, max_staff=1)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        url = reverse('restaurant_settings', args=[self.restaurant.slug])
+        response = self.client.get(url, {'preview_plan': preview.pk})
+        self.assertEqual(response.status_code, 200)
+        data = response.context['plan_preview']
+        self.assertEqual(data['branch_excess'], 1)
+        self.assertEqual([(branch.name, branch.table_excess) for branch in data['branches']],
+                         [(self.branch.name, 1), (second.name, 0)])
+        self.assertContains(response, 'يسري فور حفظه')
+        self.restaurant.subscription.refresh_from_db()
+        self.assertNotEqual(self.restaurant.subscription.plan_id, preview.pk)
+        self.assertEqual(self.client.get(url, {'preview_plan': 'bad'}).status_code, 200)
+
+    def test_plan_preview_is_only_for_owner_and_scoped_to_restaurant(self):
+        preview = Plan.objects.create(name='باقة معاينة', max_branches=1)
+        Category.objects.create(branch=self.other_branch, name='أجنبية')
+        DiningTable.objects.create(branch=self.other_branch, name='أجنبية')
+        manager = User.objects.create_user(username='preview-manager@example.com', password='StrongPass!123')
+        Membership.objects.create(user=manager, restaurant=self.restaurant, role='manager')
+        url = reverse('restaurant_settings', args=[self.restaurant.slug])
+        self.client.login(username=manager.username, password='StrongPass!123')
+        self.assertIsNone(self.client.get(url, {'preview_plan': preview.pk}).context['plan_preview'])
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        response = self.client.get(url, {'preview_plan': preview.pk})
+        self.assertEqual(response.context['plan_preview']['branch_count'], 1)
+        self.assertNotContains(response, 'أجنبية')
 
     def test_staff_order_multiple_items_modifiers_and_tenant_scope(self):
         second = MenuItem.objects.create(category=self.category,name='مشروب',price=Decimal('50.00'))
@@ -461,6 +632,38 @@ class SafraTests(TestCase):
         self.assertIn('ث',report.context['accepted_time'])
         self.assertIn('ث',report.context['ready_time'])
         self.assertIn('ث',report.context['call_response_time'])
+
+    def test_station_timing_report_uses_line_history_and_branch_scope(self):
+        grill = KitchenStation.objects.create(branch=self.branch, name='الشواية')
+        drinks = KitchenStation.objects.create(branch=self.branch, name='المشروبات')
+        foreign = KitchenStation.objects.create(branch=self.other_branch, name='محطة أخرى')
+        self.item.station = grill
+        self.item.save(update_fields=['station'])
+        drink = MenuItem.objects.create(category=self.category, name='عصير', price=Decimal('20.00'), station=drinks)
+        payload = self.payload()
+        payload['lines'].append({'item_id': drink.pk, 'quantity': 1, 'options': []})
+        order = create_order(self.table, payload)
+        advance_order(order, self.owner, 'accepted')
+        advance_order(order, self.owner, 'preparing')
+        for line in order.lines.all():
+            advance_order_line(line, self.owner, 'preparing')
+            advance_order_line(line, self.owner, 'ready')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('reports', args=[self.restaurant.slug])
+        whole = self.client.get(endpoint)
+        self.assertEqual(whole.context['station_samples'], 2)
+        self.assertIn('ث', whole.context['station_time'])
+        selected = self.client.get(endpoint, {'station': grill.pk})
+        self.assertEqual(selected.context['station_samples'], 1)
+        self.assertContains(selected, 'الشواية')
+        self.assertEqual(self.client.get(endpoint, {'station': drinks.pk}).context['station_samples'], 1)
+        self.assertEqual(self.client.get(endpoint, {'station': 'unassigned'}).context['station_samples'], 0)
+        self.assertEqual(self.client.get(endpoint, {'station': foreign.pk}).status_code, 404)
+        self.assertEqual(self.client.get(endpoint, {'station': 'bad'}).status_code, 404)
+        Order.objects.filter(pk=order.pk).update(created_at=timezone.now()-timedelta(days=5))
+        today = timezone.localdate().isoformat()
+        self.assertEqual(self.client.get(endpoint, {'station': grill.pk, 'from': today,
+            'to': today}).context['station_samples'], 0)
 
     def test_platform_actions_require_superuser_and_audited_reason(self):
         endpoint = reverse('platform_update_restaurant',args=[self.restaurant.pk])
@@ -547,7 +750,7 @@ class SafraTests(TestCase):
         endpoint = f'/django-admin/core/plan/{plan.pk}/change/'
         self.assertContains(self.client.get(endpoint),'change_reason')
         data = {'name':plan.name,'price_monthly':'0','max_tables':'20','max_items':'50',
-                'max_staff':'5','max_branches':'1','change_reason':''}
+                'max_staff':'5','max_branches':'1','max_stations':'1','change_reason':''}
         self.assertEqual(self.client.post(endpoint,data).status_code,200)
         plan.refresh_from_db()
         self.assertEqual(plan.max_tables,10)
@@ -811,6 +1014,43 @@ class SafraTests(TestCase):
         self.assertEqual(self.client.post(other_endpoint, {'action': 'commit', 'batch': str(batch.token)}).status_code, 404)
         self.assertEqual(MenuItem.objects.count(), 1)
 
+    def test_xlsx_import_previews_then_commits_with_csv_rules(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['category', 'name', 'price', 'description'])
+        sheet.append(['مشروبات', 'عصير', 25.5, 'طازج'])
+        buffer = io.BytesIO()
+        workbook.save(buffer)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('menu_import', args=[self.restaurant.slug])
+        response = self.client.post(endpoint, {'action': 'preview', 'file':
+            SimpleUploadedFile('menu.xlsx', buffer.getvalue())})
+        self.assertEqual(response.status_code, 200)
+        batch = response.context['batch']
+        self.assertIsNotNone(batch)
+        self.assertEqual(batch.rows[0]['price'], '25.50')
+        self.assertEqual(MenuItem.objects.count(), 1)
+        self.client.post(endpoint, {'action': 'commit', 'batch': str(batch.token)})
+        self.assertEqual(MenuItem.objects.get(name='عصير').price, Decimal('25.50'))
+
+    def test_xlsx_import_rejects_formula_and_bad_workbook(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['category', 'name', 'price', 'description'])
+        sheet.append(['مشروبات', 'عصير', '=10+15', ''])
+        buffer = io.BytesIO()
+        workbook.save(buffer)
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('menu_import', args=[self.restaurant.slug])
+        response = self.client.post(endpoint, {'action': 'preview', 'file':
+            SimpleUploadedFile('formula.xlsx', buffer.getvalue())})
+        self.assertIsNone(response.context['batch'])
+        self.assertEqual(MenuImportBatch.objects.count(), 0)
+        response = self.client.post(endpoint, {'action': 'preview', 'file':
+            SimpleUploadedFile('bad.xlsx', b'not-an-excel-file')})
+        self.assertIsNone(response.context['batch'])
+        self.assertEqual(MenuItem.objects.count(), 1)
+
     def test_reports_filter_period_applies_to_metrics_and_csv(self):
         old = create_order(self.table, self.payload())
         Order.objects.filter(pk=old.pk).update(created_at=timezone.now()-timedelta(days=10))
@@ -846,6 +1086,133 @@ class SafraTests(TestCase):
         self.assertContains(response, 'id="kitchenStatus"')
         self.assertContains(response, f'data-table="{self.table.pk}"')
         self.assertNotContains(response, f'<option value="{foreign_table.pk}">{foreign_table.name}</option>')
+
+    def test_station_routing_keeps_line_snapshot_and_feed_scoped(self):
+        station = KitchenStation.objects.create(branch=self.branch, name='المشروبات')
+        second = MenuItem.objects.create(category=self.category, name='عصير', price=Decimal('20.00'))
+        second.station = station; second.save(update_fields=['station'])
+        payload = self.payload()
+        payload['lines'].append({'item_id': second.pk, 'quantity': 1, 'options': []})
+        order = create_order(self.table, payload)
+        self.assertEqual(order.lines.get(item=second).station_id, station.pk)
+        second.station = None; second.save(update_fields=['station'])
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        base = reverse('kitchen', args=[self.restaurant.slug])
+        station_page = self.client.get(base, {'station': station.pk})
+        self.assertContains(station_page, 'عصير')
+        self.assertNotContains(station_page, 'طبق</span>')
+        self.assertNotContains(station_page, 'تأكيد الاستلام')
+        self.assertEqual(self.client.get(reverse('kitchen_feed', args=[self.restaurant.slug]),
+                                         {'station': station.pk}).json()['count'], 1)
+        unassigned = self.client.get(base, {'station': 'unassigned'})
+        self.assertContains(unassigned, 'طبق')
+        self.assertNotContains(unassigned, 'عصير</span>')
+        self.assertContains(self.client.get(base), 'صنف جارٍ بلا محطة تحضير')
+        self.assertEqual(self.client.get(base, {'station': 'bad'}).status_code, 404)
+
+    def test_station_limit_assignment_and_foreign_station_rejected(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_menu', args=[self.restaurant.slug])
+        self.client.post(endpoint, {'action': 'station_create', 'name': 'الشواية'})
+        station = KitchenStation.objects.get(branch=self.branch)
+        self.client.post(endpoint, {'action': 'station_create', 'name': 'المشروبات'})
+        self.assertEqual(KitchenStation.objects.filter(branch=self.branch).count(), 1)
+        self.client.post(endpoint, {'action': 'station_assign', 'item_id': self.item.pk,
+                                    'station_id': station.pk})
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.station_id, station.pk)
+        settings_page = self.client.get(reverse('restaurant_settings', args=[self.restaurant.slug]),
+                                        {'preview_plan': self.restaurant.subscription.plan_id})
+        self.assertEqual(settings_page.context['plan_preview']['branches'][0].station_count, 1)
+        foreign = KitchenStation.objects.create(branch=self.other_branch, name='أجنبية')
+        self.assertEqual(self.client.post(endpoint, {'action': 'station_assign',
+            'item_id': self.item.pk, 'station_id': foreign.pk}).status_code, 404)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.station_id, station.pk)
+
+    def test_station_lines_require_independent_readiness_and_keep_history(self):
+        station = KitchenStation.objects.create(branch=self.branch, name='المشروبات')
+        drink = MenuItem.objects.create(category=self.category, name='عصير', price=Decimal('20.00'), station=station)
+        payload = self.payload()
+        payload['lines'].append({'item_id': drink.pk, 'quantity': 1, 'options': []})
+        order = create_order(self.table, payload)
+        advance_order(order, self.owner, 'accepted')
+        advance_order(order, self.owner, 'preparing')
+        with self.assertRaises(ValidationError):
+            advance_order(order, self.owner, 'ready')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        feed = reverse('kitchen_feed', args=[self.restaurant.slug])
+        before = self.client.get(feed, {'station': station.pk}).json()['signature']
+        drink_line = order.lines.get(item=drink)
+        url = reverse('order_line_status_change', args=[self.restaurant.slug, order.pk, drink_line.pk])
+        self.assertContains(self.client.get(reverse('kitchen', args=[self.restaurant.slug]),
+            {'station': station.pk}), 'بدء الصنف')
+        self.assertEqual(self.client.post(url, {'station': station.pk, 'status': 'preparing'}).status_code, 302)
+        self.assertNotEqual(before, self.client.get(feed, {'station': station.pk}).json()['signature'])
+        self.assertEqual(self.client.post(url, {'station': station.pk, 'status': 'ready'}).status_code, 302)
+        self.assertEqual(list(OrderLinePrepHistory.objects.filter(line=drink_line).values_list(
+            'old_status', 'new_status', 'actor_id')),
+            [('new', 'preparing', self.owner.pk), ('preparing', 'ready', self.owner.pk)])
+        self.assertEqual(self.client.post(url, {'station': station.pk, 'status': 'ready'}).status_code, 302)
+        self.assertEqual(OrderLinePrepHistory.objects.filter(line=drink_line).count(), 2)
+        with self.assertRaises(ValidationError):
+            advance_order(order, self.owner, 'ready')
+        food_line = order.lines.get(item=self.item)
+        food_url = reverse('order_line_status_change', args=[self.restaurant.slug, order.pk, food_line.pk])
+        for status in ('preparing', 'ready'):
+            self.client.post(food_url, {'station': 'unassigned', 'status': status})
+        advance_order(order, self.owner, 'ready')
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'ready')
+        self.assertEqual(self.client.post(food_url, {'station': 'unassigned', 'status': 'preparing'}).status_code, 302)
+        self.assertEqual(OrderLinePrepHistory.objects.filter(line=food_line).count(), 2)
+
+    def test_station_line_update_rejects_wrong_station_and_foreign_branch(self):
+        station = KitchenStation.objects.create(branch=self.branch, name='الشواية')
+        self.item.station = station
+        self.item.save(update_fields=['station'])
+        order = create_order(self.table, self.payload())
+        line = order.lines.get()
+        url = reverse('order_line_status_change', args=[self.restaurant.slug, order.pk, line.pk])
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        self.assertEqual(self.client.post(url, {'station': 'unassigned', 'status': 'preparing'}).status_code, 404)
+        self.assertEqual(self.client.post(url, {'station': station.pk, 'status': 'preparing'}).status_code, 302)
+        self.assertFalse(OrderLinePrepHistory.objects.filter(line=line).exists())
+        advance_order(order, self.owner, 'accepted')
+        advance_order(order, self.owner, 'preparing')
+        foreign_station = KitchenStation.objects.create(branch=self.other_branch, name='أجنبية')
+        self.assertEqual(self.client.post(url, {'station': foreign_station.pk, 'status': 'preparing'}).status_code, 404)
+        self.client.login(username=self.other.username, password='StrongPass!123')
+        self.assertIn(self.client.post(url, {'station': station.pk, 'status': 'preparing'}).status_code, (403, 404))
+        self.assertFalse(OrderLinePrepHistory.objects.filter(line=line).exists())
+
+    def test_kitchen_delay_uses_server_time_and_updates_feed(self):
+        self.branch.kitchen_delay_minutes = 5
+        self.branch.save(update_fields=['kitchen_delay_minutes'])
+        order = create_order(self.table, self.payload())
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        page_url = reverse('kitchen', args=[self.restaurant.slug])
+        feed_url = reverse('kitchen_feed', args=[self.restaurant.slug])
+        before = self.client.get(feed_url).json()['signature']
+        self.assertNotContains(self.client.get(page_url), 'تجاوز حد التنبيه')
+        Order.objects.filter(pk=order.pk).update(created_at=timezone.now()-timedelta(minutes=6))
+        self.assertContains(self.client.get(page_url), 'تجاوز حد التنبيه')
+        self.assertNotEqual(self.client.get(feed_url).json()['signature'], before)
+        for status in ('accepted', 'preparing', 'ready'):
+            advance_order(order, self.owner, status)
+        self.assertNotContains(self.client.get(page_url), 'تجاوز حد التنبيه')
+
+    def test_kitchen_delay_setting_is_validated_and_scoped(self):
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('restaurant_settings', args=[self.restaurant.slug])
+        data = {'name': self.restaurant.name, 'branch_name': self.branch.name,
+                'kitchen_delay_minutes': '12'}
+        self.assertEqual(self.client.post(endpoint, data).status_code, 302)
+        self.branch.refresh_from_db()
+        self.assertEqual(self.branch.kitchen_delay_minutes, 12)
+        self.assertEqual(self.client.post(endpoint, {**data, 'kitchen_delay_minutes': '0'}).status_code, 200)
+        self.branch.refresh_from_db()
+        self.assertEqual(self.branch.kitchen_delay_minutes, 12)
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_staff_invitation_new_user_accepts_once_in_own_branch(self):

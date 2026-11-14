@@ -38,6 +38,8 @@ class RestaurantProfileForm(forms.Form):
                                                   min_value=1, max_value=120, required=False)
     bill_response_minutes = forms.IntegerField(label='حد استجابة طلب الحساب بالدقائق',
                                                 min_value=1, max_value=120, required=False)
+    kitchen_delay_minutes = forms.IntegerField(label='حد تنبيه تأخر طلب المطبخ بالدقائق',
+                                               min_value=1, max_value=240, required=False)
     show_contact_on_menu = forms.BooleanField(label='إظهار العنوان والتواصل وساعات العمل للضيف', required=False)
     accepting_orders = forms.BooleanField(label='استقبال طلبات جديدة من طاولات هذا الفرع', required=False)
 

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import AuditLog, Branch, Category, DiningTable, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
+from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
@@ -20,7 +20,7 @@ class BranchAdmin(ReadOnlyAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ('name','price_monthly','max_branches','max_tables','max_items','max_staff')
+    list_display = ('name','price_monthly','max_branches','max_tables','max_items','max_staff','max_stations')
     class PlanForm(forms.ModelForm):
         change_reason = forms.CharField(label='سبب التعديل', required=False)
         class Meta:
@@ -66,6 +66,6 @@ class AuditAdmin(ReadOnlyAdmin):
     list_filter = ('action',)
     readonly_fields = ('restaurant','actor','action','detail','created_at')
 
-for model in (Branch,Category,DiningTable,MenuImportBatch,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,OrderRevision,ServiceCall,StaffInvitation):
+for model in (Branch,Category,DiningTable,KitchenStation,MenuImportBatch,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,OrderRevision,ServiceCall,StaffInvitation):
     if not admin.site.is_registered(model):
         admin.site.register(model, ReadOnlyAdmin)
