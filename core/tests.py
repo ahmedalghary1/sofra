@@ -9,6 +9,7 @@ import uuid
 from decimal import Decimal
 from openpyxl import Workbook
 from datetime import timedelta
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.admin.models import LogEntry
 from django.core import mail
@@ -126,6 +127,30 @@ class SafraTests(TestCase):
 
     def payload(self, options=None):
         return {'idempotency_key': str(uuid.uuid4()), 'lines': [{'item_id': self.item.pk, 'quantity': 2, 'options': options or []}]}
+
+    def test_local_login_referrer_policy_preserves_csrf_origin_check(self):
+        client = Client(enforce_csrf_checks=True, HTTP_HOST='localhost:8000')
+        page = client.get(reverse('login'))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page['Referrer-Policy'], 'same-origin')
+        self.assertIn(settings.CSRF_COOKIE_NAME, client.cookies)
+        self.assertContains(page, 'name="csrfmiddlewaretoken"')
+        token = client.cookies[settings.CSRF_COOKIE_NAME].value
+        response = client.post(reverse('login'), {
+            'email': self.owner.username, 'password': 'StrongPass!123',
+            'csrfmiddlewaretoken': token,
+        }, HTTP_ORIGIN='http://localhost:8000')
+        self.assertEqual(response.status_code, 302)
+        another_client = Client(enforce_csrf_checks=True, HTTP_HOST='localhost:8000')
+        another_client.get(reverse('login'))
+        null_origin = another_client.post(reverse('login'), {
+            'email': self.owner.username, 'password': 'StrongPass!123',
+            'csrfmiddlewaretoken': another_client.cookies[settings.CSRF_COOKIE_NAME].value,
+        }, HTTP_ORIGIN='null')
+        self.assertEqual(null_origin.status_code, 403)
+        self.assertEqual(Client(enforce_csrf_checks=True).post(reverse('login'), {
+            'email': self.owner.username, 'password': 'StrongPass!123',
+        }).status_code, 403)
 
     def test_order_price_snapshot_and_idempotency(self):
         payload = self.payload()
@@ -384,7 +409,7 @@ class SafraTests(TestCase):
         self.assertEqual(client.post(endpoint, data=json.dumps(self.payload()), content_type='application/json').status_code, 403)
         response = client.get(reverse('public_menu', args=[self.table.public_token]))
         self.assertEqual(response.status_code, 200)
-        token = client.cookies['csrftoken'].value
+        token = client.cookies[settings.CSRF_COOKIE_NAME].value
         self.assertEqual(client.post(endpoint, data=json.dumps({**self.payload(), 'session_token': str(self.table.session_token)}), content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
 
     def test_table_session_close_rejects_active_orders_then_rotates_token(self):
