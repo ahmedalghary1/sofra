@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}إضافة مطعم{% endblock %}{% block bodyclass %}app-body{% endblock %}
+{% block body %}
+<div class="platform-shell">
+  {% include '_platform_header.html' %}
+  <main class="platform-main platform-form-page">
+    <div class="page-head">
+      <div><span class="eyebrow">لوحة المشغل</span><h1>إضافة مطعم</h1><p>أنشئ المطعم وفرعه الأول واربطه بمالك وباقة تجريبية في خطوة واحدة.</p></div>
+      <a class="btn btn-outline" href="{% url 'platform_dashboard' %}">العودة للمطاعم</a>
+    </div>
+    <form method="post" class="panel platform-create-form">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <section>
+        <div class="platform-section-title"><span>١</span><div><h2>بيانات المطعم</h2><p>ستظهر هذه المعلومات للمالك في مساحة عمله.</p></div></div>
+        <div class="platform-form-grid">
+          <div class="platform-field"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
+          <div class="platform-field platform-field-wide"><label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>{{ form.description }}{{ form.description.errors }}</div>
+        </div>
+      </section>
+      <section>
+        <div class="platform-section-title"><span>٢</span><div><h2>الفرع الأول</h2><p>يمكن إضافة فروع أخرى من لوحة المنصة ضمن حد الباقة.</p></div></div>
+        <div class="platform-form-grid">
+          <div class="platform-field"><label for="{{ form.branch_name.id_for_label }}">{{ form.branch_name.label }}</label>{{ form.branch_name }}{{ form.branch_name.errors }}</div>
+          <div class="platform-field"><label for="{{ form.branch_address.id_for_label }}">{{ form.branch_address.label }}</label>{{ form.branch_address }}{{ form.branch_address.errors }}</div>
+        </div>
+      </section>
+      <section>
+        <div class="platform-section-title"><span>٣</span><div><h2>حساب المالك</h2><p>إذا كان البريد مسجلًا بالفعل، سيُربط الحساب الحالي بالمطعم الجديد.</p></div></div>
+        <div class="platform-form-grid">
+          <div class="platform-field"><label for="{{ form.owner_email.id_for_label }}">{{ form.owner_email.label }}</label>{{ form.owner_email }}{{ form.owner_email.errors }}</div>
+          <div class="platform-field"><label for="{{ form.owner_name.id_for_label }}">{{ form.owner_name.label }}</label>{{ form.owner_name }}{{ form.owner_name.errors }}</div>
+          <div class="platform-field"><label for="{{ form.owner_password.id_for_label }}">{{ form.owner_password.label }}</label>{{ form.owner_password }}{{ form.owner_password.errors }}</div>
+          <p class="platform-field-hint">للبريد الجديد، أدخل الاسم وكلمة مرور مؤقتة وشاركها مع المالك بطريقة آمنة. للحساب الموجود، اترك كلمة المرور فارغة.</p>
+        </div>
+      </section>
+      <section>
+        <div class="platform-section-title"><span>٤</span><div><h2>الباقة</h2><p>يبدأ الاشتراك كتجربة لمدة 14 يومًا. لإضافة أكثر من فرع اختر باقة بحد مناسب، أو <a href="/django-admin/core/plan/add/" target="_blank" rel="noopener">أنشئ باقة جديدة</a>.</p></div></div>
+        <div class="platform-form-grid">
+          <div class="platform-field"><label for="{{ form.plan.id_for_label }}">{{ form.plan.label }}</label>{{ form.plan }}{{ form.plan.errors }}</div>
+        </div>
+      </section>
+      <div class="platform-form-actions"><a href="{% url 'platform_dashboard' %}" class="btn btn-outline">إلغاء</a><button class="btn btn-primary" type="submit">إنشاء المطعم والفرع ←</button></div>
+    </form>
+  </main>
+</div>
+{% endblock %}

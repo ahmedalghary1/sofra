@@ -28,6 +28,154 @@ from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Log
 from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
 
 
+class PlatformProvisioningTests(TestCase):
+    def setUp(self):
+        self.operator = User.objects.create_superuser(
+            username='operator@example.com', email='operator@example.com', password='StrongPass!123')
+        self.regular = User.objects.create_user(username='regular@example.com', password='StrongPass!123')
+        self.plan = Plan.objects.create(name='إدارة فروع', max_branches=2)
+
+    def restaurant_data(self, name='مطعم الشرق', email='east-owner@example.com', **changes):
+        return {
+            'name': name, 'description': 'مطعم تجريبي', 'branch_name': 'الفرع الرئيسي',
+            'branch_address': 'القاهرة', 'owner_email': email, 'owner_name': 'مالك المطعم',
+            'owner_password': 'StrongPass!123', 'plan': self.plan.pk, **changes,
+        }
+
+    def create_restaurant(self, **changes):
+        self.client.force_login(self.operator)
+        response = self.client.post(reverse('platform_create_restaurant'),
+                                    self.restaurant_data(**changes))
+        self.assertEqual(response.status_code, 302)
+        return Restaurant.objects.get(name=changes.get('name', 'مطعم الشرق'))
+
+    def test_operator_creates_multiple_restaurants_and_manages_branches(self):
+        self.client.force_login(self.operator)
+        self.assertContains(self.client.get(reverse('platform_dashboard')), 'إضافة مطعم')
+        self.assertContains(self.client.get(reverse('platform_create_restaurant')), 'الفرع الأول')
+        first = self.create_restaurant()
+        second = self.create_restaurant(name='مطعم الغرب', email='west-owner@example.com')
+        self.assertNotEqual(first.slug, second.slug)
+        self.assertEqual(first.branches.count(), 1)
+        self.assertEqual(second.branches.count(), 1)
+        self.assertEqual(first.subscription.plan, self.plan)
+        self.assertEqual(first.subscription.status, 'trial')
+        self.assertGreater(first.subscription.ends_at, timezone.now()+timedelta(days=13))
+        owner = User.objects.get(username='east-owner@example.com')
+        self.assertTrue(owner.check_password('StrongPass!123'))
+        self.assertEqual(Membership.objects.get(user=owner, restaurant=first).role, 'owner')
+        self.assertTrue(AuditLog.objects.filter(
+            restaurant=first, actor=self.operator, action='platform.restaurant.create').exists())
+
+        endpoint = reverse('platform_branch_change', args=[first.pk])
+        self.client.post(endpoint, {'action': 'create', 'name': 'فرع مدينة نصر', 'address': 'مدينة نصر'})
+        branch = first.branches.get(name='فرع مدينة نصر')
+        self.assertEqual(branch.address, 'مدينة نصر')
+        self.assertEqual(first.branches.count(), 2)
+        self.assertEqual(second.branches.count(), 1)
+        self.assertTrue(AuditLog.objects.filter(
+            restaurant=first, actor=self.operator, action='platform.branch.create').exists())
+        self.assertContains(self.client.get(reverse('platform_dashboard')), 'فرع مدينة نصر')
+        self.client.post(endpoint, {'action': 'create', 'name': 'فرع ثالث'})
+        self.assertEqual(first.branches.count(), 2)
+        self.client.post(endpoint, {'action': 'toggle', 'branch_id': branch.pk})
+        branch.refresh_from_db()
+        self.assertTrue(branch.active)
+        self.client.post(endpoint, {'action': 'toggle', 'branch_id': branch.pk,
+                                    'reason': 'إغلاق مؤقت'})
+        branch.refresh_from_db()
+        self.assertFalse(branch.active)
+        self.assertFalse(branch.accepting_orders)
+        self.client.post(endpoint, {'action': 'toggle', 'branch_id': branch.pk,
+                                    'reason': 'إعادة التشغيل'})
+        branch.refresh_from_db()
+        self.assertTrue(branch.active)
+        self.assertEqual(self.client.post(reverse('platform_branch_change', args=[second.pk]), {
+            'action': 'toggle', 'branch_id': branch.pk, 'reason': 'اختبار'}).status_code, 404)
+
+        self.client.force_login(owner)
+        self.assertEqual(self.client.get(reverse('dashboard', args=[first.slug])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('dashboard', args=[second.slug])).status_code, 403)
+        self.assertEqual(self.client.post(endpoint, {'action': 'create', 'name': 'غير مصرح'}).status_code, 403)
+
+    def test_existing_owner_can_switch_between_restaurants(self):
+        first = self.create_restaurant()
+        second = self.create_restaurant(name='مطعم ثانٍ', email='east-owner@example.com',
+                                        owner_name='', owner_password='')
+        owner = User.objects.get(username='east-owner@example.com')
+        self.assertEqual(User.objects.filter(username=owner.username).count(), 1)
+        self.assertEqual(owner.memberships.filter(role='owner').count(), 2)
+        self.client.force_login(owner)
+        page = self.client.get(reverse('dashboard', args=[first.slug]))
+        self.assertContains(page, 'تغيير المطعم')
+        self.assertContains(page, second.name)
+        self.assertEqual(self.client.get(reverse('dashboard', args=[second.slug])).status_code, 200)
+
+    def test_existing_owner_password_is_not_reset_and_invalid_branch_is_not_saved(self):
+        first = self.create_restaurant()
+        owner = User.objects.get(username='east-owner@example.com')
+        original_password = owner.password
+        response = self.client.post(reverse('platform_create_restaurant'), self.restaurant_data(
+            name='مطعم مكرر', email=owner.username, owner_password='AnotherStrong!123'))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Restaurant.objects.filter(name='مطعم مكرر').exists())
+        owner.refresh_from_db()
+        self.assertEqual(owner.password, original_password)
+
+        self.plan.max_branches = 3
+        self.plan.save(update_fields=['max_branches'])
+        endpoint = reverse('platform_branch_change', args=[first.pk])
+        self.client.post(endpoint, {'action': 'create', 'name': 'فرع جديد'})
+        self.client.post(endpoint, {'action': 'create', 'name': 'فرع جديد'})
+        self.assertEqual(first.branches.count(), 2)
+        first.subscription.ends_at = timezone.now()-timedelta(days=1)
+        first.subscription.save(update_fields=['ends_at'])
+        self.client.post(endpoint, {'action': 'create', 'name': 'فرع آخر'})
+        self.assertEqual(first.branches.count(), 2)
+
+    def test_operator_creation_requires_permission_and_valid_owner(self):
+        endpoint = reverse('platform_create_restaurant')
+        self.assertEqual(self.client.get(endpoint).status_code, 302)
+        self.client.force_login(self.regular)
+        self.assertEqual(self.client.get(endpoint).status_code, 403)
+        self.assertEqual(self.client.post(endpoint, self.restaurant_data()).status_code, 403)
+        self.assertFalse(Restaurant.objects.exists())
+        self.client.force_login(self.operator)
+        for changes in ({'owner_password': 'short'}, {'owner_email': 'not-an-email'},
+                        {'plan': 999999}, {'branch_name': ''}):
+            with self.subTest(changes=changes):
+                response = self.client.post(endpoint, self.restaurant_data(**changes))
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(Restaurant.objects.exists())
+                self.assertFalse(User.objects.filter(username='east-owner@example.com').exists())
+
+    def test_operator_can_create_first_restaurant_without_preexisting_plan(self):
+        self.plan.delete()
+        self.client.force_login(self.operator)
+        response = self.client.post(reverse('platform_create_restaurant'),
+                                    self.restaurant_data(plan=''))
+        self.assertEqual(response.status_code, 302)
+        restaurant = Restaurant.objects.get(name='مطعم الشرق')
+        self.assertEqual(restaurant.subscription.plan.name, 'تجربة')
+        self.assertEqual(restaurant.subscription.plan.max_branches, 1)
+        self.assertEqual(restaurant.branches.count(), 1)
+
+    def test_operator_creation_form_keeps_csrf_protection(self):
+        client = Client(enforce_csrf_checks=True, HTTP_HOST='localhost:8000')
+        client.force_login(self.operator)
+        endpoint = reverse('platform_create_restaurant')
+        self.assertEqual(client.post(endpoint, self.restaurant_data()).status_code, 403)
+        self.assertFalse(Restaurant.objects.exists())
+        page = client.get(endpoint)
+        self.assertEqual(page.status_code, 200)
+        token = client.cookies[settings.CSRF_COOKIE_NAME].value
+        response = client.post(endpoint, {
+            **self.restaurant_data(), 'csrfmiddlewaretoken': token,
+        }, HTTP_ORIGIN='http://localhost:8000')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Restaurant.objects.count(), 1)
+
+
 @override_settings(DEBUG=True)
 class DemoSeedTests(TestCase):
     def seed(self):

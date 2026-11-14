@@ -6,6 +6,9 @@
     <a class="brand" href="{% url 'dashboard' restaurant.slug %}"><span class="brand-mark">✳</span><span>سفرة<small>مساحة المطعم</small></span></a>
     <div class="workspace-label">مساحة العمل</div>
     <div class="restaurant-switch"><span class="restaurant-avatar">{{ restaurant.name|slice:':1' }}</span><span><strong>{{ restaurant.name }}</strong><small>{{ branch.name }}</small></span></div>
+    {% if available_restaurants.count > 1 %}
+    <details class="restaurant-selector"><summary>تغيير المطعم</summary><nav aria-label="مطاعمي">{% for choice in available_restaurants %}<a href="{% url 'dashboard' choice.restaurant.slug %}" {% if choice.restaurant_id == restaurant.pk %}aria-current="page"{% endif %}>{{ choice.restaurant.name }} <small>· {{ choice.get_role_display }}</small></a>{% endfor %}</nav></details>
+    {% endif %}
     {% if available_branches.count > 1 %}
     <form class="branch-selector" method="post" action="{% url 'select_branch' restaurant.slug %}">{% csrf_token %}
       <label for="branch-select">الفرع الحالي</label>

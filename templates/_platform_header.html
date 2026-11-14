@@ -1,0 +1,7 @@
+<header class="platform-header">
+  <a class="brand" href="{% url 'platform_dashboard' %}"><span class="brand-mark">✳</span><span>سفرة<small>إدارة المنصة</small></span></a>
+  <div>
+    <a href="/django-admin/" class="btn btn-outline btn-sm">إدارة الباقات</a>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-dark btn-sm">تسجيل الخروج</button></form>
+  </div>
+</header>

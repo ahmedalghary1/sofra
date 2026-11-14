@@ -26,7 +26,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-افتح `http://127.0.0.1:8000/` ثم أنشئ حساب المطعم. لإنشاء مدير منصة: `python manage.py createsuperuser` ثم افتح `/platform/`. تبقى `/django-admin/` لإدارة الكيانات الداخلية مثل الباقات.
+افتح `http://127.0.0.1:8000/` ثم أنشئ حساب المطعم. لإنشاء مدير منصة: `python manage.py createsuperuser` ثم افتح `/platform/`؛ من اللوحة يمكنك إضافة مطاعم ومالكين وفروع ضمن حدود الباقة. تبقى `/django-admin/` لإدارة الكيانات الداخلية مثل الباقات.
 
 للتطوير عبر PostgreSQL: `docker compose up --build` ثم `docker compose exec web python manage.py migrate`. إعدادات التطوير داخل Compose فقط.
 

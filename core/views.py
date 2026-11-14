@@ -21,7 +21,7 @@ from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 from django.core.validators import validate_email
 from django.db import DatabaseError, IntegrityError, connection, transaction
-from django.db.models import Avg, Count, F, OuterRef, Q, Subquery, Sum
+from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -29,11 +29,11 @@ from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
-from .forms import RestaurantProfileForm, SubscriptionPaymentForm
+from .forms import PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
 from .invitations import accept_staff_invitation, invitation_for_token
@@ -221,13 +221,102 @@ def platform_dashboard(request):
     denied = platform_scope(request)
     if denied: return denied
     query = request.GET.get('q','').strip()[:80]
-    restaurants = Restaurant.objects.select_related('subscription__plan').annotate(
+    restaurants = Restaurant.objects.select_related('subscription__plan').prefetch_related(
+        'branches', Prefetch('memberships', queryset=Membership.objects.filter(role='owner').select_related('user'),
+                             to_attr='platform_owners')).annotate(
         branch_count=Count('branches', distinct=True), member_count=Count('memberships', distinct=True)).order_by('-created_at')
     if query:
         restaurants = restaurants.filter(Q(name__icontains=query) | Q(slug__icontains=query))
     page = Paginator(restaurants, 25).get_page(request.GET.get('page'))
     return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.all(), 'query': query,
         'restaurant_total': Restaurant.objects.count(), 'active_total': Restaurant.objects.filter(active=True).count()})
+
+
+@require_http_methods(['GET', 'POST'])
+def platform_create_restaurant(request):
+    denied = platform_scope(request)
+    if denied: return denied
+    form = PlatformRestaurantForm(request.POST if request.method == 'POST' else None)
+    if request.method == 'POST' and form.is_valid():
+        data = form.cleaned_data
+        try:
+            with transaction.atomic():
+                owner = User.objects.select_for_update().filter(username__iexact=data['owner_email']).first()
+                if owner:
+                    if not owner.is_active or owner.is_superuser or owner.last_name == 'SOFRA_LOCAL_DEMO' or data['owner_password']:
+                        raise ValidationError('تعذر ربط حساب المالك؛ حدّث الصفحة وراجع البريد وكلمة المرور.')
+                else:
+                    owner = User.objects.create_user(
+                        username=data['owner_email'], email=data['owner_email'],
+                        first_name=data['owner_name'], password=data['owner_password'])
+                plan = data['plan']
+                if plan is None:
+                    plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={
+                        'max_tables': 10, 'max_items': 50, 'max_staff': 5, 'max_branches': 1})
+                if plan.max_branches < 1:
+                    raise ValidationError('هذه الباقة لا تسمح بإنشاء الفرع الأول.')
+                restaurant = Restaurant.objects.create(
+                    name=data['name'], description=data['description'],
+                    slug='rest-' + secrets.token_hex(6))
+                branch = Branch.objects.create(
+                    restaurant=restaurant, name=data['branch_name'], address=data['branch_address'])
+                Membership.objects.create(user=owner, restaurant=restaurant, role='owner')
+                Subscription.objects.create(restaurant=restaurant, plan=plan, status='trial',
+                                            ends_at=timezone.now()+timedelta(days=14))
+                audit(restaurant, request.user, 'platform.restaurant.create',
+                      f'owner={owner.pk}; branch={branch.pk}; plan={plan.pk}')
+            messages.success(request, 'تم إنشاء المطعم وفرعه الأول وربط حساب المالك بالتجربة.')
+            return redirect(f'{reverse("platform_dashboard")}#restaurant-{restaurant.pk}')
+        except IntegrityError:
+            form.add_error(None, 'تعذر إنشاء المطعم بسبب تعارض في البيانات. حدّث الصفحة ثم حاول مرة أخرى.')
+        except ValidationError as exc:
+            form.add_error(None, error_text(exc))
+    return render(request, 'platform_restaurant_form.html', {'form': form})
+
+
+@require_POST
+def platform_branch_change(request, restaurant_id):
+    denied = platform_scope(request)
+    if denied: return denied
+    restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
+    action = request.POST.get('action')
+    try:
+        with transaction.atomic():
+            if action == 'create':
+                form = PlatformBranchForm(request.POST)
+                if not form.is_valid():
+                    raise ValidationError('أدخل اسم فرع صالحًا وعنوانًا لا يتجاوز 240 حرفًا.')
+                if not Subscription.objects.filter(restaurant=restaurant).exists():
+                    raise ValidationError('اضبط اشتراك المطعم قبل إضافة فرع.')
+                check_creation_limit(restaurant, 'branch')
+                name = form.cleaned_data['name']
+                if Branch.objects.filter(restaurant=restaurant, name__iexact=name).exists():
+                    raise ValidationError('يوجد فرع بهذا الاسم في المطعم.')
+                branch = Branch.objects.create(restaurant=restaurant, name=name,
+                                               address=form.cleaned_data['address'])
+                audit(restaurant, request.user, 'platform.branch.create', f'branch={branch.pk}')
+            elif action == 'toggle':
+                branch = get_object_or_404(Branch.objects.select_for_update(),
+                                           pk=request.POST.get('branch_id'), restaurant=restaurant)
+                reason = request.POST.get('reason', '').strip()[:120]
+                if not reason:
+                    raise ValidationError('اكتب سبب تغيير حالة الفرع.')
+                if not branch.active:
+                    if not Subscription.objects.filter(restaurant=restaurant).exists():
+                        raise ValidationError('اضبط اشتراك المطعم قبل تفعيل الفرع.')
+                    check_activation_limit(restaurant, 'branch')
+                branch.active = not branch.active
+                if not branch.active:
+                    branch.accepting_orders = False
+                branch.save(update_fields=['active', 'accepting_orders'])
+                audit(restaurant, request.user, 'platform.branch.toggle',
+                      f'branch={branch.pk}; active={branch.active}; reason={reason}')
+            else:
+                raise ValidationError('إجراء فرع غير معروف.')
+        messages.success(request, 'تم حفظ الفرع.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+    return redirect(f'{reverse("platform_dashboard")}#restaurant-{restaurant.pk}')
 
 @require_POST
 def platform_update_restaurant(request, restaurant_id):
@@ -346,6 +435,8 @@ def shell(request, restaurant, membership, page, **extra):
     if membership.role not in ('owner','manager'):
         branches = branches.filter(staff_memberships=membership)
     ctx = {'restaurant': restaurant, 'membership': membership, 'branch': branch_for(request, restaurant, membership),
+           'available_restaurants': Membership.objects.filter(user=request.user, active=True)
+               .select_related('restaurant').order_by('restaurant__name'),
            'available_branches': branches, 'page': page}
     ctx.update(extra)
     return render(request, f'{page}.html', ctx)
