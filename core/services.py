@@ -91,15 +91,27 @@ def create_order(table, payload, user=None, require_session=False):
         return existing
     if require_session and str(payload.get('session_token', '')) != str(table.session_token):
         raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
-    if Order.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
-        raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
-    normalized, total = normalize_order_lines(table, raw_lines)
     try:
         with transaction.atomic():
-            locked_table = type(table).objects.select_for_update().get(pk=table.pk)
+            locked_table = type(table).objects.select_for_update().select_related('branch__restaurant').get(pk=table.pk)
+            if (not locked_table.active or not locked_table.branch.active or
+                    not locked_table.branch.accepting_orders or not locked_table.branch.restaurant.active):
+                raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
+            current_subscription = getattr(locked_table.branch.restaurant, 'subscription', None)
+            if current_subscription and not current_subscription.valid():
+                raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
+            prior = Order.objects.filter(table=locked_table, idempotency_key=key).first()
+            if prior:
+                if prior.request_hash != digest:
+                    raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
+                return prior
             if require_session and str(payload.get('session_token', '')) != str(locked_table.session_token):
                 raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
-            order = Order.objects.create(branch=table.branch, table=table, idempotency_key=key,
+            if Order.objects.filter(table=locked_table,
+                    created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
+                raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
+            normalized, total = normalize_order_lines(locked_table, raw_lines)
+            order = Order.objects.create(branch=locked_table.branch, table=locked_table, idempotency_key=key,
                                          session_token=locked_table.session_token,
                                          request_hash=digest, source='staff' if user else 'qr',
                                          total=total, note=note, created_by=user)
@@ -277,11 +289,13 @@ def advance_call(call, actor, status):
     audit(call.table.branch.restaurant, actor, 'call.status', f'{call.pk}: {status}')
     return call
 
+@transaction.atomic
 def create_service_call(table, kind, session_token=None):
-    if session_token is not None and str(session_token) != str(table.session_token):
-        raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.')
     if kind not in ('waiter', 'bill'):
         raise ValidationError('نوع الاستدعاء غير صالح.')
+    table = type(table).objects.select_for_update().select_related('branch__restaurant').get(pk=table.pk)
+    if session_token is not None and str(session_token) != str(table.session_token):
+        raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.')
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
         raise ValidationError('الطاولة لا تستقبل استدعاءات حاليًا.')
     subscription = getattr(table.branch.restaurant, 'subscription', None)
@@ -291,7 +305,4 @@ def create_service_call(table, kind, session_token=None):
         raise ValidationError('طلبك السابق ما زال قيد التنفيذ.')
     if ServiceCall.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 3:
         raise ValidationError('انتظر قليلًا قبل إرسال استدعاء جديد.')
-    try:
-        return ServiceCall.objects.create(table=table, kind=kind)
-    except IntegrityError:
-        raise ValidationError('طلبك السابق ما زال قيد التنفيذ.')
+    return ServiceCall.objects.create(table=table, kind=kind)

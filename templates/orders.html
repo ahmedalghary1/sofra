@@ -1,10 +1,11 @@
 {% extends 'app_base.html' %}
 {% block title %}الطلبات{% endblock %}{% block crumb %}الطلبات{% endblock %}
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">إدارة الخدمة</span><h1>الطلبات</h1><p>طلبات {{ branch.name }} من لحظة وصولها حتى تقديمها.</p></div><span class="usage-pill">آخر 100 طلب</span></div>
+<div class="page-head"><div><span class="eyebrow">إدارة الخدمة</span><h1>الطلبات</h1><p>طلبات {{ branch.name }} من لحظة وصولها حتى تقديمها.</p></div><span class="usage-pill">{{ orders.paginator.count }} طلب</span></div>
 {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'cashier' or membership.role == 'waiter' %}
 <section class="panel add-panel"><div><h2>طلب تقليدي من الفريق</h2><p>أضف أكثر من صنف واختياراته للطاولة من المنيو الحالي.</p></div><a class="btn btn-primary" href="{% url 'staff_order' restaurant.slug %}">إنشاء طلب جديد ＋</a></section>
 {% endif %}
+<form method="get" class="panel report-filter"><label>طلبات الطاولة<select name="table"><option value="">كل الطاولات</option>{% for table in tables %}<option value="{{ table.pk }}" {% if selected_table.pk == table.pk %}selected{% endif %}>{{ table.name }}</option>{% endfor %}</select></label><button class="btn btn-outline">عرض الطلبات</button>{% if selected_table %}<a class="btn btn-outline" href="{% url 'manage_orders' restaurant.slug %}">إزالة الفلتر</a>{% endif %}</form>
 <section class="panel"><div class="panel-head"><div><h2>سجل الطلبات</h2><p>الأسعار هنا إجمالي الطلب، وليست إيرادات محصلة.</p></div></div>
 {% if orders %}<div class="table-scroll"><table class="data-table"><thead><tr><th>رقم الطلب</th><th>الطاولة والتفاصيل</th><th>الوقت</th><th>الإجمالي</th><th>الحالة</th><th>الدفع</th><th>الإجراء</th></tr></thead><tbody>
 {% for order in orders %}<tr>
@@ -19,10 +20,11 @@
   {% elif order.status == 'ready' and membership.role != 'kitchen' %}<form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="served"><button class="text-button">تم التقديم ✓</button></form>
   {% else %}—{% endif %}
   {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'cashier' or membership.role == 'waiter' %}{% if order.status == 'new' or order.status == 'accepted' %}{% if order.payment_status == 'unpaid' %}<a class="text-button" href="{% url 'order_edit' restaurant.slug order.pk %}">تعديل الطلب</a>{% endif %}{% endif %}{% endif %}
+  {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'cashier' or membership.role == 'waiter' %}{% if order.session_token == order.table.session_token and order.table.active %}<a class="text-button" href="{% url 'staff_order' restaurant.slug %}?table={{ order.table.pk }}">طلب إضافي للطاولة</a>{% endif %}{% endif %}
   {% if membership.role == 'owner' or membership.role == 'manager' %}{% if order.status != 'served' and order.status != 'cancelled' %}<details class="cancel-order"><summary>إلغاء الطلب</summary><form method="post" action="{% url 'order_status_change' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="status" value="cancelled"><input name="reason" required maxlength="240" placeholder="سبب الإلغاء"><button class="text-button">تأكيد الإلغاء</button></form></details>{% endif %}{% endif %}
   {% if membership.role == 'owner' or membership.role == 'manager' %}{% if order.payment_status == 'unpaid' %}{% if order.status == 'accepted' or order.status == 'preparing' or order.status == 'ready' %}<details class="cancel-order"><summary>تصحيح الحالة السابقة</summary><form method="post" action="{% url 'order_status_correct' restaurant.slug order.pk %}">{% csrf_token %}<input type="hidden" name="expected_status" value="{{ order.status }}"><input name="reason" required minlength="3" maxlength="240" placeholder="سبب التصحيح" aria-label="سبب تصحيح حالة الطلب"><button class="text-button">تأكيد التصحيح</button></form></details>{% endif %}{% endif %}{% endif %}
   </td>
 </tr>{% endfor %}
-</tbody></table></div>{% else %}<div class="empty-state"><span>▤</span><h3>لا توجد طلبات بعد</h3><p>عندما يرسل الضيف طلبًا سيظهر هنا وفي شاشة المطبخ.</p></div>{% endif %}
+</tbody></table></div>{% if orders.paginator.num_pages > 1 %}<nav class="report-filter" aria-label="صفحات الطلبات"><span>صفحة {{ orders.number }} من {{ orders.paginator.num_pages }}</span>{% if orders.has_previous %}<a class="btn btn-outline" href="?page={{ orders.previous_page_number }}{% if selected_table %}&amp;table={{ selected_table.pk }}{% endif %}">السابق</a>{% endif %}{% if orders.has_next %}<a class="btn btn-outline" href="?page={{ orders.next_page_number }}{% if selected_table %}&amp;table={{ selected_table.pk }}{% endif %}">التالي</a>{% endif %}</nav>{% endif %}{% else %}<div class="empty-state"><span>▤</span><h3>لا توجد طلبات بعد</h3><p>عندما يرسل الضيف طلبًا سيظهر هنا وفي شاشة المطبخ.</p></div>{% endif %}
 </section>
 {% endblock %}

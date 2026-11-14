@@ -20,17 +20,17 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 from django.core.validators import validate_email
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.models import Avg, Count, F, OuterRef, Q, Subquery, Sum
 from django.core.paginator import Paginator
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.decorators.http import require_POST
-from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
+from django.views.decorators.http import require_GET, require_POST
+from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .forms import RestaurantProfileForm, SubscriptionPaymentForm
@@ -39,7 +39,17 @@ from .plan_preview import preview_plan_usage
 from .invitations import accept_staff_invitation, invitation_for_token
 
 def error_text(exc): return ' '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
-def health(request): return JsonResponse({'status': 'ok'})
+def health(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+    except DatabaseError:
+        response = JsonResponse({'status': 'unavailable'}, status=503)
+    else:
+        response = JsonResponse({'status': 'ok'})
+    response['Cache-Control'] = 'no-store'
+    return response
 
 def home(request):
     if request.user.is_authenticated:
@@ -58,7 +68,7 @@ def register(request):
         if not all([name, email, restaurant_name]):
             messages.error(request, 'أكمل جميع البيانات.')
         elif User.objects.filter(username=email).exists():
-            messages.error(request, 'هذا البريد مستخدم بالفعل.')
+            messages.error(request, 'هذا البريد مستخدم بالفعل. إذا لم يصلك رابط التفعيل، اطلب إعادة إرساله.')
         else:
             try:
                 validate_email(email)
@@ -66,16 +76,92 @@ def register(request):
             except ValidationError as exc:
                 messages.error(request, error_text(exc))
                 return render(request, 'auth.html', {'mode': 'register'})
-            with transaction.atomic():
-                user = User.objects.create_user(username=email, email=email, password=password, first_name=name)
-                restaurant = Restaurant.objects.create(name=restaurant_name, slug='rest-' + secrets.token_hex(5))
-                Branch.objects.create(restaurant=restaurant)
-                Membership.objects.create(user=user, restaurant=restaurant, role='owner')
-                plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={'max_tables': 10, 'max_items': 50, 'max_staff': 5})
-                Subscription.objects.create(restaurant=restaurant, plan=plan, ends_at=timezone.now()+timedelta(days=14))
-            login(request, user)
-            return redirect('dashboard', slug=restaurant.slug)
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(username=email, email=email, password=password,
+                                                    first_name=name, is_active=False)
+                    restaurant = Restaurant.objects.create(name=restaurant_name, slug='rest-' + secrets.token_hex(5))
+                    Branch.objects.create(restaurant=restaurant)
+                    Membership.objects.create(user=user, restaurant=restaurant, role='owner')
+                    plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={'max_tables': 10, 'max_items': 50, 'max_staff': 5})
+                    Subscription.objects.create(restaurant=restaurant, plan=plan, ends_at=timezone.now()+timedelta(days=14))
+                    raw_token = secrets.token_urlsafe(32)
+                    OwnerEmailVerification.objects.create(user=user,
+                        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+                        expires_at=timezone.now()+timedelta(days=1))
+                    link = request.build_absolute_uri(reverse('verify_owner_email', args=[raw_token]))
+                    delivered = send_mail('تفعيل بريد مالك المطعم في سفرة',
+                        f'مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}',
+                        settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
+                    if delivered != 1:
+                        raise ValidationError('تعذر إرسال رابط التفعيل. حاول مجددًا بعد فحص البريد.')
+            except IntegrityError:
+                messages.error(request, 'تعذر إنشاء الحساب بهذا البريد. حاول تسجيل الدخول أو إعادة المحاولة.')
+                return render(request, 'auth.html', {'mode': 'register'})
+            except (SMTPException, OSError):
+                messages.error(request, 'تعذر إرسال رابط التفعيل. حاول لاحقًا.')
+                return render(request, 'auth.html', {'mode': 'register'})
+            except ValidationError as exc:
+                messages.error(request, error_text(exc))
+                return render(request, 'auth.html', {'mode': 'register'})
+            return redirect('verification_pending')
     return render(request, 'auth.html', {'mode': 'register'})
+
+
+@require_GET
+def verification_pending(request):
+    return render(request, 'email_verification.html')
+
+
+@require_GET
+def verify_owner_email(request, token):
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    with transaction.atomic():
+        verification = OwnerEmailVerification.objects.select_for_update().select_related('user').filter(
+            token_hash=digest, verified_at__isnull=True, expires_at__gt=timezone.now()).first()
+        if not verification:
+            return render(request, 'email_verification.html', {'invalid': True}, status=400)
+        verification.verified_at = timezone.now()
+        verification.save(update_fields=['verified_at'])
+        user = verification.user
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    messages.success(request, 'تم تفعيل بريدك الإلكتروني.')
+    return redirect('home')
+
+
+@require_POST
+def resend_owner_verification(request):
+    email = request.POST.get('email', '').strip().lower()
+    password = request.POST.get('password', '')
+    key = hashlib.sha256(f"verify:{request.META.get('REMOTE_ADDR','')}:{email}".encode()).hexdigest()
+    attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(hours=1))
+    if attempts.count() < 3:
+        LoginAttempt.objects.create(key=key)
+        user = User.objects.filter(username__iexact=email, is_active=False).first()
+        if user and user.check_password(password):
+            try:
+                with transaction.atomic():
+                    verification = OwnerEmailVerification.objects.select_for_update().filter(
+                        user=user, verified_at__isnull=True).first()
+                    if verification:
+                        raw_token = secrets.token_urlsafe(32)
+                        verification.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+                        verification.expires_at = timezone.now()+timedelta(days=1)
+                        verification.sent_at = timezone.now()
+                        verification.save(update_fields=['token_hash', 'expires_at', 'sent_at'])
+                        link = request.build_absolute_uri(reverse('verify_owner_email', args=[raw_token]))
+                        delivered = send_mail('رابط تفعيل بريد مالك المطعم في سفرة',
+                            f'فعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}',
+                            settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
+                        if delivered != 1:
+                            raise ValidationError('تعذر إرسال رابط التفعيل الآن.')
+            except (ValidationError, SMTPException, OSError):
+                messages.error(request, 'تعذر إرسال البريد الآن. حاول لاحقًا.')
+                return redirect('verification_pending')
+    messages.success(request, 'إذا كانت البيانات صحيحة، سيصلك رابط تفعيل جديد.')
+    return redirect('verification_pending')
 
 def login_view(request):
     login_next = request.POST.get('next') or request.GET.get('next', '')
@@ -283,6 +369,8 @@ def dashboard(request, slug):
              'done': Membership.objects.filter(restaurant=restaurant, role='kitchen', active=True,
                                                branches=branch, user__is_active=True).exists(),
              'url': 'staff', 'hint': 'افتح شاشة المطبخ على جهاز الموظف بعد تعيينه.'},
+            {'label': 'افتح شاشة المطبخ', 'done': branch.kitchen_opened_at is not None,
+             'url': 'kitchen', 'hint': 'تأكد من ظهور طلبات الفرع على جهاز المطبخ.'},
         ]
     return shell(request, restaurant, membership, 'dashboard',
         recent=orders.select_related('table').prefetch_related('lines')[:6],
@@ -290,7 +378,8 @@ def dashboard(request, slug):
         open_orders=orders.exclude(status__in=['served','cancelled']).count(),
         open_calls=ServiceCall.objects.filter(table__branch=branch, status__in=['open','acknowledged','in_progress']).count(),
         tables_count=branch.tables.count(), items_count=MenuItem.objects.filter(category__branch=branch).count(),
-        setup_steps=setup_steps, setup_done=sum(step['done'] for step in setup_steps) if setup_steps else 0)
+        setup_steps=setup_steps, setup_done=sum(step['done'] for step in setup_steps) if setup_steps else 0,
+        setup_total=len(setup_steps) if setup_steps else 0)
 
 def manage_menu(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
@@ -585,14 +674,29 @@ def manage_orders(request, slug):
             messages.success(request, f'تم إنشاء الطلب #{order.pk}.')
         except (ValidationError, json.JSONDecodeError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_orders', slug=slug)
+    table_key = request.GET.get('table', '')
+    if table_key and (len(table_key) > 19 or not table_key.isascii() or not table_key.isdigit()):
+        raise Http404
+    selected_table = get_object_or_404(DiningTable, pk=table_key, branch=branch) if table_key else None
+    orders = Order.objects.filter(branch=branch)
+    if selected_table:
+        orders = orders.filter(table=selected_table)
+    orders = Paginator(orders.select_related('table').prefetch_related('lines').order_by('-created_at', '-pk'),
+                       25).get_page(request.GET.get('page'))
     return shell(request, restaurant, membership, 'orders',
-        orders=Order.objects.filter(branch=branch).select_related('table').prefetch_related('lines')[:100],
-        tables=branch.tables.filter(active=True), items=MenuItem.objects.filter(category__branch=branch,available=True))
+        orders=orders,
+        tables=branch.tables.all(), selected_table=selected_table,
+        items=MenuItem.objects.filter(category__branch=branch,available=True))
 
 def staff_order(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','cashier','waiter'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
+    table_key = request.GET.get('table', '') if request.method == 'GET' else ''
+    if table_key and (len(table_key) > 19 or not table_key.isascii() or not table_key.isdigit()):
+        raise Http404
+    selected_table = (get_object_or_404(DiningTable, pk=table_key, branch=branch, active=True)
+                      if table_key else None)
     if request.method == 'POST':
         try:
             payload = json.loads(request.body)
@@ -606,6 +710,7 @@ def staff_order(request, slug):
     categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'staff_order', categories=categories,
                  items_json=serialize_menu_items(categories), tables=branch.tables.filter(active=True),
+                 selected_table=selected_table,
                  accepting=restaurant.active and branch.active and branch.accepting_orders and restaurant.subscription.valid())
 
 def order_edit(request, slug, order_id):
@@ -635,6 +740,9 @@ def kitchen(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','kitchen'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
+    if branch.kitchen_opened_at is None:
+        if Branch.objects.filter(pk=branch.pk, kitchen_opened_at__isnull=True).update(kitchen_opened_at=timezone.now()):
+            audit(restaurant, request.user, 'kitchen.opened', f'branch={branch.pk}')
     station_key = request.GET.get('station', '')
     if station_key and station_key != 'unassigned' and not station_key.isdigit():
         raise Http404
@@ -811,15 +919,24 @@ def reports(request, slug):
     if request.GET.get('export') == 'csv':
         if filter_error:
             return HttpResponse(filter_error, status=400)
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        def csv_rows():
+            yield '\ufeff'
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerow(['رقم الطلب','الطاولة','الحالة','حالة الدفع','المصدر','إجمالي الطلب','وقت الإنشاء'])
+            yield buffer.getvalue()
+            for order in orders.select_related('table').order_by('pk').iterator(chunk_size=1000):
+                buffer.seek(0)
+                buffer.truncate(0)
+                name = str(order.table.name)
+                if name.lstrip().startswith(('=','+','-','@')):
+                    name = "'" + name
+                writer.writerow([order.pk,name,order.get_status_display(),order.get_payment_status_display(),
+                                 order.get_source_display(),order.total,order.created_at.isoformat()])
+                yield buffer.getvalue()
+        response = StreamingHttpResponse(csv_rows(), content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="orders.csv"'
-        response.write('\ufeff')
-        writer = csv.writer(response)
-        writer.writerow(['رقم الطلب','الطاولة','الحالة','حالة الدفع','المصدر','إجمالي الطلب','وقت الإنشاء'])
-        for order in orders.select_related('table'):
-            name = str(order.table.name)
-            if name.startswith(('=','+','-','@')): name = "'" + name
-            writer.writerow([order.pk,name,order.get_status_display(),order.get_payment_status_display(),order.get_source_display(),order.total,order.created_at.isoformat()])
+        response['Cache-Control'] = 'no-store'
         return response
     status_names = dict(Order.STATUSES)
     by_status = [{'label': status_names.get(row['status'], row['status']), 'count': row['count']}
@@ -1164,4 +1281,9 @@ def create_call(request, token):
 
 def track_order(request, token):
     order = get_object_or_404(Order.objects.select_related('table__branch__restaurant').prefetch_related('lines'), public_token=token)
-    return render(request, 'track.html', {'order': order})
+    table, branch = order.table, order.table.branch
+    subscription = getattr(branch.restaurant, 'subscription', None)
+    can_add_order = (order.session_token is not None and order.session_token == table.session_token
+                     and table.active and branch.active and branch.accepting_orders
+                     and branch.restaurant.active and (subscription is None or subscription.valid()))
+    return render(request, 'track.html', {'order': order, 'can_add_order': can_add_order})

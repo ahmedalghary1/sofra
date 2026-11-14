@@ -34,6 +34,7 @@ class Branch(models.Model):
     waiter_response_minutes = models.PositiveSmallIntegerField(default=5)
     bill_response_minutes = models.PositiveSmallIntegerField(default=5)
     kitchen_delay_minutes = models.PositiveSmallIntegerField(default=20)
+    kitchen_opened_at = models.DateTimeField(null=True, blank=True)
     show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
@@ -48,6 +49,13 @@ class Membership(models.Model):
     branches = models.ManyToManyField(Branch, blank=True, related_name='staff_memberships')
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user','restaurant'], name='unique_restaurant_member')]
+
+class OwnerEmailVerification(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owner_email_verification')
+    token_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
 
 class StaffInvitation(models.Model):
     ROLES = [('manager', 'مدير'), ('cashier', 'كاشير'), ('kitchen', 'مطبخ'), ('waiter', 'ويتر')]

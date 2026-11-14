@@ -1,6 +1,9 @@
 import json
 import io
+import os
 import re
+import subprocess
+import sys
 import uuid
 from decimal import Decimal
 from openpyxl import Workbook
@@ -9,6 +12,7 @@ from django.contrib.auth.models import User
 from django.contrib.admin.models import LogEntry
 from django.core import mail
 from django.core.exceptions import ValidationError
+from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from unittest.mock import patch
@@ -16,7 +20,7 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
+from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
 
 class SafraTests(TestCase):
@@ -46,6 +50,55 @@ class SafraTests(TestCase):
         self.assertEqual(create_order(self.table, payload).pk, order.pk)
         self.assertEqual(order.lines.get().unit_price, Decimal('100.00'))
         self.assertEqual(Order.objects.count(), 1)
+
+    def test_health_checks_database_without_exposing_failure_details(self):
+        endpoint = reverse('health')
+        response = self.client.get(endpoint)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        with patch('core.views.connection.cursor', side_effect=DatabaseError('private database detail')):
+            response = self.client.get(endpoint)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {'status': 'unavailable'})
+        self.assertNotIn(b'private database detail', response.content)
+
+    def test_production_settings_reject_placeholder_secret_and_sqlite_fallback(self):
+        env = {**os.environ, 'DJANGO_DEBUG': '0', 'DJANGO_ALLOWED_HOSTS': 'example.com',
+               'DJANGO_SECRET_KEY': 'replace-with-a-long-random-production-secret',
+               'DATABASE_URL': 'postgresql://test:test@localhost:5432/test'}
+        command = [sys.executable, '-c', 'import config.settings']
+        invalid_secret = subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertNotEqual(invalid_secret.returncode, 0)
+        self.assertIn('DJANGO_SECRET_KEY', invalid_secret.stderr)
+        env['DJANGO_SECRET_KEY'] = 'a'*60
+        env.pop('DATABASE_URL')
+        missing_database = subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertNotEqual(missing_database.returncode, 0)
+        self.assertIn('DATABASE_URL', missing_database.stderr)
+        env['DATABASE_URL'] = 'postgresql://test:test@localhost:5432/test'
+        valid_config = subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertEqual(valid_config.returncode, 0, valid_config.stderr)
+
+    def test_stale_table_state_is_rechecked_before_order_and_call_creation(self):
+        stale = DiningTable.objects.get(pk=self.table.pk)
+        DiningTable.objects.filter(pk=self.table.pk).update(active=False)
+        with self.assertRaises(ValidationError):
+            create_order(stale, self.payload())
+        with self.assertRaises(ValidationError):
+            create_service_call(stale, 'waiter', session_token=stale.session_token)
+        self.assertFalse(Order.objects.exists())
+        self.assertFalse(ServiceCall.objects.exists())
+        DiningTable.objects.filter(pk=self.table.pk).update(active=True, session_token=uuid.uuid4())
+        with self.assertRaises(ValidationError):
+            create_service_call(stale, 'waiter', session_token=stale.session_token)
+
+    def test_order_rate_limit_is_enforced_within_table_transaction(self):
+        for _ in range(12):
+            create_order(self.table, self.payload())
+        with self.assertRaises(ValidationError):
+            create_order(self.table, self.payload())
+        self.assertEqual(Order.objects.count(), 12)
 
     def test_reject_foreign_item_and_modifier(self):
         foreign_category = Category.objects.create(branch=self.other_branch, name='غير متاح')
@@ -186,13 +239,59 @@ class SafraTests(TestCase):
                 response = self.client.get(reverse(name, args=[self.restaurant.slug]))
                 self.assertEqual(response.status_code, 200)
 
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_registration_creates_isolated_restaurant(self):
         response = self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com','restaurant':'بيتنا','password':'StrongPass!123'})
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('verification_pending'))
         created = Restaurant.objects.get(name='بيتنا')
         self.assertTrue(Membership.objects.filter(user__username='new@example.com',restaurant=created,role='owner').exists())
         self.assertEqual(created.branches.count(), 1)
         self.assertTrue(created.subscription.valid())
+        new_owner = User.objects.get(username='new@example.com')
+        self.assertFalse(new_owner.is_active)
+        self.assertEqual(len(mail.outbox), 1)
+        raw_token = re.search(r'/verify/([^/]+)/', mail.outbox[0].body).group(1)
+        self.assertNotEqual(raw_token, new_owner.owner_email_verification.token_hash)
+        self.assertFalse(self.client.login(username=new_owner.username, password='StrongPass!123'))
+        self.assertEqual(self.client.get(reverse('verify_owner_email', args=[raw_token])).status_code, 302)
+        new_owner.refresh_from_db()
+        self.assertTrue(new_owner.is_active)
+        self.assertIsNotNone(new_owner.owner_email_verification.verified_at)
+        self.assertEqual(self.client.get(reverse('verify_owner_email', args=[raw_token])).status_code, 400)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_owner_verification_resend_rotates_expired_token_and_limits_attempts(self):
+        self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com',
+            'restaurant':'بيتنا','password':'StrongPass!123'})
+        verification = OwnerEmailVerification.objects.get(user__username='new@example.com')
+        old_token = re.search(r'/verify/([^/]+)/', mail.outbox[0].body).group(1)
+        verification.expires_at = timezone.now()-timedelta(seconds=1)
+        verification.save(update_fields=['expires_at'])
+        self.assertEqual(self.client.get(reverse('verify_owner_email', args=[old_token])).status_code, 400)
+        resend = reverse('resend_owner_verification')
+        self.client.post(resend, {'email':'new@example.com','password':'wrong'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.client.post(resend, {'email':'new@example.com','password':'StrongPass!123'})
+        self.assertEqual(len(mail.outbox), 2)
+        new_token = re.search(r'/verify/([^/]+)/', mail.outbox[1].body).group(1)
+        self.assertNotEqual(old_token, new_token)
+        self.assertEqual(self.client.get(reverse('verify_owner_email', args=[old_token])).status_code, 400)
+        self.client.post(resend, {'email':'new@example.com','password':'StrongPass!123'})
+        self.assertEqual(len(mail.outbox), 3)
+        self.client.post(resend, {'email':'new@example.com','password':'StrongPass!123'})
+        self.assertEqual(len(mail.outbox), 3)
+        latest = re.search(r'/verify/([^/]+)/', mail.outbox[-1].body).group(1)
+        self.assertEqual(self.client.get(reverse('verify_owner_email', args=[latest])).status_code, 302)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_registration_rolls_back_when_verification_email_fails(self):
+        with patch('core.views.send_mail', side_effect=OSError('SMTP unavailable')):
+            response = self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com',
+                'restaurant':'بيتنا','password':'StrongPass!123'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username='new@example.com').exists())
+        self.assertFalse(Restaurant.objects.filter(name='بيتنا').exists())
 
     def test_public_order_requires_csrf(self):
         client = Client(enforce_csrf_checks=True)
@@ -211,6 +310,8 @@ class SafraTests(TestCase):
         self.assertEqual(response.status_code, 200)
         order = Order.objects.get(table=self.table)
         self.assertEqual(str(order.session_token), old_token)
+        track_url = reverse('track_order', args=[order.public_token])
+        self.assertContains(self.client.get(track_url), 'أضف طلبًا جديدًا للطاولة')
         self.client.login(username=self.owner.username, password='StrongPass!123')
         endpoint = reverse('manage_tables', args=[self.restaurant.slug])
         self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
@@ -225,6 +326,10 @@ class SafraTests(TestCase):
         self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
         self.table.refresh_from_db()
         self.assertNotEqual(str(self.table.session_token), old_token)
+        self.assertNotContains(self.client.get(track_url), 'أضف طلبًا جديدًا للطاولة')
+        self.assertNotContains(self.client.get(track_url), reverse('public_menu', args=[self.table.public_token]))
+        self.assertNotContains(self.client.get(reverse('manage_orders', args=[self.restaurant.slug])),
+                               f'{reverse("staff_order", args=[self.restaurant.slug])}?table={self.table.pk}')
         self.assertEqual(order.history.count(), 5)
         self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant, action='table.close_session').exists())
         self.client.logout()
@@ -588,6 +693,49 @@ class SafraTests(TestCase):
         payload['idempotency_key'] = str(uuid.uuid4())
         self.assertEqual(self.client.post(endpoint,data=json.dumps(payload),content_type='application/json').status_code,404)
 
+    def test_staff_additional_order_is_separate_and_table_scoped(self):
+        original = create_order(self.table, self.payload())
+        advance_order(original, self.owner, 'accepted')
+        advance_order(original, self.owner, 'preparing')
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        list_url = reverse('manage_orders', args=[self.restaurant.slug])
+        add_url = reverse('staff_order', args=[self.restaurant.slug])
+        self.assertContains(self.client.get(list_url), f'{add_url}?table={self.table.pk}')
+        filtered = self.client.get(list_url, {'table': self.table.pk})
+        self.assertEqual(len(filtered.context['orders']), 1)
+        self.assertContains(self.client.get(add_url, {'table': self.table.pk}),
+                            f'<option value="{self.table.pk}" selected>')
+        payload = self.payload()
+        payload['table_id'] = self.table.pk
+        response = self.client.post(add_url, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        additional = Order.objects.exclude(pk=original.pk).get()
+        original.refresh_from_db()
+        self.assertEqual(original.status, 'preparing')
+        self.assertEqual(additional.status, 'new')
+        self.assertEqual(additional.session_token, original.session_token)
+        self.assertEqual(additional.table_id, original.table_id)
+        self.assertEqual(len(self.client.get(list_url, {'table': self.table.pk}).context['orders']), 2)
+        foreign = DiningTable.objects.create(branch=self.other_branch, name='أجنبية')
+        self.assertEqual(self.client.get(list_url, {'table': foreign.pk}).status_code, 404)
+        self.assertEqual(self.client.get(add_url, {'table': foreign.pk}).status_code, 404)
+        self.assertEqual(self.client.get(list_url, {'table': 'bad'}).status_code, 404)
+        self.assertEqual(self.client.get(add_url, {'table': '9'*100}).status_code, 404)
+
+    def test_order_list_paginates_without_losing_table_filter(self):
+        for _ in range(27):
+            Order.objects.create(branch=self.branch, table=self.table,
+                idempotency_key=uuid.uuid4(), request_hash='test', total=Decimal('0.00'))
+        self.client.login(username=self.owner.username, password='StrongPass!123')
+        endpoint = reverse('manage_orders', args=[self.restaurant.slug])
+        first = self.client.get(endpoint, {'table': self.table.pk})
+        self.assertEqual(first.context['orders'].paginator.count, 27)
+        self.assertEqual(len(first.context['orders']), 25)
+        self.assertContains(first, f'?page=2&amp;table={self.table.pk}')
+        second = self.client.get(endpoint, {'table': self.table.pk, 'page': 2})
+        self.assertEqual(len(second.context['orders']), 2)
+        self.assertEqual(second.context['orders'].number, 2)
+
     def test_manual_payment_is_separate_and_scoped(self):
         order = create_order(self.table,self.payload())
         foreign_table = DiningTable.objects.create(branch=self.other_branch,name='بعيدة')
@@ -785,7 +933,7 @@ class SafraTests(TestCase):
         response = self.client.get(endpoint)
         self.assertEqual(response.context['setup_done'], 2)
         self.assertContains(response, 'جهّز الفرع الرئيسي')
-        self.assertContains(response, 'class="setup-count">2 من 4')
+        self.assertContains(response, 'class="setup-count">2 من 5')
         self.restaurant.description = 'مطبخ مصري'
         self.restaurant.save(update_fields=['description'])
         chef = User.objects.create_user(username='chef@example.com', password='StrongPass!123')
@@ -796,10 +944,21 @@ class SafraTests(TestCase):
         chef_membership.branches.set([self.branch])
         response = self.client.get(endpoint)
         self.assertEqual(response.context['setup_done'], 4)
+        self.assertContains(response, 'افتح شاشة المطبخ')
+        self.assertEqual(self.client.get(reverse('kitchen', args=[self.restaurant.slug])).status_code, 200)
+        self.branch.refresh_from_db()
+        self.assertIsNotNone(self.branch.kitchen_opened_at)
+        self.assertEqual(AuditLog.objects.filter(restaurant=self.restaurant,
+            action='kitchen.opened').count(), 1)
+        self.client.get(reverse('kitchen', args=[self.restaurant.slug]))
+        self.assertEqual(AuditLog.objects.filter(restaurant=self.restaurant,
+            action='kitchen.opened').count(), 1)
+        response = self.client.get(endpoint)
+        self.assertEqual(response.context['setup_done'], 5)
         self.assertNotContains(response, 'setup-panel')
         self.item.available = False
         self.item.save(update_fields=['available'])
-        self.assertEqual(self.client.get(endpoint).context['setup_done'], 3)
+        self.assertEqual(self.client.get(endpoint).context['setup_done'], 4)
 
     def test_onboarding_is_hidden_from_non_manager(self):
         waiter = User.objects.create_user(username='waiter@example.com', password='StrongPass!123')

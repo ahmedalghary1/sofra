@@ -5,8 +5,9 @@ from urllib.parse import urlparse
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-only-change-this-key-before-deployment')
 DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
-if not DEBUG and SECRET_KEY == 'dev-only-change-this-key-before-deployment':
-    raise RuntimeError('Set DJANGO_SECRET_KEY before running in production.')
+if not DEBUG and (SECRET_KEY in ('dev-only-change-this-key-before-deployment',
+                                  'replace-with-a-long-random-production-secret') or len(SECRET_KEY) < 50):
+    raise RuntimeError('Set a long random DJANGO_SECRET_KEY before running in production.')
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 if not DEBUG and not os.getenv('DJANGO_ALLOWED_HOSTS'):
     raise RuntimeError('Set DJANGO_ALLOWED_HOSTS before running in production.')
@@ -18,6 +19,8 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIR
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 db_url = os.getenv('DATABASE_URL', '')
+if not DEBUG and not db_url.startswith(('postgres://', 'postgresql://')):
+    raise RuntimeError('Set a PostgreSQL DATABASE_URL before running in production.')
 if db_url.startswith(('postgres://', 'postgresql://')):
     db = urlparse(db_url)
     DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': db.path.lstrip('/'), 'USER': db.username, 'PASSWORD': db.password, 'HOST': db.hostname, 'PORT': db.port or 5432}}
