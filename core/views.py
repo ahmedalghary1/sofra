@@ -90,7 +90,7 @@ def register(request):
                         token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
                         expires_at=timezone.now()+timedelta(days=1))
                     link = request.build_absolute_uri(reverse('verify_owner_email', args=[raw_token]))
-                    delivered = send_mail('تفعيل بريد مالك المطعم في سفرة',
+                    delivered = send_mail('تفعيل بريد مالك المطعم في Serveza',
                         f'مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}',
                         settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
                     if delivered != 1:
@@ -152,7 +152,7 @@ def resend_owner_verification(request):
                         verification.sent_at = timezone.now()
                         verification.save(update_fields=['token_hash', 'expires_at', 'sent_at'])
                         link = request.build_absolute_uri(reverse('verify_owner_email', args=[raw_token]))
-                        delivered = send_mail('رابط تفعيل بريد مالك المطعم في سفرة',
+                        delivered = send_mail('رابط تفعيل بريد مالك المطعم في Serveza',
                             f'فعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}',
                             settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
                         if delivered != 1:
@@ -650,7 +650,7 @@ def menu_import(request, slug):
     branch = branch_for(request, restaurant, membership)
     if request.method == 'GET' and request.GET.get('template') == '1':
         response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename="safra-menu-template.csv"'
+        response['Content-Disposition'] = 'attachment; filename="serveza-menu-template.csv"'
         response.write('\ufeff')
         writer = csv.writer(response)
         writer.writerow(['category', 'name', 'price', 'description'])
@@ -1102,7 +1102,7 @@ def staff(request, slug):
                         email=email, role=role, token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
                         invited_by=request.user, expires_at=timezone.now()+timedelta(days=7))
                     link = request.build_absolute_uri(reverse('accept_staff_invitation', args=[raw_token]))
-                    delivered = send_mail('دعوة للانضمام إلى سفرة',
+                    delivered = send_mail('دعوة للانضمام إلى Serveza',
                         f'دعاك {restaurant.name} للانضمام إلى فريق {branch.name}.\nافتح الرابط خلال 7 أيام: {link}',
                         settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
                     if delivered != 1:

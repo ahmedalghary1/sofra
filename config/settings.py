@@ -48,7 +48,7 @@ SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 if os.getenv('DJANGO_TRUST_PROXY_TLS', '0') == '1':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 PASSWORD_RESET_TIMEOUT = 3600
-DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'Sofra <no-reply@example.com>')
+DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'Serveza <no-reply@example.com>')
 EMAIL_BACKEND = ('django.core.mail.backends.console.EmailBackend' if DEBUG
                  else 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('DJANGO_EMAIL_HOST', 'localhost')

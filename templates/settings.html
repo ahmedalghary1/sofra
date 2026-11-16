@@ -19,7 +19,7 @@
     </form>
   </section>
   <section class="panel subscription-panel"><div class="panel-head"><div><h2>الباقة الحالية</h2><p>الحدود الفعلية والاستخدام الحالي</p></div></div>
-    <div class="plan-icon">✳</div><h3>{{ subscription.plan.name }}</h3><p>الحالة: {{ subscription.get_status_display }}</p><p>تنتهي في {{ subscription.ends_at|date:'j F Y' }}</p>
+    <div class="plan-icon">▤</div><h3>{{ subscription.plan.name }}</h3><p>الحالة: {{ subscription.get_status_display }}</p><p>تنتهي في {{ subscription.ends_at|date:'j F Y' }}</p>
     <div class="plan-limits"><span>الفروع <b>{{ usage.branches }} / {{ subscription.plan.max_branches }}</b></span><span>طاولات هذا الفرع <b>{{ usage.tables }} / {{ subscription.plan.max_tables }}</b></span><span>أصناف هذا الفرع <b>{{ usage.items }} / {{ subscription.plan.max_items }}</b></span><span>محطات هذا الفرع <b>{{ usage.stations }} / {{ subscription.plan.max_stations }}</b></span><span>أعضاء الفريق <b>{{ usage.staff }} / {{ subscription.plan.max_staff }}</b></span></div>
   </section>
 </div>

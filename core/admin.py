@@ -2,6 +2,10 @@ from django.contrib import admin
 from django import forms
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
+admin.site.site_header = 'Serveza | إدارة المنصة'
+admin.site.site_title = 'Serveza'
+admin.site.index_title = 'إدارة المنصة'
+
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
