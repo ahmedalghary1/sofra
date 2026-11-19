@@ -43,7 +43,7 @@
   </aside>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <div class="main-wrap">
-    <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="فتح القائمة">☰</button><div class="breadcrumb">مساحة العمل <span>/</span> {% block crumb %}نظرة عامة{% endblock %}</div><div class="topbar-actions"><span class="today-date">{% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
+    <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="فتح القائمة">☰</button><a class="mobile-brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' only %}</a><div class="breadcrumb">مساحة العمل <span>/</span> {% block crumb %}نظرة عامة{% endblock %}</div><div class="topbar-actions"><span class="today-date">{% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
     <main class="main-content">{% block content %}{% endblock %}</main>
   </div>
 </div>

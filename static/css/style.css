@@ -318,8 +318,7 @@
 .guest-service small{font-size:12px;color:#4a5568}
 .service-buttons{display:flex;gap:8px}
 .service-buttons button{background:white;border:1px solid #e2e8ed;color:var(--navy);border-radius:9px;padding:9px 15px;font-weight:800;font-size:12px}
-.guest-footer{text-align:center;color:var(--muted);font-size:12px;padding:28px}
-.guest-footer strong{color:var(--navy)}
+.guest-attribution{text-align:center;padding:14px}
 .cart-bar{position:fixed;bottom:0;left:0;right:0;z-index:10;background:white;box-shadow:0 -8px 30px #00000013;padding:13px max(22px,calc((100vw - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:15px}
 .cart-bar[hidden],.modal-backdrop[hidden]{display:none}
 .cart-bar>span{font-weight:800}
@@ -362,7 +361,7 @@
 .table-card-grid,.kitchen-grid,.call-grid,.food-grid{grid-template-columns:repeat(2,1fr)}
 .hero-art{transform:scale(.85)}
 .trust-inner{flex-wrap:wrap;justify-content:center}
-.content-grid{grid-template-columns:1fr}}
+.content-grid{grid-template-columns:minmax(0,1fr)}}
 .branch-selector{display:grid;gap:5px;margin:-20px 0 25px;padding:0 5px}
 .branch-selector label{font-size:12px;font-weight:800;color:var(--muted)}
 .branch-selector select,.staff-actions select{border:1px solid #e2e8ed;background:white;border-radius:8px;padding:7px;font:inherit;max-width:100%}
@@ -659,7 +658,7 @@
 
 /* Serveza shared identity. Original logo artwork is never recolored or stretched. */
 .brand-lockup{display:block;min-width:0;line-height:1.4}
-.brand-logo{display:block;width:200px;min-width:120px;height:auto;padding:8px;object-fit:contain;flex:none}
+.brand-logo{display:block;width:200px;min-width:120px;height:auto;border-radius:8px;object-fit:contain;flex:none}
 .brand-lockup>small{font-size:12px;font-weight:600;margin:0 8px;color:var(--muted);text-align:start}
 .brand-icon{display:block;width:40px;min-width:32px;height:auto;object-fit:contain;flex:none}
 .brand{gap:0;max-width:100%;flex:none}
@@ -667,13 +666,17 @@
 .sidebar .brand{margin:0 5px 24px}
 .sidebar .brand-logo{width:194px}
 .sidebar .brand-lockup>small{margin-top:4px}
-.auth-brand .brand-logo{width:280px;padding:18px 8px;margin-bottom:22px}
+.auth-brand .brand-logo{width:280px;margin-bottom:22px}
 .banner-decoration{display:flex;align-items:center;justify-content:center;z-index:1;flex:none;width:240px}
-.banner-decoration .brand-logo{width:225px;padding:16px}
+.banner-decoration .brand-logo{width:225px}
 .state-brand{margin-bottom:24px}
 .powered-by{display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:12px}
-.powered-by .brand-icon{width:36px;padding:3px}
-.powered-by strong{color:var(--navy);font-weight:800}
+.powered-by .brand-logo{width:130px}
+.mobile-brand{display:none}
+@media(max-width:780px){
+  .mobile-brand{display:block;margin-inline-end:10px}
+  .mobile-brand .brand-logo{width:104px;min-width:0}
+}
 .btn-primary,.phone-button,.cart-bar button,.add-item{background:var(--teal-ink);color:#fff}
 .btn-primary:hover{background:var(--navy)}
 .btn-dark:hover{background:var(--navy-soft)}
@@ -724,7 +727,6 @@ button:disabled{cursor:wait;opacity:.65}
 .add-item{width:40px;height:40px}
 .guest-main{padding-bottom:100px}
 .track-shell .brand{gap:10px;white-space:normal;font-size:22px}
-.track-shell .guest-footer{padding-bottom:0}
 .page-head h1{font-size:32px}
 .page-head p,.panel-head p,.add-panel p{font-size:13px}
 .side-nav a{font-size:13px}
