@@ -11,10 +11,10 @@
   <main>
     <section class="demo-cover" aria-labelledby="restaurant-name">
       <div class="demo-intro">
-        <span class="eyebrow light">منيو تجريبية · للعرض فقط</span>
+        <span class="eyebrow light">منيو تجريبية · طلبات للعرض فقط</span>
         <h1 id="restaurant-name">دار الليمون</h1>
         <p>مطبخ مصري على الفحم، من أول طبق مقبلات لحد فنجان القهوة.</p>
-        <a class="demo-browse" href="#menu">تصفّح المنيو <span aria-hidden="true">↓</span></a>
+        <a class="demo-browse" href="#menu">تصفّح المنيو وجرّب الطلب <span aria-hidden="true">↓</span></a>
       </div>
       <figure class="demo-photo">
         <img src="{% static 'demo/tawook.webp' %}" width="1200" height="800" alt="طبق شيش طاووق مع ليمون مشوي وخبز وطحينة" fetchpriority="high">
@@ -29,10 +29,13 @@
       <section id="{{ key }}" class="demo-section" aria-labelledby="{{ key }}-title">
         <h2 id="{{ key }}-title">{{ name }}</h2>
         <ul>
-          {% for title, description, price in items %}
+          {% for item_id, title, description, price in items %}
           <li>
             <div><h3>{{ title }}</h3><p>{{ description }}</p></div>
-            <span class="demo-price">{{ price }} <small>ج.م</small></span>
+            <div class="demo-item-actions">
+              <span class="demo-price">{{ price }} <small>ج.م</small></span>
+              <button class="btn btn-primary demo-add-item" type="button" data-id="{{ item_id }}" aria-label="أضف {{ title }} للسلة">أضف للسلة</button>
+            </div>
           </li>
           {% endfor %}
         </ul>
@@ -42,4 +45,8 @@
   </main>
   {% include '_powered_by.html' only %}
 </div>
+{% include '_guest_cart.html' only %}
+{{ items_json|json_script:'menu-data' }}
+<script>window.SAFRA={orderUrl:'{% url "place_demo_order" %}',csrf:'{{ csrf_token }}',accepting:true,demoMode:true};</script>
+<script src="{% static 'js/guest.js' %}"></script>
 {% endblock %}

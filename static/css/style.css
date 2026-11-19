@@ -325,6 +325,8 @@
 .cart-line{display:flex;justify-content:space-between;gap:10px;padding:13px 0;border-top:1px solid var(--line)}
 .cart-line>span strong,.cart-line>span small{display:block}
 .cart-line>span:last-child{text-align:left}
+.cart-quantity{justify-content:flex-start;gap:8px;margin:7px 0 0}
+.cart-quantity button:disabled{opacity:.5;cursor:default}
 .remove-item{border:0;background:none;color:#bb6565;font-size:12px}
 .note-label{display:grid;gap:6px;font-weight:700}
 .note-label textarea{border:1px solid var(--line);border-radius:9px;padding:10px;resize:vertical;min-height:65px}

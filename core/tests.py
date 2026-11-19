@@ -36,8 +36,35 @@ class MarketingMenuTests(SimpleTestCase):
         self.assertContains(preview, 'دار الليمون')
         self.assertContains(preview, 'شيش طاووق على الفحم')
         self.assertContains(preview, 'للعرض فقط')
+        self.assertContains(preview, 'أضف للسلة')
+        self.assertContains(preview, reverse('place_demo_order'))
+        self.assertContains(preview, 'id="openCart"')
         self.assertEqual(self.client.head(url).status_code, 200)
         self.assertEqual(self.client.post(url).status_code, 405)
+
+    def test_demo_checkout_recalculates_total_without_database(self):
+        client = Client(enforce_csrf_checks=True)
+        url = reverse('place_demo_order')
+        lines = [{'item_id': 4, 'quantity': 2, 'price': '0.01'}, {'item_id': 10, 'quantity': 1}]
+        self.assertEqual(client.get(url).status_code, 405)
+        self.assertEqual(client.post(url, {'lines': lines}, content_type='application/json').status_code, 403)
+
+        client.get(reverse('demo_menu'))
+        response = client.post(
+            url, {'lines': lines, 'total': '0.01'}, content_type='application/json',
+            HTTP_X_CSRFTOKEN=client.cookies['csrftoken'].value,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'total': '560.00'})
+
+    def test_demo_checkout_rejects_invalid_carts(self):
+        for lines in ([], [{'item_id': 99, 'quantity': 1}], [{'item_id': 4, 'quantity': 31}],
+                      [{'item_id': 4, 'quantity': 1.5}], [{'item_id': 4, 'quantity': True}], [None]):
+            with self.subTest(lines=lines):
+                response = self.client.post(reverse('place_demo_order'), {'lines': lines},
+                                            content_type='application/json')
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(response.json()['ok'])
 
 
 class PlatformProvisioningTests(TestCase):
@@ -230,19 +257,24 @@ class DemoSeedTests(TestCase):
         self.assertEqual(kitchen_client.get(feed_url).json()['count'], 0)
 
         table = main.tables.get(name='طاولة 01')
-        guest_client = Client()
-        self.assertEqual(guest_client.get(reverse('public_menu', args=[table.public_token])).status_code, 200)
+        guest_client = Client(enforce_csrf_checks=True)
+        menu = guest_client.get(reverse('public_menu', args=[table.public_token]))
+        self.assertContains(menu, 'id="openCart"')
+        self.assertContains(menu, reverse('place_order', args=[table.public_token]))
         item = MenuItem.objects.get(category__branch=main, name='برجر سفرة')
         payload = {'idempotency_key': str(uuid.uuid4()), 'session_token': str(table.session_token),
                    'lines': [{'item_id': item.pk, 'quantity': 1, 'options': []}]}
         response = guest_client.post(reverse('place_order', args=[table.public_token]),
-                                     data=json.dumps(payload), content_type='application/json')
+                                     data=json.dumps(payload), content_type='application/json',
+                                     HTTP_X_CSRFTOKEN=guest_client.cookies['csrftoken'].value)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertTrue(response.json()['ok'])
         order = Order.objects.get(pk=response.json()['order_number'])
         self.assertEqual(order.source, 'qr')
+        self.assertEqual(order.table, table)
         self.assertEqual(order.total, Decimal('175.00'))
         self.assertEqual(order.lines.get().item_name, 'برجر سفرة')
+        self.assertContains(guest_client.get(response.json()['order_url']), 'برجر سفرة')
         self.assertEqual(kitchen_client.get(feed_url).json()['count'], 1)
         self.assertContains(kitchen_client.get(kitchen_url), f'طلب #{order.pk}')
 

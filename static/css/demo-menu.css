@@ -1,4 +1,4 @@
-.demo-wrap { max-width: 1120px; }
+.demo-wrap { max-width: 1120px; padding-bottom: 80px; }
 .demo-header { min-height: 84px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .demo-header .brand-logo { width: clamp(124px, 16vw, 178px); }
 .demo-cover { display: grid; grid-template-columns: 0.9fr 1.1fr; background: var(--navy); color: white; border-radius: var(--radius); overflow: hidden; }
@@ -17,11 +17,13 @@
 .demo-section { background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(20px, 3vw, 34px); scroll-margin-top: 16px; }
 .demo-section h2 { color: var(--teal-ink); margin-bottom: 8px; }
 .demo-section ul { list-style: none; padding: 0; margin: 0; }
-.demo-section li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.demo-section li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid var(--line); }
 .demo-section li:last-child { border: 0; padding-bottom: 0; }
 .demo-section h3 { font-size: 18px; margin: 0 0 3px; }
 .demo-section p { font-size: 14px; margin: 0; }
+.demo-item-actions { flex: none; display: grid; gap: 5px; justify-items: end; }
 .demo-price { white-space: nowrap; color: var(--teal-ink); font-weight: 800; }
+.demo-add-item { min-height: 40px; padding: 6px 10px; font-size: 13px; }
 @media (max-width: 700px) {
   .demo-cover, .demo-sections { grid-template-columns: 1fr; }
   .demo-photo { min-height: 0; aspect-ratio: 2.15; }
