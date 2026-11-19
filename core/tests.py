@@ -365,22 +365,42 @@ class SafraTests(TestCase):
         self.assertEqual(response.json(), {'status': 'unavailable'})
         self.assertNotIn(b'private database detail', response.content)
 
-    def test_production_settings_reject_placeholder_secret_and_sqlite_fallback(self):
+    def test_production_settings_require_explicit_sqlite_opt_in(self):
         env = {**os.environ, 'DJANGO_DEBUG': '0', 'DJANGO_ALLOWED_HOSTS': 'example.com',
                'DJANGO_SECRET_KEY': 'replace-with-a-long-random-production-secret',
-               'DATABASE_URL': 'postgresql://test:test@localhost:5432/test'}
+               'DJANGO_ALLOW_SQLITE': '1', 'DJANGO_SECURE_SSL_REDIRECT': '1'}
+        env.pop('DATABASE_URL', None)
         command = [sys.executable, '-c', 'import config.settings']
         invalid_secret = subprocess.run(command, env=env, capture_output=True, text=True)
         self.assertNotEqual(invalid_secret.returncode, 0)
         self.assertIn('DJANGO_SECRET_KEY', invalid_secret.stderr)
-        env['DJANGO_SECRET_KEY'] = 'a'*60
-        env.pop('DATABASE_URL')
+        env['DJANGO_SECRET_KEY'] = 'a' * 60
+        env['DJANGO_ALLOW_SQLITE'] = '0'
         missing_database = subprocess.run(command, env=env, capture_output=True, text=True)
         self.assertNotEqual(missing_database.returncode, 0)
         self.assertIn('DATABASE_URL', missing_database.stderr)
+
+        env['DJANGO_ALLOW_SQLITE'] = '1'
+        sqlite_config = subprocess.run([sys.executable, '-c', (
+            'from config import settings as s\n'
+            'assert s.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"\n'
+            'assert s.DATABASES["default"]["NAME"] == s.BASE_DIR / "db.sqlite3"\n'
+            'assert s.DEBUG is False\n'
+            'assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE and s.SECURE_SSL_REDIRECT\n'
+        )], env=env, capture_output=True, text=True)
+        self.assertEqual(sqlite_config.returncode, 0, sqlite_config.stderr)
+
+        env['DATABASE_URL'] = 'sqlite:///another.sqlite3'
+        invalid_database = subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertNotEqual(invalid_database.returncode, 0)
+        self.assertIn('DATABASE_URL', invalid_database.stderr)
+
         env['DATABASE_URL'] = 'postgresql://test:test@localhost:5432/test'
-        valid_config = subprocess.run(command, env=env, capture_output=True, text=True)
-        self.assertEqual(valid_config.returncode, 0, valid_config.stderr)
+        postgres_config = subprocess.run([sys.executable, '-c', (
+            'from config import settings as s\n'
+            'assert s.DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql"\n'
+        )], env=env, capture_output=True, text=True)
+        self.assertEqual(postgres_config.returncode, 0, postgres_config.stderr)
 
     def test_stale_table_state_is_rechecked_before_order_and_call_creation(self):
         stale = DiningTable.objects.get(pk=self.table.pk)

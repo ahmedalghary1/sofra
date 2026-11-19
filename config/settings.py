@@ -18,14 +18,16 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [BASE_DIR / 'templates'], 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.debug', 'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
-db_url = os.getenv('DATABASE_URL', '')
-if not DEBUG and not db_url.startswith(('postgres://', 'postgresql://')):
-    raise RuntimeError('Set a PostgreSQL DATABASE_URL before running in production.')
+db_url = os.getenv('DATABASE_URL', '').strip()
 if db_url.startswith(('postgres://', 'postgresql://')):
     db = urlparse(db_url)
     DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': db.path.lstrip('/'), 'USER': db.username, 'PASSWORD': db.password, 'HOST': db.hostname, 'PORT': db.port or 5432}}
-else:
+elif db_url:
+    raise RuntimeError('DATABASE_URL must be a PostgreSQL URL. Leave it unset to use SQLite.')
+elif DEBUG or os.getenv('DJANGO_ALLOW_SQLITE', '0') == '1':
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+else:
+    raise RuntimeError('Set a PostgreSQL DATABASE_URL or explicitly enable SQLite with DJANGO_ALLOW_SQLITE=1.')
 AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'}, {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'}, {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 LANGUAGE_CODE = 'ar'
 TIME_ZONE = 'Africa/Cairo'
