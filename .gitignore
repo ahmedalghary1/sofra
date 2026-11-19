@@ -4,6 +4,8 @@ __pycache__/
 *.py[cod]
 db.sqlite3
 db.sqlite3-*
+/default_[0-9]*.sqlite3
+/default_[0-9]*.sqlite3-*
 media/
 staticfiles/
 .pytest_cache/
