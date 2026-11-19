@@ -2,7 +2,9 @@
 {% load static %}
 {% block extrastyle %}{{ block.super }}
 <link rel="icon" type="image/webp" href="{% static 'brand/serveza-favicon-32.webp' %}">
-<link rel="stylesheet" href="{% static 'css/typography.css' %}">
-<link rel="stylesheet" href="{% static 'css/admin-brand.css' %}?v=cairo">
+{% endblock %}
+{% block responsive %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/typography.css' %}?v=type-scale">
+<link rel="stylesheet" href="{% static 'css/admin-brand.css' %}?v=type-scale">
 {% endblock %}
 {% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}" class="admin-brand">{% include '_brand_logo.html' only %}<span>إدارة المنصة</span></a></div>{% endblock %}

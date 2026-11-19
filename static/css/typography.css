@@ -8,4 +8,15 @@
 
 :root {
   --app-font-family: Cairo, "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  --text-caption: 0.8125rem;
+  --text-detail: 0.875rem;
+  --text-body: 1rem;
+  --text-lead: 1.0625rem;
+  --text-card: 1.125rem;
+  --text-section: clamp(1.25rem, 1.15rem + 0.45vw, 1.5rem);
+  --text-page: clamp(1.5rem, 1.31rem + 0.75vw, 2rem);
+  --text-display: clamp(1.875rem, 1.48rem + 1.6vw, 2.875rem);
+  --leading-body: 1.65;
+  --leading-compact: 1.5;
+  --leading-heading: 1.35;
 }

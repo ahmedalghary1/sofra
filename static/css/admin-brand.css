@@ -1,8 +1,16 @@
 :root,html[data-theme="light"]{--primary:#0f2a3d;--secondary:#1b415c;--accent:#e6f3f0;--header-bg:#0f2a3d;--header-color:#fff;--header-branding-color:#fff;--header-link-color:#fff;--breadcrumbs-bg:#1b415c;--link-fg:#2c7a6f;--link-selected-fg:#0f2a3d;--button-bg:#2c7a6f;--button-hover-bg:#0f2a3d;--default-button-bg:#0f2a3d;--default-button-hover-bg:#1b415c;--selected-row:#e6f3f0;--font-family-primary:var(--app-font-family)}
 html[data-theme="dark"]{--primary:#1b415c;--secondary:#0f2a3d;--accent:#e6f3f0;--header-bg:#0f2a3d;--header-color:#fff;--header-branding-color:#fff;--breadcrumbs-bg:#1b415c;--link-fg:#86c9bd;--button-bg:#2c7a6f;--button-hover-bg:#1b415c;--default-button-bg:#2c7a6f;--default-button-hover-bg:#1b415c;--font-family-primary:var(--app-font-family)}
 body,input,select,textarea,button{font-family:var(--font-family-primary);letter-spacing:0}
+body{font-size:var(--text-detail);line-height:var(--leading-body)}
+#content h1{font-size:var(--text-section);line-height:var(--leading-heading);font-weight:700}
+#content caption,#content th,#content td,#nav-sidebar th,#nav-sidebar td{font-size:var(--text-caption);line-height:var(--leading-compact)}
+#content-main .module th,#content-main .module td{font-size:var(--text-detail)}
+#user-tools{font-size:var(--text-caption);line-height:var(--leading-compact)}
+body.login .form-row label{font-size:var(--text-detail);line-height:var(--leading-compact)}
+body.login .form-row input,#content-main .form-row input:not([type=checkbox]):not([type=radio]),#content-main .form-row select,#content-main .form-row textarea{font-size:var(--text-body);line-height:var(--leading-compact)}
+body.login .submit-row input{min-height:42px;font-size:var(--text-detail);line-height:var(--leading-compact)}
 .admin-brand{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .admin-brand img{display:block;width:190px;min-width:120px;height:auto;border-radius:8px}
-.admin-brand span{font-size:13px;font-weight:600}
+.admin-brand > span:last-child{font-size:var(--text-detail);font-weight:700}
 #header #site-name{margin:0}
 @media(max-width:600px){.admin-brand{justify-content:center;gap:4px}.admin-brand img{width:170px}}
