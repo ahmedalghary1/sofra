@@ -20,12 +20,24 @@ from django.db import DatabaseError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from unittest.mock import patch
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
+
+
+class MarketingMenuTests(SimpleTestCase):
+    def test_anonymous_preview_needs_no_database(self):
+        url = reverse('demo_menu')
+        self.assertContains(self.client.get(reverse('home')), f'href="{url}"')
+        preview = self.client.get(url)
+        self.assertContains(preview, 'دار الليمون')
+        self.assertContains(preview, 'شيش طاووق على الفحم')
+        self.assertContains(preview, 'للعرض فقط')
+        self.assertEqual(self.client.head(url).status_code, 200)
+        self.assertEqual(self.client.post(url).status_code, 405)
 
 
 class PlatformProvisioningTests(TestCase):

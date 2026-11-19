@@ -36,6 +36,7 @@ from .limits import check_activation_limit, check_creation_limit
 from .forms import PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
+from .demo_menu import SECTIONS as DEMO_MENU_SECTIONS
 from .invitations import accept_staff_invitation, invitation_for_token
 
 def error_text(exc): return ' '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)
@@ -58,6 +59,11 @@ def home(request):
         membership = request.user.memberships.filter(active=True).select_related('restaurant').first()
         if membership: return redirect('dashboard', slug=membership.restaurant.slug)
     return render(request, 'home.html')
+
+@require_http_methods(['GET', 'HEAD'])
+def demo_menu(request):
+    return render(request, 'demo_menu.html', {'sections': DEMO_MENU_SECTIONS})
+
 
 def register(request):
     if request.method == 'POST':

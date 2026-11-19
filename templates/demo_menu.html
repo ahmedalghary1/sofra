@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}منيو دار الليمون التجريبية{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/demo-menu.css' %}">{% endblock %}
+{% block body %}
+<div class="demo-wrap container">
+  <header class="demo-header">
+    <a class="brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a>
+    <a class="btn btn-outline" href="{% url 'register' %}">ابدأ تجربة مطعمك</a>
+  </header>
+  <main>
+    <section class="demo-cover" aria-labelledby="restaurant-name">
+      <div class="demo-intro">
+        <span class="eyebrow light">منيو تجريبية · للعرض فقط</span>
+        <h1 id="restaurant-name">دار الليمون</h1>
+        <p>مطبخ مصري على الفحم، من أول طبق مقبلات لحد فنجان القهوة.</p>
+        <a class="demo-browse" href="#menu">تصفّح المنيو <span aria-hidden="true">↓</span></a>
+      </div>
+      <figure class="demo-photo">
+        <img src="{% static 'demo/tawook.webp' %}" width="1200" height="800" alt="طبق شيش طاووق مع ليمون مشوي وخبز وطحينة" fetchpriority="high">
+        <figcaption>من الشواية <b>شيش طاووق على الفحم</b></figcaption>
+      </figure>
+    </section>
+    <nav id="menu" class="demo-nav" aria-label="أقسام المنيو">
+      {% for key, name, items in sections %}<a href="#{{ key }}">{{ name }}</a>{% endfor %}
+    </nav>
+    <div class="demo-sections">
+      {% for key, name, items in sections %}
+      <section id="{{ key }}" class="demo-section" aria-labelledby="{{ key }}-title">
+        <h2 id="{{ key }}-title">{{ name }}</h2>
+        <ul>
+          {% for title, description, price in items %}
+          <li>
+            <div><h3>{{ title }}</h3><p>{{ description }}</p></div>
+            <span class="demo-price">{{ price }} <small>ج.م</small></span>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endfor %}
+    </div>
+  </main>
+  {% include '_powered_by.html' only %}
+</div>
+{% endblock %}
