@@ -1,0 +1,11 @@
+@font-face {
+  font-family: Cairo;
+  src: url("../fonts/cairo/Cairo-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+}
+
+:root {
+  --app-font-family: Cairo, "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+}
