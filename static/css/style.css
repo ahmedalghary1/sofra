@@ -41,32 +41,15 @@
 .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
 .hero-proof{display:flex;gap:10px;align-items:center;margin-top:40px;color:#4a5568;font-weight:700;font-size:12px}
 .proof-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#e6f3f0;color:var(--navy)}
-.hero-art{height:590px;position:relative;display:grid;place-items:center}
-.hero-art:before{content:"";position:absolute;width:530px;height:530px;border-radius:50%;background:#b7ddd6;right:5%;top:3%}
-.art-orbit{position:absolute;border:1px solid #b7ddd6;border-radius:50%;transform:rotate(-18deg)}
-.orbit-one{height:420px;width:570px}
-.orbit-two{height:320px;width:650px;transform:rotate(24deg)}
-.phone-mock{position:relative;z-index:2;width:262px;height:510px;background:white;border:8px solid #0f2a3d;border-radius:36px;box-shadow:0 25px 65px rgba(15,42,61,.24);padding:13px 16px;transform:rotate(5deg);overflow:hidden}
-.phone-status{font-size:9px;display:flex;justify-content:space-between;font-weight:800;padding:0 5px 9px}
-.phone-head{display:flex;gap:9px;align-items:center;font-size:13px;font-weight:800}
-.phone-head small{display:block;color:var(--muted);font-size:9px}
-.phone-logo{display:grid;place-items:center;width:30px;height:30px;background:var(--teal-ink);color:white;border-radius:9px}
-.food-photo{height:226px;background:radial-gradient(circle at 50% 50%,#c8e6e0 0 25%,#c8e6e0 25% 28%,#c8e6e0 28% 44%,#c8e6e0 45% 47%,#c8e6e0 48%);border-radius:16px;margin:18px 0;display:grid;place-items:center;overflow:hidden}
-.food-circle{height:180px;width:180px;border-radius:50%;background:#c8e6e0;display:grid;place-items:center;box-shadow:0 4px 16px #0f2a3d18}
-.food-center{font-size:98px;filter:drop-shadow(0 5px 5px #0002)}
-.phone-cat{font-size:10px;color:var(--teal-ink);font-weight:800}
-.phone-item{display:flex;justify-content:space-between;align-items:center;font-size:11px}
-.phone-item small{display:block;color:var(--muted);font-size:8px}
-.phone-item b{color:var(--teal-ink);font-size:10px}
-.phone-button{background:var(--teal-ink);color:#fff;text-align:center;border-radius:8px;padding:7px;margin-top:14px;font-size:10px;font-weight:800}
-.floating-note{position:absolute;z-index:4;display:flex;align-items:center;gap:9px;background:#fff;border-radius:14px;padding:11px 14px;box-shadow:0 14px 35px #0f2a3d18;white-space:nowrap;transform:rotate(-3deg)}
-.floating-note strong,.floating-note small{display:block}
-.floating-note strong{font-size:12px}
-.floating-note small{font-size:12px;color:var(--muted)}
-.note-top{top:19%;right:0}
-.note-bottom{bottom:17%;left:0;transform:rotate(3deg)}
-.mini-icon{display:grid;place-items:center;height:29px;width:29px;border-radius:9px;background:#e6f3f0;color:#2c7a6f;font-weight:800}
-.mini-icon.orange{background:#e6f3f0;color:var(--teal-ink)}
+.hero-sculpture{
+  width:100%;
+  max-width:640px;
+  height:auto;
+  justify-self:center;
+  mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent),
+             linear-gradient(to bottom,transparent,#000 5%,#000 94%,transparent);
+  mask-composite:intersect;
+}
 .trust-strip{background:#f6f8fa}
 .trust-inner{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:23px 0;font-size:13px;font-weight:800;color:#4a5568}
 .trust-inner span:first-child{color:var(--ink)}
@@ -359,7 +342,6 @@
 .track-hint{color:var(--muted)}
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}
 .table-card-grid,.kitchen-grid,.call-grid,.food-grid{grid-template-columns:repeat(2,1fr)}
-.hero-art{transform:scale(.85)}
 .trust-inner{flex-wrap:wrap;justify-content:center}
 .content-grid{grid-template-columns:minmax(0,1fr)}}
 .branch-selector{display:grid;gap:5px;margin:-20px 0 25px;padding:0 5px}
@@ -587,7 +569,6 @@
 .hero-copy{text-align:center}
 .hero-copy>p{margin:0 auto 25px}
 .hero-actions,.hero-proof{justify-content:center}
-.hero-art{height:480px;transform:scale(.8);margin-top:-55px}
 .features{padding:65px 0}
 .feature-grid{grid-template-columns:1fr}
 .how-inner{grid-template-columns:1fr;gap:25px}
@@ -606,7 +587,6 @@
 .header-cta .btn{padding:8px 11px;font-size:12px}
 .hero h1{font-size:49px}
 .hero-copy>p{font-size:14px}
-.hero-art{transform:scale(.62);height:330px;margin:-90px -80px -10px}
 .trust-inner{font-size:12px;gap:10px}
 .trust-inner span:first-child{width:100%;text-align:center}
 .features{padding:50px 0}
@@ -677,7 +657,7 @@
   .mobile-brand{display:block;margin-inline-end:10px}
   .mobile-brand .brand-logo{width:104px;min-width:0}
 }
-.btn-primary,.phone-button,.cart-bar button,.add-item{background:var(--teal-ink);color:#fff}
+.btn-primary,.cart-bar button,.add-item{background:var(--teal-ink);color:#fff}
 .btn-primary:hover{background:var(--navy)}
 .btn-dark:hover{background:var(--navy-soft)}
 .btn-outline{border-color:var(--line)}
@@ -692,15 +672,7 @@ button:disabled{cursor:wait;opacity:.65}
 .hero-copy>p{font-size:16px;line-height:1.8}
 .hero-copy>.brand-tagline{font-size:13px;color:var(--muted);margin:22px 0 0;text-align:right}
 .hero-proof{font-size:12px;margin-top:26px;line-height:1.8}
-.hero-art:before{background:var(--mint)}
 .dot{background:var(--teal)}
-.phone-mock{transform:none;height:510px}
-.phone-head .brand-icon{width:36px}
-.food-photo{background:radial-gradient(circle at 50% 50%,#fff 0 34%,#b7ddd6 35% 37%,#e6f3f0 38%);height:205px}
-.food-circle{background:#fff;box-shadow:0 4px 16px #0f2a3d18}
-.food-center{font-size:90px}
-.phone-cat,.phone-item b{color:var(--teal-ink)}
-.phone-powered{font-size:9px;color:var(--muted);text-align:center;margin-top:14px}
 .section-heading h2,.how-inner h2{font-size:clamp(26px,3vw,36px);line-height:1.6}
 .feature-card{border-color:var(--line)}
 .feature-card p{font-size:15px;line-height:1.8}
@@ -756,7 +728,7 @@ button:disabled{cursor:wait;opacity:.65}
 .kitchen-overdue,.call-card-body .call-overdue{background:#fee2e2;color:#991b1b}
 .kitchen-overdue:before,.call-overdue:before{content:"▲ ";font-weight:800}
 .connection-state{background:var(--mint);color:var(--teal-ink)}
-@media(max-width:1100px){.hero{gap:12px}.hero-art{transform:scale(.85)}}
-@media(max-width:780px){.hero{grid-template-columns:1fr;padding-top:35px}.hero h1{font-size:38px}.hero-copy>.brand-tagline{text-align:center}.hero-art{height:480px;margin-top:-40px}.banner-decoration{width:180px}.banner-decoration .brand-logo{width:180px}.sidebar-overlay.show{background:#0f2a3d88}.auth-art h2{font-size:32px}}
-@media(max-width:560px){.site-header .brand-logo{width:154px;padding:6px}.site-header{height:84px}.site-header .btn{min-height:40px}.hero h1{font-size:32px}.hero-proof{font-size:12px}.hero-art{height:360px;transform:scale(.66);margin:-65px -60px -15px}.brand-logo{width:180px}.footer{align-items:flex-start}.footer>span{font-size:12px}.page-head h1{font-size:26px}.banner-decoration{display:none}.welcome-banner h2{max-width:none;font-size:20px}.welcome-banner p{font-size:12px}.auth-form-side{padding:24px}.guest-brand{font-size:15px}.guest-hero-mark{margin:0 12px;font-size:64px}.guest-hero p{font-size:13px}.guest-table{font-size:12px;padding:7px 10px}.guest-header{gap:10px}.food-card p{font-size:12px}.food-card-image{min-height:155px}.food-card-category{font-size:12px}.track-shell .brand{font-size:19px}.reset-card{padding:25px}.auth-foot{margin-top:24px}}
+@media(max-width:1100px){.hero{gap:12px}}
+@media(max-width:780px){.hero{grid-template-columns:1fr;padding-top:35px}.hero h1{font-size:38px}.hero-copy>.brand-tagline{text-align:center}.banner-decoration{width:180px}.banner-decoration .brand-logo{width:180px}.sidebar-overlay.show{background:#0f2a3d88}.auth-art h2{font-size:32px}}
+@media(max-width:560px){.site-header .brand-logo{width:154px;padding:6px}.site-header{height:84px}.site-header .btn{min-height:40px}.hero h1{font-size:32px}.hero-proof{font-size:12px}.brand-logo{width:180px}.footer{align-items:flex-start}.footer>span{font-size:12px}.page-head h1{font-size:26px}.banner-decoration{display:none}.welcome-banner h2{max-width:none;font-size:20px}.welcome-banner p{font-size:12px}.auth-form-side{padding:24px}.guest-brand{font-size:15px}.guest-hero-mark{margin:0 12px;font-size:64px}.guest-hero p{font-size:13px}.guest-table{font-size:12px;padding:7px 10px}.guest-header{gap:10px}.food-card p{font-size:12px}.food-card-image{min-height:155px}.food-card-category{font-size:12px}.track-shell .brand{font-size:19px}.reset-card{padding:25px}.auth-foot{margin-top:24px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}

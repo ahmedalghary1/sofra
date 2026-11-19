@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}ضيافة ذكية.. وخدمة بلا انتظار{% endblock %}
 {% block body %}
 <div class="landing">
@@ -16,12 +17,12 @@
       <div class="hero-proof"><div class="proof-icon" aria-hidden="true">✓</div><span>منيو QR · بدون تطبيق للضيف · متابعة من الطاولة للمطبخ</span></div>
       <p class="brand-tagline" lang="en" dir="ltr">Smart Hospitality. Seamless Service.</p>
     </div>
-    <div class="hero-art" aria-label="مثال توضيحي لمنيو الطاولة ومتابعة الطلب">
-      <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
-      <div class="floating-note note-top"><span class="mini-icon">✓</span><span><strong>طلب جديد وصل!</strong><small>طاولة 04 · منذ لحظات</small></span></div>
-      <div class="phone-mock"><div class="phone-status" dir="ltr">9:41 <span aria-hidden="true">●●●</span></div><div class="phone-head">{% include '_brand_icon.html' with decorative=True only %}<span>أهلًا بك في كافيهك<small>طاولة 04 · مثال توضيحي</small></span></div><div class="food-photo"><div class="food-circle"><div class="food-center" aria-hidden="true">☕</div></div></div><span class="phone-cat">لحظتك المفضلة</span><div class="phone-item"><span><strong>كابتشينو</strong><small>قهوة محضّرة بعناية</small></span><b>65 ج.م</b></div><div class="phone-button">أضف للسلة &nbsp; +</div><div class="phone-powered" dir="ltr">Powered by Serveza</div></div>
-      <div class="floating-note note-bottom"><span class="mini-icon">◔</span><span><strong>الطلب قيد التحضير</strong><small>المطبخ يتابع التفاصيل</small></span></div>
-    </div>
+    <img class="hero-sculpture"
+         src="{% static 'brand/hero-phone.webp' %}"
+         srcset="{% static 'brand/hero-phone-small.webp' %} 640w, {% static 'brand/hero-phone.webp' %} 1200w"
+         sizes="(max-width: 560px) calc(100vw - 32px), (max-width: 780px) min(640px, 100vw - 48px), (max-width: 1268px) 47vw, 594px"
+         width="1200" height="960" fetchpriority="high"
+         alt="مجسّم هاتف يحمل رمز QR ويلتف حوله شريط تركوازي مستوحى من شعار Serveza">
   </section>
   <section class="trust-strip"><div class="container trust-inner"><span>كل رحلة الطلب في مكان واحد</span><span>▤ &nbsp; منيو رقمي</span><span>▦ &nbsp; طاولات QR</span><span>▣ &nbsp; شاشة مطبخ</span><span>▥ &nbsp; تقارير واضحة</span></div></section>
   <section class="features container" id="features">
