@@ -1,0 +1,52 @@
+{% load static showroom %}
+<div class="menu-search-row">
+  <label class="menu-search-field">
+    {% symbol 'search' %}
+    <input type="search" id="menuSearch" autocomplete="off" aria-label="{% bi 'ابحث في المنيو' 'Search menu' %}"
+           placeholder="{% bi 'ابحث باسم الصنف أو أحد مكوناته' 'Search by dish or ingredient' %}">
+  </label>
+</div>
+<nav class="menu-filter-bar" aria-label="{% bi 'تصنيفات المنيو' 'Menu categories' %}">
+  <div class="catalog-pills" id="categoryPills">
+    <button type="button" class="active" data-category="all" aria-pressed="true">{% bi 'كل الأصناف' 'All items' %}</button>
+    {% for key, label in menu_categories %}
+      <button type="button" data-category="{{ key }}" aria-pressed="false">{{ label }}</button>
+    {% endfor %}
+  </div>
+  <label class="menu-category-picker" hidden>
+    {% symbol 'chevron-down' %}
+    <select aria-label="{% bi 'اختر من جميع التصنيفات' 'Choose from all categories' %}">
+      <option value="all">{% bi 'كل الأصناف' 'All items' %}</option>
+      {% for key, label in menu_categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><div class="catalog-pills">
+    {% for key, label in menu_categories %}
+      <a href="#{% if not demo_menu %}menu-{% endif %}{{ key }}">{{ label }}</a>
+    {% endfor %}
+  </div></noscript>
+</nav>
+<p hidden id="menuEmpty" role="status">{% bi 'لا توجد أصناف مطابقة.' 'No matching items.' %}
+  <button id="clearGuestSearch" type="button" class="text-button">{% bi 'عرض كل الأصناف' 'Show all items' %}</button>
+</p>
+<div class="menu-grid" id="foodGrid" data-photo-fallback="{% static 'menu-photos/place-setting.webp' %}">
+  {% for item in items_json %}
+  <article class="food-card menu-product" data-category="{{ item.category }}" data-item="{{ item.id }}"
+           {% ifchanged item.category %}id="{% if not demo_menu %}menu-{% endif %}{{ item.category }}"{% endifchanged %}>
+    <img class="menu-photo" src="{{ item.photo }}" alt="" width="400" height="260"
+         loading="{% if forloop.counter <= 4 %}eager{% else %}lazy{% endif %}" decoding="async">
+    <div class="menu-product-copy">
+      <span class="menu-kind">{{ item.category_name }}</span>
+      <h2>{{ item.name }}</h2>
+      {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+      <div class="menu-product-bottom">
+        <strong><bdi>{{ item.price|floatformat:"-2" }}</bdi> <small>{% bi 'ج.م' 'EGP' %}</small></strong>
+        <button type="button" class="menu-add {% if demo_menu %}demo-add-item{% else %}add-item{% endif %}"
+                data-id="{{ item.id }}" aria-label="{% if demo_menu %}{% bi 'أضف للسلة' 'Add to cart' %} ·{% else %}{% bi 'أضف' 'Add' %}{% endif %} {{ item.name }}">
+          {% symbol 'plus' %}
+        </button>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>

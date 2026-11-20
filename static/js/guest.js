@@ -173,6 +173,8 @@ const categoryButtons = [...document.querySelectorAll('#categoryPills button')];
 const foodCards = [...document.querySelectorAll('.food-card')];
 const menuSearch = document.getElementById('menuSearch');
 const menuEmpty = document.getElementById('menuEmpty');
+const filterBar = document.querySelector('.menu-filter-bar');
+const categoryPicker = filterBar?.querySelector('.menu-category-picker');
 let selectedCategory = 'all';
 
 function filterMenu() {
@@ -184,16 +186,67 @@ function filterMenu() {
     if (!card.hidden) matches++;
   }
   if (menuEmpty) menuEmpty.hidden = !foodCards.length || matches > 0;
+  if (categoryPicker) categoryPicker.querySelector('select').value = selectedCategory;
   categoryButtons.forEach(button => {
     const selected = selectedCategory === button.dataset.category;
     button.setAttribute('aria-pressed', String(selected));
     button.classList.toggle('active', selected);
   });
 }
-categoryButtons.forEach(button => button.addEventListener('click', () => {
+function selectCategory(button) {
+  const pinned = filterBar && filterBar.getBoundingClientRect().top <= 1;
   selectedCategory = button.dataset.category;
   filterMenu();
-}));
+  if (pinned) {
+    const grid = document.getElementById('foodGrid');
+    const results = menuEmpty && !menuEmpty.hidden ? menuEmpty : grid;
+    window.scrollBy({top: results.getBoundingClientRect().top - filterBar.offsetHeight, behavior: 'instant'});
+  }
+}
+categoryButtons.forEach(button => button.addEventListener('click', () => selectCategory(button)));
+if (categoryPicker) {
+  const rail = document.getElementById('categoryPills');
+  const picker = categoryPicker.querySelector('select');
+  function sizePicker() {
+    // Compare with the full bar so the picker's own width cannot keep it open.
+    categoryPicker.hidden = rail.scrollWidth <= filterBar.clientWidth + 1;
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(sizePicker).observe(filterBar);
+  else window.addEventListener('resize', sizePicker);
+  document.fonts.ready.then(sizePicker);
+  sizePicker();
+  picker.addEventListener('change', () => {
+    const button = categoryButtons.find(button => button.dataset.category === picker.value);
+    if (!button) return;
+    selectCategory(button);
+    rail.scrollBy({left: button.getBoundingClientRect().left + button.offsetWidth / 2 -
+      rail.getBoundingClientRect().left - rail.clientWidth / 2, behavior: 'instant'});
+  });
+}
+if (demoMode) {
+  // Bookmarks from the original section-based sample menu.
+  function openLinkedSection() {
+    const button = categoryButtons.find(button => '#' + button.dataset.category === location.hash);
+    if (button) {
+      selectCategory(button);
+      filterBar.scrollIntoView({block: 'start'});
+    }
+  }
+  openLinkedSection();
+  window.addEventListener('hashchange', openLinkedSection);
+}
+const photoGrid = document.querySelector('[data-photo-fallback]');
+if (photoGrid) {
+  function replaceMissingPhoto(photo) {
+    if (photo.matches?.('img.menu-photo') && photo.getAttribute('src') !== photoGrid.dataset.photoFallback) {
+      photo.src = photoGrid.dataset.photoFallback;
+    }
+  }
+  photoGrid.addEventListener('error', event => replaceMissingPhoto(event.target), true);
+  photoGrid.querySelectorAll('img').forEach(photo => {
+    if (photo.complete && !photo.naturalWidth) replaceMissingPhoto(photo);
+  });
+}
 menuSearch?.addEventListener('input', filterMenu);
 document.getElementById('clearGuestSearch')?.addEventListener('click', () => {
   menuSearch.value = '';

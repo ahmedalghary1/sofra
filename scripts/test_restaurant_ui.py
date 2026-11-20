@@ -25,6 +25,39 @@ from core.models import (
 
 
 class ServiceAcrossRolesTests(StaticLiveServerTestCase):
+    def test_pinned_category_picker_shows_matching_items_at_the_start_of_results(self):
+        venue = Restaurant.objects.create(name='Menu QA', slug='menu-qa')
+        branch = Branch.objects.create(restaurant=venue)
+        table = DiningTable.objects.create(branch=branch, name='Table A')
+        for index in range(10):
+            category = Category.objects.create(branch=branch, name=f'Category {index}')
+            MenuItem.objects.bulk_create([MenuItem(category=category, name=f'Plate {index}-{n}', price=25) for n in range(8)])
+        url = self.live_server_url + reverse('public_menu', args=[table.public_token])
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel='chrome')
+            for width, language, columns in [(320, 'ar', 2), (768, 'en', 3), (1440, 'ar', 4)]:
+                page = browser.new_page(viewport={'width': width, 'height': 800})
+                page.goto(url + '?lang=' + language)
+                page.evaluate('document.fonts.ready')
+                self.assertEqual(page.locator('#foodGrid').evaluate("n => getComputedStyle(n).gridTemplateColumns.split(' ').length"), columns)
+                page.evaluate('window.scrollTo(0,1200)')
+                bar = page.locator('.menu-filter-bar')
+                self.assertAlmostEqual(bar.bounding_box()['y'], 0, delta=1)
+                last = page.locator('#categoryPills button').last
+                picker = page.locator('.menu-category-picker select')
+                if width == 320:
+                    expect(picker).to_be_visible()
+                    picker.select_option(last.get_attribute('data-category'))
+                else:
+                    last.click()
+                expect(last).to_have_attribute('aria-pressed', 'true')
+                cards = page.locator('.menu-product:visible')
+                expect(cards).to_have_count(8)
+                self.assertGreaterEqual(cards.first.bounding_box()['y'], bar.bounding_box()['height'] - 1)
+                self.assertLess(cards.first.bounding_box()['y'], 270)
+                page.close()
+            browser.close()
+
     def test_guest_draft_is_table_session_scoped_and_rechecks_catalog(self):
         venue = Restaurant.objects.create(name='مطعم الحي · Neighborhood Kitchen', slug='draft-menu')
         branch = Branch.objects.create(restaurant=venue, name='الفرع الرئيسي · Main branch')

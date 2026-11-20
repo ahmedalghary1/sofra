@@ -29,6 +29,21 @@ from .services import advance_call, advance_order, advance_order_line, create_or
 
 
 class MarketingMenuTests(SimpleTestCase):
+    def test_each_sample_dish_has_a_distinct_local_photo_in_both_languages(self):
+        from django.contrib.staticfiles import finders
+        from .demo_menu import sample_menu
+        from .menu_photos import menu_photo
+        _, arabic = sample_menu()
+        _, english = sample_menu(english=True)
+        photos = [item['photo'] for item in arabic]
+        self.assertEqual(photos, [item['photo'] for item in english])
+        self.assertEqual(len(set(photos)), len(arabic))
+        for photo in photos:
+            self.assertNotIn('place-setting', photo)
+            self.assertTrue(finders.find(photo.split('/static/')[-1]))
+        self.assertEqual(menu_photo('Latte', '/media/menu/my-latte.jpg'), '/media/menu/my-latte.jpg')
+        self.assertTrue(menu_photo('Special of the day').endswith('/place-setting.webp'))
+
     def test_anonymous_preview_needs_no_database(self):
         url = reverse('demo_menu')
         self.assertContains(self.client.get(reverse('home')), f'href="{url}"')
@@ -659,7 +674,7 @@ class SafraTests(TestCase):
         self.assertContains(response, '14-day trial')
         self.assertFalse(User.objects.filter(username=values['email']).exists())
 
-    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', PUBLIC_BASE_URL='https://menu.example')
     def test_registration_creates_isolated_restaurant(self):
         response = self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com','restaurant':'بيتنا','password':'StrongPass!123'})
         self.assertEqual(response.status_code, 302)
@@ -671,6 +686,11 @@ class SafraTests(TestCase):
         new_owner = User.objects.get(username='new@example.com')
         self.assertFalse(new_owner.is_active)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('https://menu.example/verify/', mail.outbox[0].body)
+        html, content_type = mail.outbox[0].alternatives[0]
+        self.assertEqual(content_type, 'text/html')
+        self.assertIn('href="https://menu.example/verify/', html)
+        self.assertIn('تفعيل حسابي', html)
         raw_token = re.search(r'/verify/([^/]+)/', mail.outbox[0].body).group(1)
         self.assertNotEqual(raw_token, new_owner.owner_email_verification.token_hash)
         self.assertFalse(self.client.login(username=new_owner.username, password='StrongPass!123'))

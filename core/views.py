@@ -26,6 +26,7 @@ from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext
@@ -41,6 +42,7 @@ from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
 from .presentation import localized_url
 from .demo_menu import demo_order_total, sample_menu
+from .menu_photos import menu_photo
 from .invitations import accept_staff_invitation, invitation_for_token
 
 def error_text(exc):
@@ -72,7 +74,8 @@ def home(request):
 def demo_menu(request):
     sections, items = sample_menu(english=request.LANGUAGE_CODE == 'en')
     return render(request, 'demo_menu.html', {
-        'sections': sections, 'items_json': items,
+        'menu_categories': [(key, name) for key, name, _ in sections], 'items_json': items,
+        'demo_menu': True,
     })
 
 
@@ -87,6 +90,17 @@ def place_demo_order(request):
     except ValidationError as exc:
         return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
     return JsonResponse({'ok': True, 'total': str(total)})
+
+
+def send_owner_activation(request, user, token, *, resend=False):
+    english = request.LANGUAGE_CODE == 'en'
+    path = localized_url('verify_owner_email', english, token)
+    link = settings.PUBLIC_BASE_URL + path if settings.PUBLIC_BASE_URL else request.build_absolute_uri(path)
+    subject = gettext('رابط تفعيل بريد مالك المطعم في Serveza') if resend else gettext('تفعيل بريد مالك المطعم في Serveza')
+    text = gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=user.first_name, link=link)
+    html = render_to_string('emails/owner_activation.html', {'english': english, 'name': user.first_name, 'link': link})
+    if send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html, fail_silently=False) != 1:
+        raise ValidationError('تعذر إرسال رابط التفعيل الآن.')
 
 
 def register(request):
@@ -109,12 +123,7 @@ def register(request):
                 OwnerEmailVerification.objects.create(user=user,
                     token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
                     expires_at=timezone.now()+timedelta(days=1))
-                link = request.build_absolute_uri(localized_url('verify_owner_email', request.LANGUAGE_CODE == 'en', raw_token))
-                delivered = send_mail(gettext('تفعيل بريد مالك المطعم في Serveza'),
-                    gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=name, link=link),
-                    settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
-                if delivered != 1:
-                    raise ValidationError('تعذر إرسال رابط التفعيل. حاول مجددًا بعد فحص البريد.')
+                send_owner_activation(request, user, raw_token)
         except IntegrityError:
             form.add_error('email', gettext('تعذر إنشاء الحساب بهذا البريد. حاول تسجيل الدخول أو إعادة المحاولة.'))
         except (SMTPException, OSError):
@@ -169,12 +178,7 @@ def resend_owner_verification(request):
                         verification.expires_at = timezone.now()+timedelta(days=1)
                         verification.sent_at = timezone.now()
                         verification.save(update_fields=['token_hash', 'expires_at', 'sent_at'])
-                        link = request.build_absolute_uri(localized_url('verify_owner_email', request.LANGUAGE_CODE == 'en', raw_token))
-                        delivered = send_mail(gettext('رابط تفعيل بريد مالك المطعم في Serveza'),
-                            gettext('فعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(link=link),
-                            settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
-                        if delivered != 1:
-                            raise ValidationError('تعذر إرسال رابط التفعيل الآن.')
+                        send_owner_activation(request, user, raw_token, resend=True)
             except (ValidationError, SMTPException, OSError):
                 messages.error(request, 'تعذر إرسال البريد الآن. حاول لاحقًا.')
                 return redirect('verification_pending')
@@ -1395,10 +1399,17 @@ def public_menu(request, token):
         return render(request, 'table_closed.html', status=404)
     categories = Category.objects.filter(branch=table.branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
     items = serialize_menu_items(categories)
+    category_names = {category.pk: category.name for category in categories}
+    menu_categories = {}
+    for item in items:
+        category = item['category']
+        item['category_name'] = menu_categories[category] = category_names[category]
+        item['photo'] = menu_photo(item['name'], item['image'])
     subscription = getattr(table.branch.restaurant, 'subscription', None)
     accepting = table.branch.accepting_orders and (subscription is None or subscription.valid())
     return render(request, 'public_menu.html', {
-        'table': table, 'categories': categories, 'items_json': items, 'accepting': accepting,
+        'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,
+        'illustrative_photos': any(not item['image'] for item in items),
         'cart_session': hashlib.sha256(table.session_token.bytes).hexdigest(),
     })
 

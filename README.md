@@ -45,9 +45,14 @@ python manage.py test core
 
 ## البيئة
 
-انسخ `.env.example` إلى إعدادات بيئتك المناسبة. Django لا يقرأ ملف `.env` تلقائيًا. عرّف المتغيرات في shell أو نظام النشر. استخدم `DATABASE_URL` مع PostgreSQL، أو اضبط `DJANGO_ALLOW_SQLITE=1` واترك `DATABASE_URL` فارغًا لتشغيل قاعدة `db.sqlite3` مع `DJANGO_DEBUG=0` في تجربة محدودة. [إعدادات النشر والتجربة](docs/DEPLOYMENT.md)
+يقرأ المشروع ملف `.env` من المجلد الرئيسي عند بدء التشغيل. عند إعداد نسخة جديدة، انسخ `.env.example` إلى `.env`. تأخذ متغيرات الاستضافة الأولوية على الملف. استخدم `DATABASE_URL` مع PostgreSQL، أو اضبط `DJANGO_ALLOW_SQLITE=1` واترك `DATABASE_URL` فارغًا لتشغيل قاعدة `db.sqlite3` مع `DJANGO_DEBUG=0` في تجربة محدودة. [إعدادات النشر والتجربة](docs/DEPLOYMENT.md)
 
-في التطوير، روابط تفعيل المالك واستعادة كلمة المرور ودعوات الموظفين تُطبع في مخرجات الخادم. في الإنتاج يجب إعداد SMTP باستخدام متغيرات `DJANGO_EMAIL_*` واختبار التسليم قبل الاعتماد عليها.
+### بريد التفعيل عبر Gmail
+
+في ملف `.env` أدخل عنوان Gmail المرسل في `DJANGO_EMAIL_HOST_USER`، وكلمة مرور التطبيق في `DJANGO_EMAIL_HOST_PASSWORD`. عند مشاركة الموقع، ضع عنوانه العام مثل `https://your-domain.example` في `DJANGO_PUBLIC_BASE_URL` حتى يفتح رابط التفعيل على جهاز المستلم. أعد تشغيل Django بعد تعديل الملف.
+
+الإعداد المرفق يستخدم `smtp.gmail.com` على المنفذ 587 مع STARTTLS. يحصل المالك بعد التسجيل على رسالة بلغته تتضمن رابط تفعيل صالحًا لمدة 24 ساعة. يمكنه طلب رابط جديد من شاشة التحقق. لتجربة القالب محليًا عبر سجل الخادم، اضبط `DJANGO_EMAIL_BACKEND=console`. [إنشاء كلمة مرور تطبيق Google](https://support.google.com/mail/answer/185833?hl=ar)
+
 
 ## الوثائق
 

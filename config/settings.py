@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env', override=False, interpolate=False)
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-only-change-this-key-before-deployment')
 DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 if not DEBUG and (SECRET_KEY in ('dev-only-change-this-key-before-deployment',
@@ -53,12 +55,19 @@ SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 if os.getenv('DJANGO_TRUST_PROXY_TLS', '0') == '1':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 PASSWORD_RESET_TIMEOUT = 3600
-DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'Serveza <no-reply@example.com>')
-EMAIL_BACKEND = ('django.core.mail.backends.console.EmailBackend' if DEBUG
-                 else 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('DJANGO_EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.getenv('DJANGO_EMAIL_PORT', '587'))
-EMAIL_HOST_USER = os.getenv('DJANGO_EMAIL_HOST_USER', '')
+EMAIL_HOST_USER = os.getenv('DJANGO_EMAIL_HOST_USER', '').strip()
 EMAIL_HOST_PASSWORD = os.getenv('DJANGO_EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('DJANGO_EMAIL_USE_TLS', '1') == '1'
 EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL') or f"Serveza <{EMAIL_HOST_USER or 'no-reply@example.com'}>"
+mail_mode = os.getenv('DJANGO_EMAIL_BACKEND') or ('smtp' if EMAIL_HOST_USER or not DEBUG else 'console')
+if mail_mode not in ('smtp', 'console'):
+    raise ValueError('DJANGO_EMAIL_BACKEND must be smtp or console.')
+EMAIL_BACKEND = f'django.core.mail.backends.{mail_mode}.EmailBackend'
+PUBLIC_BASE_URL = os.getenv('DJANGO_PUBLIC_BASE_URL', '').strip().rstrip('/')
+if PUBLIC_BASE_URL:
+    origin = urlparse(PUBLIC_BASE_URL)
+    if origin.scheme not in ('http', 'https') or not origin.hostname or origin.username or origin.password or origin.path or origin.query or origin.fragment:
+        raise ValueError('DJANGO_PUBLIC_BASE_URL must be a website origin, such as https://your-domain.example.')

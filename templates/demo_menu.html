@@ -1,47 +1,22 @@
-{% extends 'base.html' %}
-{% load static showroom %}
+{% extends 'base.html' %}{% load static showroom %}
 {% block title %}{% bi 'منيو دار الليمون التجريبية' 'Dar El Limoun sample menu' %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/demo-menu.css' %}?v=type-scale">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}">{% endblock %}
+{% block bodyclass %}catalog-body{% endblock %}
 {% block body %}
-<div class="demo-wrap container">
-  <header class="demo-header">
-    <a class="brand" href="{% public_url 'home' %}">{% include '_brand_logo.html' only %}</a>
-    <nav class="demo-header-actions"><a class="demo-language" href="{{ language_switch_url }}" hreflang="{% bi 'en' 'ar' %}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a><a class="btn btn-outline" href="{% public_url 'demo' %}">{% bi 'جرّب رحلة الطلب' 'Try the service demo' %}</a></nav>
+<div class="menu-shell demo-menu-shell">
+  <header class="sample-header">
+    <a href="{% public_url 'home' %}">{% include '_brand_logo.html' with sizes='140px' only %}</a>
+    <nav><a class="sample-demo-link" href="{% public_url 'demo' %}">{% bi 'تجربة الخدمة' 'Service demo' %}</a>
+      <a class="sample-language" href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></nav>
   </header>
-  <main>
-    <section class="demo-cover" aria-labelledby="restaurant-name">
-      <div class="demo-intro">
-        <span class="eyebrow light">{% bi 'منيو تجريبية · طلبات للعرض فقط' 'Demo menu · Sample orders only' %}</span>
+  <main class="catalog-main" id="menu">
+    <section class="sample-cover" aria-labelledby="restaurant-name">
+      <div><p>{% bi 'منيو تجريبية · طلبات للعرض فقط' 'Sample menu · Demo orders only' %}</p>
         <h1 id="restaurant-name">{% bi 'دار الليمون' 'Dar El Limoun' %}</h1>
-        <p>{% bi 'مطبخ مصري على الفحم، من أول طبق مقبلات لحد فنجان القهوة.' 'Egyptian charcoal cooking, from the first mezze to the last cup of coffee.' %}</p>
-        <a class="demo-browse" href="#menu">{% bi 'تصفّح المنيو وجرّب الطلب' 'Browse the sample menu' %}</a>
-      </div>
-      <figure class="demo-photo">
-        <img src="{% static 'demo/tawook.webp' %}" width="1200" height="800" alt="{% bi 'طبق شيش طاووق مع ليمون مشوي وخبز وطحينة' 'Grilled chicken skewers with charred lemon, bread and tahini' %}" fetchpriority="high">
-        <figcaption>{% bi 'من الشواية' 'From the grill' %} <b>{% bi 'شيش طاووق على الفحم' 'Chargrilled chicken skewers' %}</b></figcaption>
-      </figure>
+        <span>{% bi 'مطبخ مصري على الفحم' 'Egyptian charcoal kitchen' %}</span></div>
+      <img src="{% static 'demo/tawook-menu.webp' %}" width="320" height="213" alt="">
     </section>
-    <nav id="menu" class="demo-nav" aria-label="{% bi 'أقسام المنيو' 'Menu categories' %}">
-      {% for key, name, items in sections %}<a href="#{{ key }}">{{ name }}</a>{% endfor %}
-    </nav>
-    <div class="demo-sections">
-      {% for key, name, items in sections %}
-      <section id="{{ key }}" class="demo-section" aria-labelledby="{{ key }}-title">
-        <h2 id="{{ key }}-title">{{ name }}</h2>
-        <ul>
-          {% for item_id, title, description, price in items %}
-          <li>
-            <div><h3>{{ title }}</h3><p>{{ description }}</p></div>
-            <div class="demo-item-actions">
-              <span class="demo-price">{{ price }} <small>{% bi 'ج.م' 'EGP' %}</small></span>
-              <button class="btn btn-primary demo-add-item" type="button" data-id="{{ item_id }}" aria-label="{% bi 'أضف' 'Add' %} {{ title }} {% bi 'للسلة' 'to cart' %}">{% symbol 'shopping-bag' %} {% bi 'أضف للسلة' 'Add to cart' %}</button>
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
-      </section>
-      {% endfor %}
-    </div>
+    {% include '_menu_catalog.html' %}
   </main>
   <footer>{% include '_powered_by.html' only %}</footer>
 </div>

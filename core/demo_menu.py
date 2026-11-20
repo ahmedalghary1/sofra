@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from .menu_photos import menu_photo
 
 SECTIONS = (
     ('mezze', 'مقبلات', (
@@ -58,7 +59,9 @@ def sample_menu(english=False):
             ])
             for key, _, rows in SECTIONS
         ]
-    items = [dict(ITEMS[item_id], name=title) for _, _, rows in sections for item_id, title, _, _ in rows]
+    items = [dict(ITEMS[item_id], name=title, description=description, category=key,
+                  category_name=label, photo=menu_photo(title))
+             for key, label, rows in sections for item_id, title, description, _ in rows]
     return sections, items
 
 

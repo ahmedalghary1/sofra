@@ -4,7 +4,7 @@
 
 1. استخدم PostgreSQL للتشغيل الإنتاجي واضبط `DATABASE_URL`. اضبط `DJANGO_SECRET_KEY` عشوائيًا بطول 50 حرفًا على الأقل، و`DJANGO_DEBUG=0`، و`DJANGO_ALLOWED_HOSTS` و`DJANGO_CSRF_TRUSTED_ORIGINS` للدومين الفعلي. يتطلب تشغيل SQLite مع إيقاف التصحيح تفعيل `DJANGO_ALLOW_SQLITE=1` صراحةً.
 2. فعّل HTTPS في reverse proxy. `SECURE_SSL_REDIRECT` وHSTS والكوكيز الآمنة مفعلة عندما يكون DEBUG مغلقًا.
-   اضبط SMTP بمتغيرات `DJANGO_EMAIL_*` لتفعيل بريد المالك واستعادة كلمة المرور ودعوات الموظفين، واختبر تسجيل مالك جديد وتفعيل رابط فعلي وتسليم دعوة؛ وضع التطوير يطبع الرسائل في مخرجات الخادم فقط. يتراجع التسجيل إذا فشل إرسال رابط التفعيل.
+   اضبط SMTP بمتغيرات `DJANGO_EMAIL_*` لتفعيل بريد المالك واستعادة كلمة المرور ودعوات الموظفين، واختبر تسجيل مالك جديد وتفعيل رابط فعلي وتسليم دعوة؛ يختار `DJANGO_EMAIL_BACKEND=smtp` الإرسال الفعلي في التطوير والإنتاج. اضبط `DJANGO_PUBLIC_BASE_URL` على العنوان العام لروابط تفعيل المالك. يتراجع التسجيل إذا فشل إرسال رابط التفعيل.
    إذا كان TLS ينتهي في reverse proxy موثوق ولا يمكن الوصول إلى Django مباشرة، اضبط `DJANGO_TRUST_PROXY_TLS=1`. لا تفعل HSTS على النطاقات الفرعية أو preload قبل التأكد من أن كل النطاقات الفرعية تستخدم HTTPS؛ فحص `check --deploy` سيعرض التحذيرين المرتبطين بذلك حتى اتخاذ القرار على النطاق الحقيقي.
 3. شغّل `python manage.py check --deploy` و`python manage.py migrate` و`python manage.py collectstatic --noinput`.
 4. شغّل Gunicorn خلف reverse proxy، وقدّم `staticfiles/` و`media/` من تخزين مناسب محمي. لا تخدم الملفات المرفوعة مباشرة من Django في الإنتاج.
