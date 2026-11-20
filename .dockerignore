@@ -7,3 +7,7 @@ db.sqlite3-*
 media
 staticfiles
 .git
+tmp/
+*.log
+*.sqlite3
+docs/redesign-evidence/

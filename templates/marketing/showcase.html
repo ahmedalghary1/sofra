@@ -1,0 +1,11 @@
+{% load showroom demo_studio %}{% studio_panels english as panels %}
+<section class="sz-section" id="workspace-tour" aria-labelledby="sz-tour-title">
+  <div class="sz-section-head"><div><span class="sz-kicker">{% bi 'جولة المنتج' 'Workspace tour' %}</span><h2 id="sz-tour-title">{% bi 'وردية واحدة، زوايا مختلفة.' 'One shift, seen from every station.' %}</h2></div><p>{% bi 'افتح شاشات الفريق واستكشف يوم الخدمة في مقهى تجريبي.' 'Explore a sample café shift through the screens your team uses.' %}</p></div>
+  <div class="sz-tour" data-tabset><div class="sz-tabs" data-tabs aria-label="{% bi 'شاشات المنتج' 'Product screens' %}">{% for panel in panels %}<a href="#tour-{{ panel.slug }}">{{ panel.name }}</a>{% endfor %}</div>
+  {% for panel in panels %}<section class="sz-tour-panel" data-panel id="tour-{{ panel.slug }}">
+    <div class="sz-tour-story"><span class="sz-kicker">{{ panel.name }}</span><h3>{{ panel.title }}</h3><p>{{ panel.description }}</p></div>
+    <div class="sz-screen sz-screen-{{ panel.slug }}"><div class="sz-screen-head"><strong>{% if panel.slug == 'kitchen' %}{% bi 'تذكرة #104' 'Ticket #104' %}{% elif panel.slug == 'reports' %}{% bi 'الأصناف الأكثر طلبًا' 'Best sellers' %}{% else %}{{ panel.name }}{% endif %}</strong><small>{% bi 'بيانات تجريبية' 'Demo data' %}</small></div>
+    <dl class="sz-screen-rows">{% for label,value in panel.rows %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+    {% if panel.slug == 'overview' %}<svg class="sz-screen-wave" aria-hidden="true" viewBox="0 0 540 68" preserveAspectRatio="none"><path fill="#dcefe9" d="M0 61l48-8 49 3 49-19 49 10 49-16 49 7 49-16 49 4 50-13 50 2 48-11v64H0z"/><path fill="none" stroke="#2c7a6f" stroke-width="3" d="M0 61l48-8 49 3 49-19 49 10 49-16 49 7 49-16 49 4 50-13 50 2 48-11"/></svg>{% endif %}</div>
+  </section>{% endfor %}</div>
+</section>

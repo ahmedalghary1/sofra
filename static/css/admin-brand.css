@@ -14,3 +14,8 @@ body.login .submit-row input{min-height:42px;font-size:var(--text-detail);line-h
 .admin-brand > span:last-child{font-size:var(--text-detail);font-weight:700}
 #header #site-name{margin:0}
 @media(max-width:600px){.admin-brand{justify-content:center;gap:4px}.admin-brand img{width:170px}}
+#header {border-block-end:3px solid #82c2b5}
+#nav-sidebar {border-inline-end:1px solid var(--hairline-color)}
+#content-main .module {border-radius:10px;overflow:auto;border:1px solid var(--hairline-color)}
+#content a:focus-visible,#header a:focus-visible {outline:3px solid #499bba;outline-offset:2px}
+#user-tools .ops-language {padding:6px 8px;text-transform:none}

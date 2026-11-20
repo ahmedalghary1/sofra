@@ -1,9 +1,13 @@
+from django.utils.translation import gettext
+
 """Server-side plan limits. Call inside transaction.atomic() before resource creation.
 
 The subscription row lock serializes competing creations on PostgreSQL.
 """
 from django.core.exceptions import ValidationError
+
 from .models import MenuItem, Subscription
+
 
 def check_creation_limit(restaurant, resource, branch=None):
     subscription = Subscription.objects.select_for_update().select_related('plan').get(restaurant=restaurant)
@@ -32,7 +36,7 @@ def check_creation_limit(restaurant, resource, branch=None):
     else:
         raise ValueError(f'Unknown resource: {resource}')
     if count >= limit:
-        raise ValidationError(f'وصلت إلى حد {label} في باقتك ({limit}).')
+        raise ValidationError(gettext('وصلت إلى حد {label} في باقتك ({limit}).').format(label=gettext(label), limit=limit))
     return subscription
 
 def check_activation_limit(restaurant, resource, branch=None):
@@ -51,5 +55,5 @@ def check_activation_limit(restaurant, resource, branch=None):
     else:
         raise ValidationError('المورد أو الفرع غير صالح.')
     if count >= limit:
-        raise ValidationError(f'لا يمكن التفعيل: حد {label} في باقتك هو {limit}.')
+        raise ValidationError(gettext('لا يمكن التفعيل: حد {label} في باقتك هو {limit}.').format(label=gettext(label), limit=limit))
     return subscription

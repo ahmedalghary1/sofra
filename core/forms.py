@@ -3,6 +3,7 @@ import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.utils.translation import gettext_lazy as _
 
 from .models import Plan, SubscriptionPayment
 
@@ -21,7 +22,7 @@ class SubscriptionPaymentForm(forms.Form):
     def clean(self):
         data = super().clean()
         if data.get('period_start') and data.get('period_end') and data['period_end'] < data['period_start']:
-            self.add_error('period_end', 'نهاية الفترة يجب ألا تسبق بدايتها.')
+            self.add_error('period_end', _('نهاية الفترة يجب ألا تسبق بدايتها.'))
         return data
 
 
@@ -38,7 +39,7 @@ class PlatformRestaurantForm(forms.Form):
     owner_password = forms.CharField(label='كلمة مرور المالك الجديد', required=False,
                                      widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
     plan = forms.ModelChoiceField(label='الباقة', queryset=Plan.objects.all(), required=False,
-                                  empty_label='تجربة افتراضية · 14 يومًا')
+                                  empty_label=_('تجربة افتراضية · 14 يومًا'))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -57,24 +58,24 @@ class PlatformRestaurantForm(forms.Form):
         existing = User.objects.filter(username__iexact=email).first()
         if existing:
             if not existing.is_active or existing.is_superuser:
-                self.add_error('owner_email', 'لا يمكن ربط هذا الحساب كمالك. استخدم حسابًا نشطًا عاديًا.')
+                self.add_error('owner_email', _('لا يمكن ربط هذا الحساب كمالك. استخدم حسابًا نشطًا عاديًا.'))
             elif existing.last_name == 'SOFRA_LOCAL_DEMO':
-                self.add_error('owner_email', 'استخدم بريدًا حقيقيًا أو حسابًا عاديًا بدل حساب العرض المحلي.')
+                self.add_error('owner_email', _('استخدم بريدًا حقيقيًا أو حسابًا عاديًا بدل حساب العرض المحلي.'))
             if data.get('owner_password'):
-                self.add_error('owner_password', 'هذا الحساب موجود بالفعل؛ اترك كلمة المرور فارغة.')
+                self.add_error('owner_password', _('هذا الحساب موجود بالفعل؛ اترك كلمة المرور فارغة.'))
         else:
             name, password = data.get('owner_name', ''), data.get('owner_password', '')
             if not name:
-                self.add_error('owner_name', 'أدخل اسم المالك لإنشاء حسابه.')
+                self.add_error('owner_name', _('أدخل اسم المالك لإنشاء حسابه.'))
             if not password:
-                self.add_error('owner_password', 'أدخل كلمة مرور مؤقتة للمالك الجديد.')
+                self.add_error('owner_password', _('أدخل كلمة مرور مؤقتة للمالك الجديد.'))
             else:
                 try:
                     validate_password(password, user=User(username=email, email=email, first_name=name))
                 except forms.ValidationError as exc:
                     self.add_error('owner_password', exc)
         if data.get('plan') and data['plan'].max_branches < 1:
-            self.add_error('plan', 'اختر باقة تسمح بفرع واحد على الأقل.')
+            self.add_error('plan', _('اختر باقة تسمح بفرع واحد على الأقل.'))
         return data
 
 
@@ -93,7 +94,7 @@ class RestaurantProfileForm(forms.Form):
     phone = forms.CharField(label='رقم التواصل', max_length=24, required=False,
                             widget=forms.TextInput(attrs={'inputmode': 'tel', 'dir': 'ltr'}))
     opening_hours = forms.CharField(label='ساعات العمل', max_length=160, required=False,
-                                    widget=forms.TextInput(attrs={'placeholder': 'يوميًا ١٠ صباحًا – ١١ مساءً'}))
+                                    widget=forms.TextInput(attrs={'placeholder': _('يوميًا 10 صباحًا – 11 مساءً')}))
     waiter_response_minutes = forms.IntegerField(label='حد استجابة استدعاء الويتر بالدقائق',
                                                   min_value=1, max_value=120, required=False)
     bill_response_minutes = forms.IntegerField(label='حد استجابة طلب الحساب بالدقائق',
@@ -106,5 +107,5 @@ class RestaurantProfileForm(forms.Form):
     def clean_phone(self):
         value = self.cleaned_data['phone'].strip()
         if value and not re.fullmatch(r'\+?[0-9\s()\-]{7,24}', value):
-            raise forms.ValidationError('أدخل رقم تواصل صالحًا بالأرقام.')
+            raise forms.ValidationError(_('أدخل رقم تواصل صالحًا بالأرقام.'))
         return value

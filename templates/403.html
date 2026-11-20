@@ -1,1 +1,6 @@
-{% extends 'base.html' %}{% block body %}<div class="center-state"><a class="brand state-brand" href="/">{% include '_brand_logo.html' only %}</a><span>◈</span><h1>هذه الصفحة غير متاحة لحسابك</h1><p>ارجع إلى لوحة التحكم أو تواصل مع مدير المطعم.</p><a class="btn btn-primary" href="/">العودة للرئيسية</a></div>{% endblock %}
+﻿{% extends 'base.html' %}{% load i18n showroom %}
+{% block title %}{% if form_expired %}{% bi 'تعذّر التحقق من النموذج' 'Form verification failed' %}{% else %}{% translate 'هذه الصفحة غير متاحة لحسابك' %}{% endif %}{% endblock %}
+{% block body %}<main class="center-state">{% include '_ops_language.html' %}<a class="brand state-brand" href="/">{% include '_brand_logo.html' only %}</a><span aria-hidden="true">403</span>
+{% if form_expired %}<h1>{% bi 'تعذّر التحقق من النموذج' 'Form verification failed' %}</h1><p>{% bi 'افتح النموذج مجددًا من الموقع ثم أعد المحاولة.' 'Reopen the form from the site and try again.' %}</p>
+{% else %}<h1>{% translate 'هذه الصفحة غير متاحة لحسابك' %}</h1><p>{% translate 'ارجع إلى لوحة التحكم أو تواصل مع مدير المطعم.' %}</p>{% endif %}
+<a class="btn btn-primary" href="/">{% translate 'العودة للرئيسية' %}</a></main>{% endblock %}

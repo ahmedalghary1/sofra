@@ -353,6 +353,66 @@ class SafraTests(TestCase):
         self.assertEqual(order.lines.get().unit_price, Decimal('100.00'))
         self.assertEqual(Order.objects.count(), 1)
 
+    def test_guest_rechecks_the_reviewed_total_before_creating_an_order(self):
+        endpoint = reverse('place_order', args=[self.table.public_token])
+        payload = {**self.payload(), 'session_token': str(self.table.session_token), 'reviewed_total': '180.00'}
+        rejected = self.client.post(endpoint + '?lang=en', payload, content_type='application/json')
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIn('Prices changed', rejected.json()['error'])
+        self.assertFalse(Order.objects.filter(table=self.table).exists())
+        payload['reviewed_total'] = '200.00'
+        accepted = self.client.post(endpoint, payload, content_type='application/json')
+        self.assertEqual(accepted.status_code, 200)
+        self.item.price = Decimal('125.00')
+        self.item.save()
+        replay = self.client.post(endpoint, payload, content_type='application/json')
+        self.assertEqual(replay.json()['order_url'], accepted.json()['order_url'])
+        self.assertEqual(Order.objects.get(table=self.table).total, Decimal('200.00'))
+
+    def test_print_summary_uses_session_snapshots_and_existing_cashier_scope(self):
+        first = create_order(self.table, self.payload())
+        Order.objects.filter(pk=first.pk).update(payment_status='paid')
+        current = create_order(self.table, self.payload())
+        cancelled = create_order(self.table, self.payload())
+        Order.objects.filter(pk=cancelled.pk).update(status='cancelled')
+        previous = create_order(self.table, self.payload())
+        Order.objects.filter(pk=previous.pk).update(session_token=uuid.uuid4())
+        self.item.name = 'Changed after purchase'
+        self.item.save(update_fields=['name'])
+        link = reverse('table_summary', args=[self.restaurant.slug, self.table.pk])
+        self.assertEqual(self.client.get(link).status_code, 302)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(link).status_code, 403)
+        cashier = User.objects.create_user(username='summary-cashier')
+        membership = Membership.objects.create(restaurant=self.restaurant, user=cashier, role='cashier')
+        membership.branches.add(self.branch)
+        self.client.force_login(cashier)
+        page = self.client.get(link, {'lang':'en'})
+        self.assertContains(page, 'Print summary')
+        self.assertNotContains(page, self.item.name)
+        self.assertEqual([o.pk for o in page.context['orders']], [first.pk, current.pk])
+        self.assertEqual(page.context['total'], Decimal('400.00'))
+        self.assertEqual(page.context['remaining'], Decimal('200.00'))
+        self.assertEqual(self.client.post(link).status_code, 405)
+        membership.role = 'waiter'
+        membership.save(update_fields=['role'])
+        self.assertEqual(self.client.get(link).status_code, 403)
+
+    def test_owner_activity_and_workspace_language_are_branch_scoped(self):
+        self.client.force_login(self.owner)
+        create_order(self.table, self.payload())
+        response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]), {'period': 14, 'lang': 'en'})
+        self.assertContains(response, 'Order activity')
+        self.assertContains(response, 'aria-current="page"')
+        self.assertEqual(len(response.context['activity']), 14)
+        self.assertEqual(sum(day['count'] for day in response.context['activity']), 1)
+        self.assertEqual(response.context['activity_average'], Decimal('200.00'))
+        self.assertContains(self.client.get(reverse('manage_orders', args=[self.restaurant.slug])), 'Order history')
+        self.client.force_login(self.other)
+        other = self.client.get(reverse('dashboard', args=[self.other_restaurant.slug]))
+        self.assertEqual(other.context['activity_value'], 0)
+        self.assertEqual(sum(day['count'] for day in other.context['activity']), 0)
+
     def test_health_checks_database_without_exposing_failure_details(self):
         endpoint = reverse('health')
         response = self.client.get(endpoint)
@@ -560,6 +620,33 @@ class SafraTests(TestCase):
             with self.subTest(name=name):
                 response = self.client.get(reverse(name, args=[self.restaurant.slug]))
                 self.assertEqual(response.status_code, 200)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_english_owner_and_team_action_emails_open_in_english(self):
+        registration = {'name': 'Mona', 'email': 'english@example.com', 'restaurant': 'Window Café',
+                        'password': 'StrongPass!123'}
+        self.client.post(reverse('register') + '?lang=en', registration)
+        self.client.post(reverse('resend_owner_verification'), registration)
+        self.client.force_login(self.owner)
+        self.client.post(reverse('staff', args=[self.restaurant.slug]), {
+            'action': 'invite', 'email': 'crew@example.com', 'role': 'waiter', 'branch_id': self.branch.pk,
+        })
+        self.assertEqual([message.subject for message in mail.outbox], [
+            'Verify your Serveza owner email', 'Your new Serveza verification link', 'Invitation to join a Serveza team',
+        ])
+        self.assertIn('Hello Mona', mail.outbox[0].body)
+        self.assertIn('24 hours', mail.outbox[1].body)
+        self.assertIn('within 7 days', mail.outbox[2].body)
+        links = [re.search(r'https?://[^\s]+', message.body).group() for message in mail.outbox]
+        for link in links:
+            self.assertTrue(link.endswith('/?lang=en'))
+        reader = Client()
+        expired = reader.get(links[0])
+        self.assertContains(expired, 'Invalid verification link', status_code=400)
+        self.assertEqual(reader.get(links[1]).status_code, 302)
+        invitation = Client().get(links[2])
+        self.assertContains(invitation, 'Accept invitation')
+        self.assertContains(invitation, 'lang="en"')
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_registration_creates_isolated_restaurant(self):
@@ -805,13 +892,14 @@ class SafraTests(TestCase):
         waiter_member.branches.add(self.branch)
         self.client.login(username=waiter.username,password='StrongPass!123')
         page = self.client.get(reverse('manage_orders',args=[self.restaurant.slug]))
-        self.assertNotContains(page,'استلام ←')
+        accept_action = '<input type="hidden" name="status" value="accepted">'
+        self.assertNotContains(page, accept_action, html=True)
         self.client.logout()
         cook = User.objects.create_user(username='cook@example.com',password='StrongPass!123')
         cook_member = Membership.objects.create(user=cook,restaurant=self.restaurant,role='kitchen')
         cook_member.branches.add(self.branch)
         self.client.login(username=cook.username,password='StrongPass!123')
-        self.assertContains(self.client.get(reverse('manage_orders',args=[self.restaurant.slug])),'استلام ←')
+        self.assertContains(self.client.get(reverse('manage_orders',args=[self.restaurant.slug])), accept_action, html=True)
 
     def test_menu_edit_keeps_order_snapshot_and_hides_category(self):
         old_order = create_order(self.table,self.payload())
@@ -1059,6 +1147,19 @@ class SafraTests(TestCase):
         second = self.client.get(endpoint, {'table': self.table.pk, 'page': 2})
         self.assertEqual(len(second.context['orders']), 2)
         self.assertEqual(second.context['orders'].number, 2)
+
+    def test_order_status_and_table_filters_work_together(self):
+        dining_room = DiningTable.objects.create(branch=self.branch, name='Dining room')
+        for table, status in [(self.table, 'new'), (self.table, 'ready'), (dining_room, 'ready')]:
+            Order.objects.create(branch=self.branch, table=table, status=status, total=Decimal('1.00'),
+                                 idempotency_key=uuid.uuid4(), request_hash='test')
+        self.client.force_login(self.owner)
+        endpoint = reverse('manage_orders', args=[self.restaurant.slug])
+        page = self.client.get(endpoint, {'table': self.table.pk, 'status': 'ready', 'lang': 'en'})
+        self.assertEqual([(o.table_id, o.status) for o in page.context['orders']], [(self.table.pk, 'ready')])
+        empty = self.client.get(endpoint, {'status': 'accepted', 'lang': 'en'})
+        self.assertContains(empty, 'No orders match these filters')
+        self.assertEqual(self.client.get(endpoint, {'status': 'unknown'}).context['orders'].paginator.count, 3)
 
     def test_manual_payment_is_separate_and_scoped(self):
         order = create_order(self.table,self.payload())

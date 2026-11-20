@@ -1,0 +1,7 @@
+{% load showroom %}
+<section class="sz-section sz-offer" data-upsell aria-labelledby="sz-offer-title">
+  <div class="sz-offer-copy"><span class="sz-kicker">{% bi 'فكرة قيد التخطيط · تجربة توضيحية' 'Planned feature · Interactive example' %}</span><h2 id="sz-offer-title">{% bi 'قهوة ومعاها حاجة حلوة؟' 'Something sweet with that coffee?' %}</h2><p>{% bi 'جرّب اقتراح حلوى مناسبة في السلة. الضيف يختار الإضافة ويشوف السعر قبل تأكيدها.' 'Try a dessert suggestion in the cart. The guest sees the price and decides whether to add it.' %}</p></div>
+  <div class="sz-pairing"><div class="sz-pairing-cover" aria-hidden="true">{% include 'marketing/cup.html' %}</div><div class="sz-pairing-detail"><span class="sz-kicker">{% bi 'سلة تجريبية' 'Sample cart' %}</span><h3>{% bi 'فلات وايت' 'Flat white' %}</h3><p>{% bi '80 ج.م للمشروب · 70 ج.م لبراوني الشوكولاتة' '80 EGP for the drink · 70 EGP for a chocolate brownie' %}</p>
+  <div class="sz-action-row"><button type="button" class="sz-primary" data-offer="coffee">{% bi 'اختر القهوة' 'Choose coffee' %}</button><button type="button" class="sz-primary" data-offer="yes" hidden>{% bi 'أضف البراوني' 'Add brownie' %}</button><button type="button" class="sz-quiet" data-offer="no" hidden>{% bi 'القهوة فقط' 'Coffee only' %}</button><button type="button" class="sz-quiet" data-offer="reset" hidden>{% bi 'إعادة التجربة' 'Start again' %}</button></div>
+  <div class="sz-tally" role="status"><span>{% bi 'إجمالي السلة' 'Cart total' %}</span><strong data-offer-total>0 {% bi 'ج.م' 'EGP' %}</strong></div></div></div>
+</section>

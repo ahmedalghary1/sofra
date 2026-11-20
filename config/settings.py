@@ -17,6 +17,8 @@ MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'django.contrib.s
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [BASE_DIR / 'templates'], 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.debug', 'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]
 WSGI_APPLICATION = 'config.wsgi.application'
+MIDDLEWARE.insert(2, 'core.presentation.language_middleware')
+TEMPLATES[0]['OPTIONS']['context_processors'].append('core.presentation.presentation')
 ASGI_APPLICATION = 'config.asgi.application'
 db_url = os.getenv('DATABASE_URL', '').strip()
 if db_url.startswith(('postgres://', 'postgresql://')):
@@ -40,6 +42,7 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
+CSRF_FAILURE_VIEW = 'core.marketing.forbidden_form'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 SESSION_COOKIE_HTTPONLY = True

@@ -1,7 +1,8 @@
-<header class="platform-header">
-  <a class="brand" href="{% url 'platform_dashboard' %}">{% include '_brand_logo.html' with subtitle='إدارة المنصة' only %}</a>
-  <div>
-    <a href="/django-admin/" class="btn btn-outline btn-sm">إدارة الباقات</a>
-    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-dark btn-sm">تسجيل الخروج</button></form>
+{% load i18n showroom %}<header class="platform-header">
+  <a class="brand" href="{% url 'platform_dashboard' %}">{% include '_brand_logo.html' only %}</a>
+  <div>{% include '_ops_language.html' %}
+    <a class="btn btn-outline btn-sm" href="{% url 'admin:core_demorequest_changelist' %}">{% symbol 'messages-square' %} {% if english %}Demo requests{% else %}طلبات العروض{% endif %}</a>
+    <a href="/django-admin/"  class="btn btn-outline btn-sm" >{% symbol 'credit-card' %} {% translate 'إدارة الباقات' %}</a>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-dark btn-sm">{% symbol 'log-out' %} {% translate 'تسجيل الخروج' %}</button></form>
   </div>
 </header>

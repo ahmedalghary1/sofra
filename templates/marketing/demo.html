@@ -1,0 +1,3 @@
+{% extends 'marketing/base.html' %}{% load showroom %}
+{% block title %}{% bi 'تجربة الطاولة التفاعلية' 'Interactive service demo' %}{% endblock %}
+{% block content %}<div class="mk-wrap sz-demo-page">{% include 'marketing/sandbox.html' with standalone=True %}<a class="sz-alt-demo" href="{% public_url 'demo_menu' %}">{% bi 'افتح منيو دار الليمون التجريبية' 'Open the Dar El Limoun sample menu' %}</a></div>{% endblock %}

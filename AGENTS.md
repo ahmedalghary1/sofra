@@ -6,3 +6,5 @@
 - Recalculate money with `Decimal` on the server. Keep order item name and price snapshots, idempotency, and status history intact.
 - Never claim a feature is production ready without tests and deployment verification. Update the implementation plan when a feature changes status.
 - Do not commit secrets, SQLite databases, or uploaded media. Run `python manage.py check` and `python manage.py test core` after code changes.
+- Keep public feature availability and plan descriptions in the shared bilingual catalog. Label illustrative pricing and browser-only demos wherever they appear.
+- Verify each changed screen in Arabic RTL and English LTR. Keep merchant-entered names, prices, order snapshots and historic records intact.

@@ -1,0 +1,9 @@
+{% load showroom %}
+<figure class="cat-preview cat-preview-{{ entry.preview }}">
+  <figcaption><span>{{ entry.title }}</span><small>{% if entry.concept %}{% bi 'تصوّر تجريبي' 'Concept demo' %}{% else %}{% bi 'بيانات تجريبية' 'Demo data' %}{% endif %}</small></figcaption>
+  <dl class="cat-sample">
+    {% for label,value in entry.sample %}
+      <div><dt>{{ label }}</dt><dd><bdi>{{ value }}</bdi></dd></div>
+    {% endfor %}
+  </dl>
+</figure>

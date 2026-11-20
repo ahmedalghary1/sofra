@@ -1,3 +1,3 @@
-{% extends 'base.html' %}
-{% block title %}تعذّر إكمال الطلب{% endblock %}
-{% block body %}<main class="center-state"><a class="brand state-brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a><span aria-hidden="true">!</span><h1>تعذّر إكمال طلبك الآن</h1><p>حاول مرة أخرى بعد قليل. إذا كنت قد أرسلت طلبًا للطاولة، تواصل مع فريق المطعم للتأكد من حالته.</p><a class="btn btn-primary" href="{% url 'home' %}">العودة للرئيسية</a></main>{% endblock %}
+{% extends 'base.html' %}{% load i18n %}
+{% block title %}{% translate 'تعذّر إكمال الطلب' %}{% endblock %}
+{% block body %}<main class="center-state">{% include '_ops_language.html' %}<a class="brand state-brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a><span aria-hidden="true">!</span><h1>{% translate 'تعذّر إكمال طلبك الآن' %}</h1><p>{% translate 'حاول مرة أخرى بعد قليل. إذا كنت قد أرسلت طلبًا للطاولة، تواصل مع فريق المطعم للتأكد من حالته.' %}</p><a class="btn btn-primary" href="{% url 'home' %}">{% translate 'العودة للرئيسية' %}</a></main>{% endblock %}

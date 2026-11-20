@@ -51,6 +51,12 @@ python manage.py test core
 
 ## الوثائق
 
+يمكن استكشاف [الديمو التفاعلي](http://127.0.0.1:8000/demo/) و[دليل المميزات](http://127.0.0.1:8000/features/) بعد التشغيل المحلي. زر اللغة يبدّل العربية والإنجليزية. للوصول إلى طلبات العروض المحفوظة افتح لوحة مشغّل المنصة بحساب مدير النظام.
+
+- [تقرير إعادة التصميم والتحقق](docs/REDESIGN_REPORT.md)
+- [المسارات](docs/ROUTE_INVENTORY.md) و[حالة المميزات](docs/FEATURES_MATRIX.md)
+- [نظام التصميم](docs/DESIGN_SYSTEM.md) و[إرشادات الواجهات](docs/UI_UX_GUIDELINES.md)
+
 - [المعمارية](docs/ARCHITECTURE.md)
 - [القرارات والافتراضات](docs/DECISIONS.md)
 - [خطة التنفيذ والحالة](docs/IMPLEMENTATION_PLAN.md)

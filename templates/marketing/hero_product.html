@@ -1,0 +1,22 @@
+{% load static showroom %}
+<figure class="sz-product" role="img" aria-label="{% bi 'عرض تجريبي للوحة المطعم ومنيو الهاتف وتذكرة المطبخ للطاولة 4.' 'Demo of the restaurant dashboard, guest menu and kitchen ticket for table 4.' %}">
+  <div class="sz-canvas" aria-hidden="true">
+    <svg class="sz-service-lines" viewBox="0 0 640 490" preserveAspectRatio="none" fill="none"><g stroke="currentColor"><path d="M-80 475C120 460 45 98 362 41S607 6 682 -65"/><path d="M-85 500C132 470 54 109 366 53S606 20 695 -48"/><path d="M-88 524C142 480 65 121 370 65S608 38 710 -36"/></g></svg>
+    <div class="sz-figure-meta"><span><i></i>{% bi 'استوديو المنتج' 'Product studio' %}</span><span>{% bi 'بيانات تجريبية' 'Demo data' %}</span></div>
+    <div class="sz-desktop">
+      <div class="sz-chrome"><span><i></i><i></i><i></i></span><bdi>Serveza / Workspace</bdi></div>
+      <div class="sz-desk-body">
+        <aside><bdi>Serveza</bdi><span>{% bi 'نظرة عامة' 'Overview' %}</span><span>{% bi 'الطلبات' 'Orders' %}</span><span>{% bi 'الطاولات' 'Tables' %}</span><span>{% bi 'المطبخ' 'Kitchen' %}</span></aside>
+        <div class="sz-desk-main"><small>{% bi 'دار الليمون' 'Dar El Limoun' %}</small><strong>{% bi 'ملخص الوردية' 'Shift overview' %}</strong>
+          <div class="sz-mini-kpis"><div><small>{% bi 'قيمة الطلبات' 'Order value' %}</small><b>1,280 <em>{% bi 'ج.م' 'EGP' %}</em></b></div><div><small>{% bi 'طلبات اليوم' 'Orders today' %}</small><b>16</b></div></div>
+          <div class="sz-plot"><strong>{% bi 'الطلبات خلال الوردية' 'Orders this shift' %}</strong><svg viewBox="0 0 240 62" preserveAspectRatio="none" fill="none"><path stroke="#d8e5e3" stroke-dasharray="3 4" d="M0 8h240M0 32h240M0 56h240"/><path fill="#d9efea" d="M0 56L40 44L80 50L120 30L160 38L200 17L240 9V62H0Z"/><path stroke="#2c7a6f" stroke-width="3" stroke-linejoin="round" d="M0 56L40 44L80 50L120 30L160 38L200 17L240 9"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <div class="sz-phone">
+      <div class="sz-speaker"></div><div class="sz-phone-top"><bdi>12:40</bdi><span>▮▮▮</span></div>
+      <div class="sz-phone-inner"><small>{% bi 'الطاولة 4' 'Table 4' %}</small><strong>{% bi 'دار الليمون' 'Dar El Limoun' %}</strong><img src="{% static 'demo/tawook-menu.webp' %}" width="320" height="214" alt="" fetchpriority="high"><b>{% bi 'شيش طاووق' 'Grilled chicken' %}</b><div class="sz-phone-price"><span>245 {% bi 'ج.م' 'EGP' %}</span><i>+</i></div></div>
+    </div>
+    <div class="sz-mini-ticket"><div class="sz-ticket-icon">{% symbol 'check' %}</div><div><small>{% bi 'شاشة المطبخ' 'Kitchen display' %}</small><strong>{% bi 'طلب الطاولة 4 جاهز' 'Table 4 is ready' %}</strong></div></div>
+  </div>
+</figure>

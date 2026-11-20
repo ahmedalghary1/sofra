@@ -1,27 +1,27 @@
 {% extends 'base.html' %}
-{% load static %}
-{% block title %}منيو دار الليمون التجريبية{% endblock %}
+{% load static showroom %}
+{% block title %}{% bi 'منيو دار الليمون التجريبية' 'Dar El Limoun sample menu' %}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/demo-menu.css' %}?v=type-scale">{% endblock %}
 {% block body %}
 <div class="demo-wrap container">
   <header class="demo-header">
-    <a class="brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a>
-    <a class="btn btn-outline" href="{% url 'register' %}">ابدأ تجربة مطعمك</a>
+    <a class="brand" href="{% public_url 'home' %}">{% include '_brand_logo.html' only %}</a>
+    <nav class="demo-header-actions"><a class="demo-language" href="{{ language_switch_url }}" hreflang="{% bi 'en' 'ar' %}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a><a class="btn btn-outline" href="{% public_url 'demo' %}">{% bi 'جرّب رحلة الطلب' 'Try the service demo' %}</a></nav>
   </header>
   <main>
     <section class="demo-cover" aria-labelledby="restaurant-name">
       <div class="demo-intro">
-        <span class="eyebrow light">منيو تجريبية · طلبات للعرض فقط</span>
-        <h1 id="restaurant-name">دار الليمون</h1>
-        <p>مطبخ مصري على الفحم، من أول طبق مقبلات لحد فنجان القهوة.</p>
-        <a class="demo-browse" href="#menu">تصفّح المنيو وجرّب الطلب <span aria-hidden="true">↓</span></a>
+        <span class="eyebrow light">{% bi 'منيو تجريبية · طلبات للعرض فقط' 'Demo menu · Sample orders only' %}</span>
+        <h1 id="restaurant-name">{% bi 'دار الليمون' 'Dar El Limoun' %}</h1>
+        <p>{% bi 'مطبخ مصري على الفحم، من أول طبق مقبلات لحد فنجان القهوة.' 'Egyptian charcoal cooking, from the first mezze to the last cup of coffee.' %}</p>
+        <a class="demo-browse" href="#menu">{% bi 'تصفّح المنيو وجرّب الطلب' 'Browse the sample menu' %}</a>
       </div>
       <figure class="demo-photo">
-        <img src="{% static 'demo/tawook.webp' %}" width="1200" height="800" alt="طبق شيش طاووق مع ليمون مشوي وخبز وطحينة" fetchpriority="high">
-        <figcaption>من الشواية <b>شيش طاووق على الفحم</b></figcaption>
+        <img src="{% static 'demo/tawook.webp' %}" width="1200" height="800" alt="{% bi 'طبق شيش طاووق مع ليمون مشوي وخبز وطحينة' 'Grilled chicken skewers with charred lemon, bread and tahini' %}" fetchpriority="high">
+        <figcaption>{% bi 'من الشواية' 'From the grill' %} <b>{% bi 'شيش طاووق على الفحم' 'Chargrilled chicken skewers' %}</b></figcaption>
       </figure>
     </section>
-    <nav id="menu" class="demo-nav" aria-label="أقسام المنيو">
+    <nav id="menu" class="demo-nav" aria-label="{% bi 'أقسام المنيو' 'Menu categories' %}">
       {% for key, name, items in sections %}<a href="#{{ key }}">{{ name }}</a>{% endfor %}
     </nav>
     <div class="demo-sections">
@@ -33,8 +33,8 @@
           <li>
             <div><h3>{{ title }}</h3><p>{{ description }}</p></div>
             <div class="demo-item-actions">
-              <span class="demo-price">{{ price }} <small>ج.م</small></span>
-              <button class="btn btn-primary demo-add-item" type="button" data-id="{{ item_id }}" aria-label="أضف {{ title }} للسلة">أضف للسلة</button>
+              <span class="demo-price">{{ price }} <small>{% bi 'ج.م' 'EGP' %}</small></span>
+              <button class="btn btn-primary demo-add-item" type="button" data-id="{{ item_id }}" aria-label="{% bi 'أضف' 'Add' %} {{ title }} {% bi 'للسلة' 'to cart' %}">{% symbol 'shopping-bag' %} {% bi 'أضف للسلة' 'Add to cart' %}</button>
             </div>
           </li>
           {% endfor %}
@@ -43,10 +43,10 @@
       {% endfor %}
     </div>
   </main>
-  {% include '_powered_by.html' only %}
+  <footer>{% include '_powered_by.html' only %}</footer>
 </div>
-{% include '_guest_cart.html' only %}
+{% include '_guest_cart.html' with english=english lang=lang only %}
 {{ items_json|json_script:'menu-data' }}
-<script>window.SAFRA={orderUrl:'{% url "place_demo_order" %}',csrf:'{{ csrf_token }}',accepting:true,demoMode:true};</script>
+<script>window.SAFRA={orderUrl:'{% public_url "place_demo_order" %}',csrf:'{{ csrf_token }}',accepting:true,demoMode:true};</script>
 <script src="{% static 'js/guest.js' %}"></script>
 {% endblock %}

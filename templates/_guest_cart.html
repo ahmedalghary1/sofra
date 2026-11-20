@@ -1,10 +1,10 @@
-<div class="cart-bar" id="cartBar" hidden>
-  <span role="status"><b id="cartCount">0</b> أصناف في سلتك</span>
-  <button id="openCart" type="button">راجع الطلب <span id="cartTotal">0</span> ج.م ←</button>
+{% load i18n showroom %}<div class="cart-bar" id="cartBar" hidden>
+  <span role="status"><b id="cartCount">0</b> {% translate 'أصناف في سلتك' %}</span>
+  <button id="openCart" type="button">{% translate 'راجع الطلب' %} <span id="cartTotal">0</span> {% bi 'ج.م' 'EGP' %} {% symbol 'arrow-right' %}</button>
 </div>
 <div class="modal-backdrop" id="modalBackdrop" hidden>
   <div class="guest-modal" role="dialog" aria-modal="true" aria-labelledby="guestModalTitle">
-    <button class="modal-close" id="closeModal" type="button" aria-label="إغلاق">×</button>
+    <button class="modal-close" id="closeModal" type="button" aria-label="{% translate 'إغلاق' %}">{% symbol 'x' %}</button>
     <div id="modalContent"></div>
   </div>
 </div>

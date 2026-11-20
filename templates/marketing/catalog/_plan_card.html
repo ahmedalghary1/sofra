@@ -1,0 +1,29 @@
+{% load showroom %}
+<article class="cat-plan{% if plan.slug == 'business' %} cat-plan-dark{% endif %}" id="plan-{{ plan.slug }}" aria-labelledby="name-{{ plan.slug }}">
+  <header>
+    <div class="cat-plan-title">
+      <h2 id="name-{{ plan.slug }}" lang="en" dir="ltr">{{ plan.name }}</h2>
+      <span class="cat-plan-icon">{% if plan.slug == 'business' %}{% symbol 'layers' %}{% elif plan.slug == 'growth' %}{% symbol 'chart-no-axes-column' %}{% else %}{% symbol 'store' %}{% endif %}</span>
+    </div>
+    <p class="cat-focus">{{ plan.focus }}</p>
+    <p class="cat-price"><bdi>{{ plan.price }}</bdi> <small>{% bi 'ج.م / شهر' 'EGP / month' %}</small></p>
+    <p class="cat-kicker">{% if plan.configured %}{% bi 'باقة مسجلة' 'Configured tier' %}{% else %}{% bi 'تسعير مقترح' 'Proposed pricing' %}{% endif %}</p>
+    {% if plan.price_differs %}<small>{% bi 'السعر المقترح' 'Proposed price' %} · {{ plan.proposed_price }} {% bi 'ج.م / شهر' 'EGP / month' %}</small>{% endif %}
+  </header>
+  <dl class="cat-capacity">
+    <div><dt>{% bi 'حسابات الفريق' 'Team accounts' %}</dt><dd>{{ plan.limits.max_staff }}</dd></div>
+    <div><dt>{% bi 'الفروع' 'Branches' %}</dt><dd>{{ plan.limits.max_branches }}</dd></div>
+    <div><dt>{% bi 'طاولات / فرع' 'Tables / branch' %}</dt><dd>{{ plan.limits.max_tables }}</dd></div>
+    <div><dt>{% bi 'أصناف / فرع' 'Menu items / branch' %}</dt><dd>{{ plan.limits.max_items }}</dd></div>
+  </dl>
+  <p class="cat-stations">{% symbol 'chef-hat' %} {% bi 'محطات شاشة المطبخ KDS لكل فرع' 'KDS prep stations per branch' %} <b>{{ plan.limits.max_stations }}</b></p>
+  <h3>{% bi 'توزيع مقترح للحسابات' 'Suggested team setup' %}</h3>
+  <dl class="cat-staff">{% for label,count in plan.staff_rows %}<div><dt>{{ label }}</dt><dd>{{ count }}</dd></div>{% endfor %}</dl>
+  <h3>{% bi 'أبرز ما يمكنك تشغيله' 'What you can run' %}</h3>
+  <ul class="cat-plan-benefits">{% for text in plan.highlights %}<li>{% symbol 'check' %}<span>{{ text }}</span></li>{% endfor %}</ul>
+  <a class="cat-button" href="{% url 'contact' %}?plan={{ plan.slug }}{% if english %}&amp;lang=en{% endif %}">{% bi 'استفسر عن' 'Ask about' %} {{ plan.name }}</a>
+  <details class="cat-plan-included">
+    <summary>{% bi 'كل مميزات' 'All features in' %} {{ plan.name }} {% symbol 'chevron' %}</summary>
+    {% for group in plan.included %}<div><h4>{{ group.title }}</h4><ul>{% for detail in group.items %}<li>{{ detail }}</li>{% endfor %}</ul></div>{% endfor %}
+  </details>
+</article>

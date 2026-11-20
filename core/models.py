@@ -1,10 +1,27 @@
 import secrets
 import uuid
+from typing import ClassVar
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 def token(): return secrets.token_urlsafe(24)
+
+
+class DemoRequest(models.Model):
+    submission_key = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    venue = models.CharField(max_length=140)
+    email = models.EmailField()
+    message = models.TextField(blank=True, max_length=1600)
+    language = models.CharField(max_length=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering: ClassVar[list] = ['-created_at']
+
+    def __str__(self):
+        return self.venue
 
 class Plan(models.Model):
     name = models.CharField(max_length=80, unique=True)

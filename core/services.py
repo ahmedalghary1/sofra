@@ -1,3 +1,4 @@
+from django.utils.translation import gettext
 import hashlib
 import json
 import uuid
@@ -51,7 +52,7 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
             group_options = {o.id: o for o in group.options.all() if o.available}
             found = chosen.intersection(group_options)
             if not group.min_select <= len(found) <= group.max_select:
-                raise ValidationError(f'اختيارات «{group.name}» غير مكتملة.')
+                raise ValidationError(gettext('اختيارات «{name}» غير مكتملة.').format(name=group.name))
             for option_id in found:
                 option = group_options[option_id]
                 snapshot.append({'name': option.name, 'price': str(option.price)})
@@ -111,6 +112,8 @@ def create_order(table, payload, user=None, require_session=False):
                     created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
                 raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
             normalized, total = normalize_order_lines(locked_table, raw_lines)
+            if 'reviewed_total' in payload and payload['reviewed_total'] != format(total, '.2f'):
+                raise ValidationError('تغيّر إجمالي الطلب. حدّث المنيو وراجع الأسعار قبل الإرسال.')
             order = Order.objects.create(branch=locked_table.branch, table=locked_table, idempotency_key=key,
                                          session_token=locked_table.session_token,
                                          request_hash=digest, source='staff' if user else 'qr',

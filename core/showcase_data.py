@@ -1,0 +1,331 @@
+"""Editorial product catalog. Arabic and English strings are paired in that order."""
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Topic:
+    slug: str
+    group: str
+    roles: str
+    title: tuple
+    headline: tuple
+    summary: tuple
+    preview: str
+    sample: tuple
+    steps: tuple
+    capabilities: tuple
+    evidence: str
+
+
+# Capability keys are stable fragment identifiers used by search results and external links.
+TOPICS = [
+    Topic('digital-menu', 'guest', 'guest owner manager', ('المنيو الرقمي', 'Digital menu'),
+          ('منيو الفرع، على موبايل كل ضيف', 'Your branch menu, in every guest’s hand'),
+          ('لما صنف يخلص أو حجم يتغير، الفريق يعدّل منيو الفرع والضيف يشوف الاختيارات المتاحة لما يفتحه.',
+           'Edit the branch menu as the day changes. Guests opening it see the available dishes, sizes and extras.'),
+          'menu', (('لاتيه', 'Latte', '80 ج.م', 'EGP 80'), ('حليب شوفان', 'Oat milk', '+15 ج.م', '+EGP 15'), ('سكر', 'Sugar', 'حسب الطلب', 'To taste')),
+          (('أنشئ تصنيف المشروبات.', 'Create a drinks category.'), ('أضف اللاتيه بأحجامه وخيارات الحليب.', 'Add the latte, its sizes and milk choices.'), ('افتح منيو الطاولة وراجع السعر.', 'Open the table menu and check its price.')),
+          (('browse', 'available', 'تصفح بالموبايل بلا حساب أو تطبيق، وتصنيفات بصور وأوصاف، وبحث وواجهة عربية وإنجليزية.', 'Mobile browsing without an account or app, with search, categories, photos, descriptions and Arabic or English interface labels.'),
+           ('choices', 'available', 'أسعار وتوفر لكل فرع وحجم، وإضافات مجانية أو مدفوعة بحدود اختيار.', 'Branch-specific prices, size availability, and free or paid extras with selection limits.'),
+           ('publish', 'available', 'إظهار التصنيفات وترتيبها، وتمييز الأصناف واستيراد CSV وExcel بعد المعاينة.', 'Category visibility and ordering, featured-item flags, and previewed CSV and Excel imports.'),
+           ('editorial', 'planned', 'تصنيفات فرعية، وترتيب الأصناف يدويًا، وحقول حساسية ومكونات وترجمات لكل صنف.', 'Subcategories, manual item sorting, structured allergens and ingredients, and per-item translations.'),
+           ('themes', 'planned', 'قوالب وثيمات للمطعم، وإخفاء علامة Serveza، وبانرات وجداول للوجبات وقوائم الأكثر مبيعًا للضيف.', 'Venue layouts, themes, optional branding removal, banners, meal schedules and guest-facing best sellers.')),
+          'Category, MenuItem, MenuSize, ModifierGroup, manage_menu, menu_import, public_menu'),
+    Topic('qr-ordering', 'guest', 'guest waiter', ('الطلب بالـQR', 'QR ordering'),
+          ('من مسح الكود لتأكيد المطبخ', 'From a table scan to an order confirmation'),
+          ('الضيف يراجع طلبه على نفس الموبايل ويتابع حالته من رابط خاص بالطلب.',
+           'Guests review the basket on their own phone and follow progress through an order-specific link.'),
+          'ticket', (('طاولة', 'Table', '08', '08'), ('لاتيه × 2', '2 × latte', '160 ج.م', 'EGP 160'), ('حالة الطلب', 'Order status', 'تم الاستلام', 'Accepted')),
+          (('امسح كود الطاولة.', 'Scan the table code.'), ('اختَر الحجم وراجع الكمية والإجمالي.', 'Choose a size and review quantity and total.'), ('أرسل وانتظر تأكيد الخادم ثم افتح المتابعة.', 'Submit, wait for confirmation, then open tracking.')),
+          (('cart', 'available', 'هوية الطاولة، اختيار الحجم والإضافات، تعديل الكمية وملاحظة للطلب كله.', 'Table identity, sizes and extras, quantity controls and a note for the whole order.'),
+           ('track', 'available', 'تأكيد ومتابعة، وطلب إضافي مستقل داخل الجلسة، واستدعاء الويتر أو طلب الحساب.', 'Confirmation, tracking, additional orders in the current session, waiter calls and bill requests.'),
+           ('history', 'planned', 'حساب اختياري للضيف وسجل شخصي وإعادة سلة سابقة وملاحظات لكل صنف.', 'Optional guest profiles, personal history, repeat baskets and per-item notes.'),
+           ('takeaway', 'not-supported', 'طلب سفري خارج جلسة الطاولة.', 'Takeaway ordering outside a table session.')),
+          'public_menu, place_order, track_order, create_order, create_call'),
+    Topic('tables', 'operations', 'owner manager waiter', ('الطاولات والجلسات', 'Tables and sessions'),
+          ('كود للطاولة، وجلسة لكل زيارة', 'One table code, a fresh session for each visit'),
+          ('الرمز المطبوع يفضل على الطاولة. إنهاء الجلسة يحمي الزيارة التالية من طلب قديم.',
+           'The printed code stays on the table. Closing the session prevents an old open menu from placing an order for the next party.'),
+          'floor', (('طاولة', 'Table', '06', '06'), ('طاولة', 'Table', '07', '07'), ('طاولة', 'Table', '08', '08')),
+          (('سمِّ الطاولة ونزّل رمز PNG.', 'Name the table and download its PNG.'), ('راجع الطلبات والاستدعاءات المفتوحة.', 'Review open orders and service calls.'), ('بعد التحصيل والإغلاق، أنهِ الجلسة.', 'Close the session once service and collection are complete.')),
+          (('table-code', 'available', 'رمز PNG قابل للتنزيل والطباعة، وتفعيل الطاولة أو إيقافها وتجديد الكود.', 'Downloadable, printable PNG codes, table activation and code rotation.'),
+           ('session', 'available', 'عدة ضيوف في جلسة الطاولة، والتحقق من رمز الجلسة عند الطلب أو الاستدعاء.', 'Multiple guests on one table session, with session validation on orders and calls.'),
+           ('layout', 'planned', 'خريطة تفاعلية ومناطق وأدوار، وإشغال ومدة الجلسة ونقل أو ضم الطاولات.', 'Interactive floor plans, zones, floors, occupancy, session duration, transfers and merges.'),
+           ('print-pack', 'planned', 'قوالب QR مخصصة وملف PDF مجمع للطباعة.', 'Custom QR templates and a printable PDF pack.')),
+          'DiningTable, manage_tables, table_qr, create_order'),
+    Topic('live-orders', 'operations', 'manager kitchen waiter cashier', ('إدارة الطلبات', 'Live orders'),
+          ('كل تعديل له وقت وسبب', 'Every order change has a history'),
+          ('طلب من الموبايل أو من الويتر يدخل نفس مسار التحضير، وتفضل تفاصيله وقت البيع محفوظة.',
+           'Phone and staff orders use the same preparation path. Item names and prices are captured when the order is placed.'),
+          'timeline', (('طلب 104', 'Order 104', '12:14', '12:14'), ('تم الاستلام', 'Accepted', '12:15', '12:15'), ('قيد التحضير', 'Preparing', '12:17', '12:17')),
+          (('افتح سجل طلبات الفرع.', 'Open branch order history.'), ('اختَر الطاولة وراجع التفاصيل.', 'Filter to the table and review the order.'), ('سجّل انتقال الحالة أو سبب الإلغاء.', 'Record the next status or a cancellation reason.')),
+          (('capture', 'available', 'طلبات QR وطلبات الموظف، وتأكيد الاستلام والحالات وسجل الفاعل والتوقيت.', 'QR and staff orders, acceptance, status history, actors and timestamps.'),
+           ('correct', 'available', 'تعديل مقيد قبل التحضير مع سبب ونسخ، وإلغاء بسبب، وحماية من التكرار.', 'Controlled edits before preparation, recorded revisions, reasoned cancellation and duplicate protection.'),
+           ('history', 'available', 'سجل بطاولات وفلاتر وصفحات، وعلامة تأخر وحد يضبطه الفرع.', 'Paginated, filterable branch history by table and a configurable delay threshold.'),
+           ('dispatch', 'planned', 'أولوية يدوية وطلبات مجدولة وطباعة تلقائية وتحديث فوري بالدفع من الخادم.', 'Manual priorities, scheduled orders, automatic printing and server-pushed updates.')),
+          'Order, OrderHistory, OrderRevision, manage_orders, staff_order, kitchen_feed'),
+    Topic('kitchen-display', 'operations', 'kitchen manager', ('شاشة المطبخ', 'Kitchen display'),
+          ('كل محطة تشوف أصنافها', 'Each station sees its own prep list'),
+          ('الباريستا يشوف المشروبات والشيف يشوف الأكل، والطلب الموزّع يجهز بعد آخر صنف.',
+           'The barista sees drinks and the kitchen sees food. A routed ticket can be marked ready when all its lines are ready.'),
+          'board', (('بار القهوة', 'Coffee bar', '2 × لاتيه', '2 × latte'), ('المطبخ', 'Kitchen', '1 × توست', '1 × toast'), ('طاولة', 'Table', '08', '08')),
+          (('اربط الصنف بمحطة تحضير.', 'Assign a menu item to a station.'), ('افتح تذاكر المحطة وابدأ الصنف.', 'Open station tickets and start the item.'), ('أعلن جاهزية الطلب من شاشة كل المحطات.', 'Mark the ticket ready from the all-stations screen.')),
+          (('tickets', 'available', 'التذكرة تعرض الطاولة والكمية والحجم والإضافات والملاحظة ووقت الوصول.', 'Tickets show table, quantities, sizes, extras, the order note and arrival time.'),
+           ('stations', 'available', 'توجيه للمحطة وحالة لكل سطر، مع تصفية وتسجيل الجاهزية وأوقات التحضير.', 'Station routing, per-line status, filters, readiness and preparation timings.'),
+           ('refresh', 'available', 'فحص دوري واستعادة الاتصال، وحد تأخير حسب الفرع، وسجل الطلبات المكتملة.', 'Polling and reconnection, branch delay thresholds and completed order history.'),
+           ('display', 'available', 'واجهة عالية التباين، وملء الشاشة وتنبيه صوتي يفعّله الموظف في المتصفحات الداعمة.', 'High-contrast display, full screen and staff-enabled sound alerts in supporting browsers.'),
+           ('expediter', 'planned', 'شاشة تسليم متخصصة وطباعة حرارية تكاملية وعرض مطابخ عدة فروع معًا.', 'A dedicated expediter display, integrated thermal printing and a combined multi-branch kitchen.')),
+          'KitchenStation, OrderLinePrepHistory, kitchen, kitchen_feed, advance_order_line'),
+    Topic('waiter', 'operations', 'waiter manager guest', ('الويتر والخدمة', 'Waiter service'),
+          ('مين محتاجك دلوقتي؟', 'Which table needs you next?'),
+          ('استدعاء للخدمة وطلب للحساب بيظهروا منفصلين. الفريق يعرف مين استلم كل طلب وإمتى.',
+           'Service calls and bill requests appear separately. The floor team can see who acknowledged a request and when.'),
+          'timeline', (('طاولة 04', 'Table 04', 'طلب الحساب', 'Bill requested'), ('طاولة 08', 'Table 08', 'تم الاستلام', 'Acknowledged'), ('طاولة 02', 'Table 02', 'مكتمل', 'Done')),
+          (('افتح طلبات الخدمة في فرعك.', 'Open your branch service queue.'), ('استلم الاستدعاء وتوجّه للطاولة.', 'Acknowledge the call and visit the table.'), ('أغلقه عند التنفيذ.', 'Close it once the guest has been served.')),
+          (('calls', 'available', 'استدعاء أو طلب حساب، واستلام وتنفيذ وإغلاق مع موظف وتوقيت.', 'Waiter calls and bill requests, acknowledgement, progress, completion, actor and time.'),
+           ('floor', 'available', 'طلبات موظف للطاولة وتسجيل التقديم، وحد استجابة للويتر وآخر للحساب.', 'Staff table orders, marking orders served, and separate service and bill response thresholds.'),
+           ('zones', 'planned', 'توزيع الويتر على مناطق وورديات، ورصيد الجلسة وقياس الأداء الفردي وتنبيه جاهزية مخصص.', 'Waiter zones and shifts, running table balances, individual performance and dedicated ready alerts.')),
+          'ServiceCall, manage_calls, advance_call, staff_order, order_status_change'),
+    Topic('billing', 'operations', 'cashier owner waiter', ('الحساب والتحصيل', 'Bills and collection'),
+          ('تتبّع الطلب من طلب الحساب للتحصيل', 'Follow an order from bill request to collection'),
+          ('الضيف يطلب الحساب، وبعد التحصيل الفعلي الموظف المخوّل يسجل السداد على الطلب.',
+           'A guest can request the bill. After collecting payment, an authorized staff member records settlement on the order.'),
+          'ticket', (('لاتيه', 'Latte', '80 ج.م', 'EGP 80'), ('كيك', 'Cake', '70 ج.م', 'EGP 70'), ('الإجمالي', 'Total', '150 ج.م', 'EGP 150')),
+          (('راجع طلب الحساب.', 'Review the bill request.'), ('تحقق من إجمالي الطلب.', 'Verify the order total.'), ('سجّل التحصيل مرة واحدة.', 'Record collection once.')),
+          (('collection', 'available', 'ملخص قابل للطباعة للجلسة الحالية بإجمالي الطلبات والمحصّل والمتبقي، وسداد يدوي لكل طلب.', 'Printable current-session summary with order totals, recorded collections and balance, plus per-order manual settlement.'),
+           ('export', 'available', 'سجل حالة الدفع وتوقيته وتصدير طلبات الفرع إلى CSV.', 'Payment state, settlement time and CSV export of branch orders.'),
+           ('split', 'planned', 'سداد كامل الجلسة بعملية واحدة، وضرائب وخدمة وخصومات بصلاحية، وتقسيم بالتساوي أو بالصنف وبأكثر من وسيلة.', 'Whole-session settlement, tax, service, authorized discounts, equal or item splits and multiple tenders.'),
+           ('payments', 'not-supported', 'تحصيل إلكتروني وبطاقات محفوظة وفاتورة ضريبية معتمدة وتكامل محاسبي مباشر.', 'Online processing, stored cards, certified tax invoices and direct accounting integrations.')),
+          'record_manual_payment, order_payment_change, table_summary, reports'),
+    Topic('upselling', 'growth', 'owner guest manager', ('اقتراحات البيع', 'Upselling'),
+          ('إضافة يختارها الضيف بنفسه', 'Let the guest choose the extra'),
+          ('الحجم الأكبر والإضافات المتاحة بتظهر بسعرها. الاقتراحات بين المنتجات تقدر تجرّب فكرتها في العرض التوضيحي.',
+           'Sizes and extras show their price up front. The sandbox also illustrates how a complementary product suggestion could work.'),
+          'ticket', (('قهوة', 'Coffee', '80 ج.م', 'EGP 80'), ('حلو اختياري', 'Optional dessert', '+70 ج.م', '+EGP 70'), ('مع الحلو', 'With dessert', '150 ج.م', 'EGP 150')),
+          (('حدّد حجم المشروب.', 'Select a drink size.'), ('راجع سعر الإضافة الاختيارية.', 'Review the optional extra and its price.'), ('أضف ما اختاره الضيف إلى السلة.', 'Add the guest’s selection to the basket.')),
+          (('modifiers', 'available', 'أحجام بأسعار محددة وخيارات مدفوعة يختارها الضيف.', 'Priced sizes and optional paid modifiers selected by the guest.'),
+           ('suggestions', 'planned', 'ربط منتجات مكملة وباقات واقتراح حلو عند الدفع أو بعد الطلب مع قواعد توقيت وتوفر.', 'Complementary items, combos and dessert suggestions at checkout or after ordering, with timing and availability rules.'),
+           ('measurement', 'planned', 'قياس القبول والإيرادات واختبارات A/B وتوصيات حسب الوقت والهامش والموافقة على التخصيص.', 'Acceptance and revenue tracking, A/B testing and recommendations based on time, margin and consent.')),
+          'MenuSize, ModifierOption, normalize_order_lines. No recommendation models.'),
+    Topic('promotions', 'growth', 'owner manager guest', ('العروض الترويجية', 'Promotions'),
+          ('خطّط للعرض قبل تطبيقه', 'Plan a promotion around the service window'),
+          ('تصوّر مستقبلي لعرض له وقت وسعر وشروط واضحة. تقدر حاليًا تعدّل السعر الأساسي لكل صنف من إدارة المنيو.',
+           'A roadmap concept for offers with a clear window, price and eligibility. Venue teams can currently edit the base price of each menu item.'),
+          'schedule', (('نافذة مقترحة', 'Proposed window', '15:00–17:00', '15:00–17:00'), ('الصنف', 'Item', 'قهوة باردة', 'Cold brew'), ('النطاق', 'Scope', 'فرع واحد', 'One branch')),
+          (('حدّد الصنف والجمهور.', 'Identify the item and audience.'), ('حدّد نافذة العرض المقترحة.', 'Choose a proposed promotion window.'), ('راجع تأثير الخصم على الهامش.', 'Review the discount against your margin.')),
+          (('pricing', 'available', 'تغيير السعر الأساسي للفرع مع حفظ سعر الطلبات السابقة.', 'Change branch base prices while retaining historical order prices.'),
+           ('offer-rules', 'planned', 'خصم صنف أو عرض يومي أو باقة أو اشترِ واحدًا واحصل على آخر أو كود ترويجي.', 'Item discounts, daily offers, bundles, buy-one-get-one and promo codes.'),
+           ('scheduling', 'planned', 'ساعة سعيدة وجداول وحد إنفاق وشروط فرع، وقياس نتائج العروض.', 'Happy hour, schedules, minimum spend, branch conditions and offer analytics.'),
+           ('campaigns', 'planned', 'حملات لاستعادة العملاء وقسائم وعروض أعياد الميلاد بموافقة الضيف.', 'Opt-in win-back campaigns, vouchers and birthday offers.')),
+          'MenuItem.price, OrderLine.unit_price. No promotion or campaign models.'),
+    Topic('analytics', 'management', 'owner manager', ('التقارير والتحليلات', 'Reports and analytics'),
+          ('شوف الضغط حصل فين في الوردية', 'See where service slowed during a shift'),
+          ('راجع طلبات الفترة وأكثر الأصناف طلبًا ومتوسطات التحضير والاستجابة وعدد الحالات اللي اتحسب منها كل متوسط.',
+           'Review order volume, best sellers and response and prep times for a period. Sample counts give each timing measure context.'),
+          'bars', (('لاتيه', 'Latte', '18', '18'), ('قهوة باردة', 'Cold brew', '12', '12'), ('توست', 'Toast', '7', '7')),
+          (('اختَر الفرع والفترة.', 'Choose the branch and date range.'), ('راجع الأصناف والأوقات والعينات.', 'Review the items, timings and sample counts.'), ('صدّر نفس الفترة إلى CSV.', 'Export that period to CSV.')),
+          (('orders', 'available', 'أعداد الطلبات والمصدر والحالة والإلغاء والقيمة والتحصيل والأصناف الأكثر طلبًا.', 'Order counts, sources, statuses, cancellations, value, collections and top items.'),
+           ('activity', 'available', 'عدد طلبات كل يوم خلال 7 أو 14 يومًا ومتوسط قيمة الطلبات غير الملغاة للمالك والمدير.', 'Daily order counts over 7 or 14 days and average non-cancelled order value for owners and managers.'),
+           ('times', 'available', 'فلترة زمنية وتصدير CSV ومتوسط زمن الاستلام والجاهزية واستجابة الويتر وتحضير المحطة.', 'Date filters, CSV exports and average acceptance, readiness, service response and station prep times.'),
+           ('comparison', 'planned', 'مقارنات فترات وفروع وذروة وبطء الأصناف وإشغال ودوران طاولات وتقارير PDF وExcel مجدولة.', 'Period and branch comparisons, peak hours, slow items, table utilization and turnover, scheduled PDF and Excel reports.'),
+           ('intelligence', 'planned', 'ربحية بالتكاليف، ومتوسط فاتورة الجلسة، وأثر العروض والاقتراحات والعائد والاحتفاظ والتنبؤ وتقارير مخصصة.', 'Cost-based profitability, average session bill, offer and upsell attribution, ROI, retention, forecasting and custom reports.')),
+          'reports, OrderHistory, OrderLinePrepHistory, ServiceCall'),
+    Topic('customer-experience', 'guest', 'owner guest manager', ('تجربة الضيف والولاء', 'Guest experience and CRM'),
+          ('استمع للضيف وهو لسه على الطاولة', 'Respond while the guest is still at the table'),
+          ('الضيف يقدر يطلب مساعدة فورًا. تقييم الزيارة وبناء ملف للضيف وأدوات الولاء ضمن التصور المستقبلي.',
+           'A guest can ask the team for help during service. Visit ratings, guest profiles and loyalty tools are roadmap concepts.'),
+          'timeline', (('طاولة 06', 'Table 06', 'مساعدة', 'Assistance'), ('الويتر', 'Waiter', 'استلم', 'Acknowledged'), ('الضيف', 'Guest', 'تمت الخدمة', 'Served')),
+          (('يطلب الضيف مساعدة من المنيو.', 'The guest asks for help from the menu.'), ('يستلم الفريق الاستدعاء.', 'The team acknowledges the call.'), ('يتابع الويتر مع الضيف مباشرة.', 'The waiter follows up at the table.')),
+          (('assistance', 'available', 'استدعاء فريق الصالة بدون حساب شخصي.', 'Contact the floor team without a personal account.'),
+           ('feedback', 'planned', 'تقييم الخدمة والأصناف والشكاوى ورضا الضيف.', 'Service and item ratings, complaints and satisfaction tracking.'),
+           ('loyalty', 'planned', 'حسابات اختيارية وسجل زيارات ومفضلات ونقاط ومكافآت وشرائح VIP وحوافز ورسائل بموافقة.', 'Opt-in profiles, visit history, favorites, points, rewards, VIP segments, return incentives and consent-based messaging.')),
+          'create_call, ServiceCall. No customer, feedback or loyalty ledger.'),
+    Topic('reservations', 'guest', 'manager guest waiter', ('الحجوزات', 'Reservations'),
+          ('قبل وصول الضيوف', 'Before the guests arrive'),
+          ('الحجوزات وقائمة الانتظار في الخطة المستقبلية. المنصة الحالية تبدأ خدمة الزيارة عند الطاولة.',
+           'Reservations and waiting lists are planned. The current service workflow begins at the table.'),
+          'schedule', (('موعد مقترح', 'Proposed time', '19:30', '19:30'), ('الضيوف', 'Party size', '4', '4'), ('الطاولة', 'Table', '06', '06')),
+          (('فكرة الحجز تبدأ بعدد الضيوف.', 'A booking concept starts with party size.'), ('يُختار وقت وطاولة مناسبة.', 'It pairs an arrival time with a suitable table.'), ('يحتاج التأكيد والإلغاء إلى نظام حجز.', 'Confirmation and cancellation need a booking service.')),
+          (('book', 'planned', 'حجز يدوي أو أونلاين، عدد الضيوف والموعد، تعيين الطاولة والتأكيد والإلغاء.', 'Manual or online bookings, guest count, date, time, table assignment, confirmation and cancellation.'),
+           ('waiting', 'planned', 'قائمة انتظار وإشعار جاهزية الطاولة وتحليلات الحجز.', 'Waitlists, table-ready notifications and reservation analytics.')),
+          'DiningTable manages service sessions. No booking or waitlist model or API.'),
+    Topic('team', 'management', 'owner manager', ('الفريق والصلاحيات', 'Staff and permissions'),
+          ('كل موظف يفتح شغل فرعه', 'Give each teammate the right branch access'),
+          ('ادعُ الموظف بدوره وفرعه. وقت تغيير الوردية أو الفريق، يفضل تاريخ الطلبات محفوظ.',
+           'Invite staff with a role and branch. When your team changes, recorded order history remains available.'),
+          'ledger', (('الباريستا', 'Barista', 'مطبخ', 'Kitchen'), ('فريق الصالة', 'Floor team', 'ويتر', 'Waiter'), ('أمين الصندوق', 'Till operator', 'كاشير', 'Cashier')),
+          (('حدّد الفرع والدور.', 'Choose the branch and role.'), ('أرسل دعوة بريدية.', 'Send an email invitation.'), ('راجع العضوية أو أوقفها عند الحاجة.', 'Review or deactivate the membership when needed.')),
+          (('roles', 'available', 'مالك ومدير وويتر ومطبخ وكاشير، وعضويات بصلاحية فرع وتفعيل أو تعطيل مستقل.', 'Owner, manager, waiter, kitchen and cashier roles with branch assignments and individual activation.'),
+           ('audit', 'available', 'دعوات محدودة الصلاحية وتدقيق للتغييرات الحساسة وأسباب الإلغاء.', 'Expiring invitations, audit records for sensitive changes and cancellation reasons.'),
+           ('advanced', 'planned', 'أدوار مخصصة وصلاحية خصم وورديات وأداء وإدارة جلسات الدخول ومصادقة متعددة العوامل.', 'Custom roles, discount permissions, shifts, performance, login session management and MFA.')),
+          'Membership.ROLES, StaffInvitation, scope, branch_for, staff'),
+    Topic('multi-branch', 'management', 'owner manager', ('إدارة الفروع', 'Multiple branches'),
+          ('نفس المطعم، منيو وتشغيل لكل فرع', 'One venue group, distinct branch operations'),
+          ('اختَر الفرع المسموح لك واشتغل على أسعاره وطاولاته ومحطاته. إضافة الفروع تخضع لحد الباقة.',
+           'Select a permitted branch to work with its prices, tables and stations. The subscription determines how many branches the restaurant can add.'),
+          'floor', (('فرع', 'Branch', 'الدقي', 'Dokki'), ('فرع', 'Branch', 'المعادي', 'Maadi'), ('فرع', 'Branch', 'الزمالك', 'Zamalek')),
+          (('راجع حد الفروع في الباقة.', 'Check the plan’s branch limit.'), ('أضف الفرع وحدد أعضاءه.', 'Add a branch and assign staff.'), ('بدّل الفرع قبل تعديل المنيو أو فتح التقارير.', 'Switch branch before editing menus or opening reports.')),
+          (('locations', 'available', 'إعدادات لكل فرع ومنيو وأسعار وطاولات ومطبخ وطلبات وصلاحيات محلية.', 'Branch settings, menus, prices, tables, kitchens, order queues and scoped access.'),
+           ('reports', 'available', 'اختيار الفرع لعرض تقاريره ومؤشراته ضمن صلاحية الموظف.', 'Branch selection for reports and operating measures within the employee’s scope.'),
+           ('aggregate', 'planned', 'لوحة موحدة لتجميع أداء كل الفروع ومقارنتها وتوزيع منيو مركزي.', 'Consolidated branch comparisons, group reporting and central menu rollout.')),
+          'Branch, Membership.branches, branch_for, select_branch, check_creation_limit'),
+    Topic('notifications', 'operations', 'waiter kitchen manager owner', ('التنبيهات', 'Notifications'),
+          ('التأخير ظاهر في مكان الشغل', 'See delays on the screen where work happens'),
+          ('الفريق يرى الطلبات الجديدة وحالة الاتصال وحدود التأخير في شاشة المطبخ، واستدعاءات الصالة في شاشة الخدمة.',
+           'The kitchen sees new tickets, connection state and delay markers. The floor team sees outstanding requests in its own queue.'),
+          'timeline', (('المطبخ', 'Kitchen', 'طلب جديد', 'New order'), ('طاولة 08', 'Table 08', 'طلب حساب', 'Bill requested'), ('الخدمة', 'Service', 'تجاوز الحد', 'Past threshold')),
+          (('اضبط حد التأخير للفرع.', 'Set the branch delay threshold.'), ('تابع علامة التأخير على الشاشة.', 'Check the delay marker on screen.'), ('راجِع السبب مع الموظف المسؤول.', 'Follow up with the responsible teammate.')),
+          (('signals', 'available', 'طلبات وحالات جاهزية واتصال على شاشة المطبخ وتنبيه تأخر التحضير أو استجابة الخدمة.', 'On-screen orders, readiness, connection state and late prep or service indicators.'),
+           ('requests', 'available', 'استدعاء ويتر وطلب حساب وحالة الاشتراك في لوحة المطعم.', 'Waiter calls, bill requests and subscription state in the restaurant workspace.'),
+           ('delivery', 'planned', 'ملخص يومي وإشعارات انتهاء الاشتراك واتجاه المبيعات وتفضيلات القنوات وWhatsApp أو SMS بموافقة.', 'Daily summaries, subscription expiry and sales trend alerts, channel preferences and opt-in WhatsApp or SMS.')),
+          'kitchen_feed, manage_calls, Branch response and delay fields, Subscription'),
+    Topic('integrations', 'integrations', 'owner manager cashier', ('التكاملات وتبادل الملفات', 'Integrations and files'),
+          ('ابدأ بالبيانات اللي عندك', 'Start with the data you already have'),
+          ('استورد المنيو بملف منظّم وصدّر سجل الطلبات للفترة المطلوبة. الربط المباشر بنظام الكاشير يحتاج موصلًا مستقلًا.',
+           'Import a structured menu file and export orders for a selected period. A direct connection to a till system requires a separate connector.'),
+          'ledger', (('استيراد المنيو', 'Menu import', 'XLSX', 'XLSX'), ('معاينة الصفوف', 'Row preview', 'CSV', 'CSV'), ('تصدير الطلبات', 'Order export', 'CSV', 'CSV')),
+          (('نزّل قالب المنيو.', 'Download the menu template.'), ('راجع أخطاء الملف قبل اعتماده.', 'Review file errors before committing.'), ('صدّر الطلبات من التقارير عند الحاجة.', 'Export orders from reports when needed.')),
+          (('files', 'available', 'CSV وExcel للمنيو، وتصدير CSV للطلبات حسب الفرع والفترة.', 'CSV and Excel menu imports and branch order CSV exports by date.'),
+           ('connectors', 'not-supported', 'موصلات POS والدفع والمخزون والمحاسبة، وAPI عامة وwebhooks وإعداد تكاملات خارجية.', 'POS, payment, inventory and accounting connectors, a public REST API, webhooks and external integration setup.')),
+          'menu_import.py, menu_import, reports CSV branch. No external merchant connectors.'),
+    Topic('security', 'integrations', 'owner manager kitchen waiter cashier', ('الصلاحيات وموثوقية الطلب', 'Security and reliability'),
+          ('المحاولة الثانية ترجع لنفس الطلب', 'A retry belongs to the same order'),
+          ('إعادة الإرسال بنفس المفتاح والمحتوى تحافظ على الطلب. الخادم يتحقق من الجلسة والأسعار والصلاحيات.',
+           'Retrying the same payload with its original key preserves the order. The server checks table sessions, prices and permissions.'),
+          'timeline', (('إرسال', 'Submit', '#104', '#104'), ('إعادة المحاولة', 'Retry', '#104', '#104'), ('السجل', 'History', 'طلب واحد', 'One order')),
+          (('راجع اتصال الجهاز.', 'Check the device connection.'), ('أعد المحاولة في الجلسة نفسها.', 'Retry in the same table session.'), ('اعتمد على تأكيد الخادم.', 'Wait for server confirmation.')),
+          (('boundary', 'available', 'عزل المطاعم ونطاق الفرع، والتحقق من الدور والجلسة وسجل للحالات والعمليات الحساسة.', 'Tenant and branch scoping, role and session checks, order history and sensitive action audit records.'),
+           ('retry', 'available', 'منع تكرار الإرسال وإجماليات خادمية وحالة اتصال للمطبخ ومسار صحة للتطبيق.', 'Idempotent submission, server totals, kitchen connection status and an application health endpoint.'),
+           ('operations', 'planned', 'تحقق نشر HTTPS ومراقبة وتنبيهات خارجية ونسخ احتياطي واختبار استعادة على الاستضافة.', 'Hosting verification for HTTPS, external monitoring and alerts, backup operations and restore drills.'),
+           ('offline', 'not-supported', 'تشغيل كامل بدون إنترنت أو تأكيد طلب قبل وصوله للخادم.', 'Fully offline operation or order confirmation before server receipt.')),
+          'scope, branch_for, create_order, DiningTable.session_token, AuditLog, health'),
+    Topic('support', 'management', 'owner manager kitchen', ('الإعداد والمساعدة', 'Setup and support'),
+          ('جهّز أول طاولة خطوة بخطوة', 'Prepare your first table for service'),
+          ('تابع تجهيز الفرع من بياناته الفعلية، وشوف إيه اللي باقي قبل تجربة أول طلب.',
+           'Follow setup progress from actual branch records and see what remains before testing the first order.'),
+          'list', (('بيانات الفرع', 'Branch profile', 'مكتمل', 'Done'), ('المنيو', 'Menu', 'مكتمل', 'Done'), ('تجربة الطلب', 'Test order', 'التالي', 'Next')),
+          (('فعّل بريد المالك وسجّل بيانات الفرع.', 'Verify the owner email and complete the branch profile.'), ('أضف المنيو والطاولة وموظف المطبخ.', 'Add a menu, table and kitchen teammate.'), ('افتح شاشة المطبخ وجرّب مسار الطلب.', 'Open the kitchen display and test an order.')),
+          (('checklist', 'available', 'تسجيل المالك وتفعيل البريد وإعدادات الفرع وقائمة تجهيز مرتبطة بالبيانات.', 'Owner registration, email verification, branch settings and a data-backed setup checklist.'),
+           ('guides', 'available', 'تجربة منيو مستقلة وأدلة إعداد تساعد الفريق على التدريب.', 'An isolated menu demo and setup guides for team practice.'),
+           ('service', 'not-supported', 'ضمان زمن استجابة للدعم أو مدير حساب مخصص أو تنفيذ تكامل ضمن باقة منشورة.', 'Contractual support response times, dedicated account managers or included integration services.')),
+          'register, verify_owner_email, dashboard, _setup_steps.html, demo_menu'),
+]
+
+GROUPS = {
+    'guest': ('تجربة الضيف', 'Guest experience'),
+    'operations': ('تشغيل المطعم', 'Restaurant operations'),
+    'growth': ('تنمية المبيعات', 'Sales growth'),
+    'management': ('الإدارة', 'Management'),
+    'integrations': ('الربط والموثوقية', 'Integrations and reliability'),
+}
+
+# Operational questions the category-specific workflow raises during a shift.
+FAQS = {
+    'digital-menu': (
+        ('لو السعر اتغيّر، إيه اللي يحصل للطلبات القديمة؟', 'What happens to old orders when a price changes?'),
+        ('كل سطر طلب يحتفظ بالاسم والسعر المسجلين وقت إنشائه. السعر الجديد يسري على الطلبات الجديدة.', 'Each order line retains the name and price captured at creation. New orders use the current price.')),
+    'qr-ordering': (
+        ('الضيف خرج من صفحة التأكيد. يقدر يتابع إزاي؟', 'How can a guest follow a confirmed order?'),
+        ('رابط المتابعة الخاص بالطلب يعرض آخر حالة محفوظة. احتفظ بالرابط بعد وصول رد التأكيد.', 'The order-specific tracking link shows the saved status. Keep that link after receiving confirmation.')),
+    'tables': (
+        ('لازم نطبع كود جديد بعد كل زيارة؟', 'Do we need to print a new code for every visit?'),
+        ('إنهاء الجلسة يغير رمز الجلسة الداخلي. الكود المطبوع يظل صالحًا إلى أن تختار تجديد كود الطاولة نفسه.', 'Closing a session rotates its internal token. The printed table code keeps working until the table code itself is rotated.')),
+    'live-orders': (
+        ('إمتى نقدر نعدّل أصناف الطلب؟', 'When can we change items on an order?'),
+        ('الموظف المخوّل يقدر يراجع طلبًا جديدًا أو تم استلامه وما زال غير مدفوع، قبل بدء التحضير، مع تسجيل السبب.', 'An authorized teammate can revise a new or accepted unpaid order before preparation starts, recording the reason.')),
+    'kitchen-display': (
+        ('إيه اللي يحصل لصنف ملوش محطة؟', 'Where does an item without a station go?'),
+        ('يظهر الصنف في شاشة كل المحطات وفلتر الأصناف بلا محطة. تعيين محطة للمنيو يؤثر على الطلبات التالية.', 'It appears on the all-stations screen and under the unassigned filter. Assigning a station in the menu affects subsequent orders.')),
+    'waiter': (
+        ('طلب الحساب يقفل الاستدعاء تلقائيًا؟', 'When does a bill request leave the service queue?'),
+        ('يستلمه فريق الصالة ويحدّث حالته عند تنفيذ الخدمة. تسجيل التحصيل خطوة منفصلة للكاشير أو الدور المخوّل.', 'The floor team acknowledges it and updates the call after service. Recording collection is a separate authorized action.')),
+    'billing': (
+        ('مين يقدر يسجل إن الحساب اتدفع؟', 'Who can record collection?'),
+        ('المالك أو المدير أو الكاشير في الفرع المسموح له يسجل التحصيل على طلب غير مدفوع وغير ملغي.', 'An owner, manager or cashier with branch access can record collection on an unpaid order that has not been cancelled.')),
+    'upselling': (
+        ('الحلو المقترح بيتضاف لوحده؟', 'Is the suggested dessert added automatically?'),
+        ('في الديمو يختار الضيف إضافة الحلو أو الاكتفاء بالقهوة. اقتراح منتجات مكملة بين أصناف المنيو ما زال مخططًا.', 'In the demo guests choose whether to add dessert or keep the coffee alone. Cross-item recommendations remain planned.')),
+    'promotions': (
+        ('أقدر أعمل سعر لفترة معينة دلوقتي؟', 'Can a discount start and expire automatically?'),
+        ('المدير يقدر يعدّل السعر الأساسي يدويًا. تشغيل وإيقاف الخصومات حسب الوقت يحتاج وحدة عروض مخططة.', 'A manager can edit a base price manually. Time-limited discount activation and expiry are planned.')),
+    'analytics': (
+        ('فلتر المحطة بيغير كل أرقام التقرير؟', 'Which measures does the station filter change?'),
+        ('يحدد المحطة عند حساب زمن تحضير الأصناف وعدد عيناته. مؤشرات الطلبات واستجابة الخدمة تظل حسب الفرع والفترة.', 'It selects preparation-line timing samples for that station. Orders and service response measures use the selected branch and date range.')),
+    'customer-experience': (
+        ('طلب المساعدة بينشئ ملف للعميل؟', 'Does a service call create a customer profile?'),
+        ('الاستدعاء مرتبط بالطاولة. خدمة الضيف الحالية لا تتطلب حسابًا شخصيًا أو اشتراكًا في برنامج ولاء.', 'A service call belongs to its table. Current guest service requires neither a personal account nor loyalty enrollment.')),
+    'reservations': (
+        ('نقدر نستقبل حجز مؤكد من الصفحة؟', 'Can guests confirm a reservation here?'),
+        ('هذه الصفحة تشرح تصوّر الحجز المستقبلي. استمر في استخدام وسيلة الحجز المعتمدة في مطعمك.', 'This page illustrates a future booking workflow. Continue using the reservation channel your venue currently operates.')),
+    'team': (
+        ('إيه اللي يحصل للسجل لو موظف ساب الشغل؟', 'What happens to records when a teammate leaves?'),
+        ('يمكن إيقاف العضوية لمنع العمل بالحساب في المطعم مع الاحتفاظ بالطلبات وسجل الإجراءات السابقة.', 'A membership can be deactivated to prevent further work for that venue while retaining previous orders and action records.')),
+    'multi-branch': (
+        ('تغيير سعر في فرع هيغيّر الفروع التانية؟', 'Does changing a price update other branches?'),
+        ('كل صنف يتبع تصنيفًا في فرع محدد. افتح الفرع المطلوب عند تعديل المنيو والأسعار.', 'Each item belongs to a category in one branch. Select the intended branch before editing its menu or prices.')),
+    'notifications': (
+        ('علامة التأخير معناها إيه؟', 'What does a delay marker tell the team?'),
+        ('الوقت المسجل تجاوز الحد الذي حدده الفرع. راجع التذكرة أو الاستدعاء مع الفريق لمعرفة السبب.', 'Recorded elapsed time has passed the branch threshold. Check the ticket or service call with the team to learn why.')),
+    'integrations': (
+        ('أقدر أشوف أخطاء ملف المنيو قبل اعتماده؟', 'Can we review import errors before publishing?'),
+        ('مسار الاستيراد يراجع الملف ويعرض نتيجة المعاينة. اعتماد دفعة سليمة خطوة منفصلة.', 'The import workflow validates the file and previews the result. Committing a valid batch is a separate step.')),
+    'security': (
+        ('هنعمل إيه لو صفحة طاولة قديمة فضلت مفتوحة؟', 'What happens to an old table page after session close?'),
+        ('الخادم يرفض إرسال طلب أو استدعاء برمز الجلسة القديمة. يمسح الضيف الكود مرة أخرى لفتح الجلسة الحالية.', 'The server rejects orders and service calls with the closed session token. A new scan opens the current session.')),
+    'support': (
+        ('أقدر أكمّل تجهيز الفرع في وقت تاني؟', 'Can setup continue on a later shift?'),
+        ('قائمة التجهيز تعتمد على بيانات الفرع المحفوظة. ارجع للوحة المطعم لاستكمال الخطوات المتبقية.', 'The setup checklist uses saved branch records. Return to the restaurant dashboard to continue the remaining steps.')),
+}
+ROLES = {
+    'guest': ('الضيف', 'Guest'), 'owner': ('المالك', 'Owner'), 'manager': ('المدير', 'Manager'),
+    'waiter': ('الويتر', 'Waiter'), 'kitchen': ('المطبخ', 'Kitchen'), 'cashier': ('الكاشير', 'Cashier'),
+}
+STATES = {
+    'available': ('متاح', 'Available'), 'planned': ('مخطط', 'Planned'),
+    'in-development': ('قيد التطوير', 'In development'), 'not-supported': ('غير مدعوم', 'Unsupported'),
+}
+
+
+@dataclass(frozen=True)
+class Solution:
+    slug: str
+    title: tuple
+    headline: tuple
+    story: tuple
+    topics: tuple
+    scenario: tuple
+
+
+SOLUTIONS = [
+    Solution('cafes', ('للكافيهات', 'Cafés'), ('نظّم طلبات البار وقت الزحمة', 'Keep the coffee bar moving'),
+             ('الضيف يختار حجم المشروب ونوع الحليب. كل اختيار يوصل للباريستا مع رقم الطاولة.',
+              'A guest chooses the drink size and milk. Each choice arrives at the bar with the table number.'),
+             ('digital-menu', 'kitchen-display', 'upselling'),
+             (('ضيف على طاولة 08 يختار لاتيه بحليب شوفان.', 'A guest at table 08 orders an oat latte.'), ('الباريستا يراجع الإضافة في تذكرة المحطة.', 'The barista reads the modifier on the station ticket.'), ('فريق الصالة يقدّم المشروب ويسجل التقديم.', 'The floor team delivers the drink and marks it served.'))),
+    Solution('restaurants', ('للمطاعم', 'Restaurants'), ('خلّي الصالة والمطبخ يشوفوا نفس الطلب', 'Connect the dining room and the pass'),
+             ('طلب وجبة ومشروب محتاج تنسيق بين محطتين. كل محطة تعرف المطلوب منها قبل إعلان جاهزية الطلب.',
+              'A meal and a drink can involve two stations. Both teams see their own items before the whole order is marked ready.'),
+             ('live-orders', 'kitchen-display', 'waiter'),
+             (('الويتر يسجل وجبة ومشروب لطاولة 04.', 'A waiter enters a meal and a drink for table 04.'), ('المطبخ والبار يحدّثان حالة كل صنف.', 'Kitchen and bar update their own lines.'), ('الشاشة العامة تجمع حالة الطلب للتقديم.', 'The all-stations screen shows when the order can be served.'))),
+    Solution('chains', ('لسلاسل المطاعم', 'Restaurant groups'), ('كل فرع له فريقه وأسعاره', 'Give every branch its own workspace'),
+             ('وقت تغيير الأسعار أو متابعة التشغيل، اختَر الفرع المقصود. فرق الفروع تدخل ضمن العضويات المسموحة لها.',
+              'Choose a branch before changing prices or reviewing operations. Staff see the branches their membership allows.'),
+             ('multi-branch', 'team', 'analytics'),
+             (('المالك يراجع حد الفروع في الباقة.', 'The owner reviews the subscription branch limit.'), ('يضيف مديرًا للفرع الجديد ويجهز منيوه.', 'They assign a manager and prepare the new branch menu.'), ('يختار الفرع عند مراجعة تقرير الأسبوع.', 'They select a branch to review its weekly report.'))),
+    Solution('owners', ('لأصحاب المطاعم', 'Venue owners'), ('اقرأ الوردية بالأرقام المسجلة', 'Review the shift using recorded orders'),
+             ('راجع التحصيل المسجل ومتوسط الاستجابة والأصناف المطلوبة، وارجع للفرع والفترة اللي أنت مختارهم.',
+              'Review recorded collections, response times and best sellers in the context of the branch and date range you selected.'),
+             ('analytics', 'billing', 'security'),
+             (('حدّد فترة عطلة نهاية الأسبوع.', 'Choose the weekend date range.'), ('راجع أكثر الأصناف طلبًا وعدد عينات التحضير.', 'Check best sellers and the number of prep-time samples.'), ('نزّل CSV للمراجعة مع الفريق.', 'Export a CSV for the team review.'))),
+    Solution('waiters', ('لفريق الصالة', 'Waiters'), ('خدمة الطاولات حسب الطلب المفتوح', 'Serve the tables with outstanding requests'),
+             ('في نفس الوردية ممكن طاولة تطلب الحساب وطاولة تحتاج مساعدة. شوف النوع والوقت قبل ما تتحرك.',
+              'One table needs the bill while another needs help. See the request type and time before walking the floor.'),
+             ('waiter', 'tables', 'qr-ordering'),
+             (('طاولة 07 تطلب الحساب من المنيو.', 'Table 07 requests the bill from its menu.'), ('تستلم الطلب في شاشة الخدمة.', 'You acknowledge the request on the service screen.'), ('تغلق الاستدعاء بعد تنفيذ الخدمة.', 'You close the call after serving the table.'))),
+    Solution('kitchen', ('لفريق المطبخ', 'Kitchen teams'), ('ركّز على أصناف محطتك', 'Focus on the items at your station'),
+             ('ملاحظات الطلب والإضافات تظهر مع الكميات، وتحديث الجاهزية يربط المحطة بفريق الصالة.',
+              'Order notes and extras sit alongside quantities. Readiness updates connect the station with the floor team.'),
+             ('kitchen-display', 'notifications', 'live-orders'),
+             (('افتح محطة البار وشوف الطلبات الجارية.', 'Open the bar station and review active tickets.'), ('ابدأ المشروب وحدّث حالته عند الجاهزية.', 'Start the drink and update its state when ready.'), ('راجع التذاكر المتأخرة حسب حد الفرع.', 'Review delayed tickets using the branch threshold.'))),
+]

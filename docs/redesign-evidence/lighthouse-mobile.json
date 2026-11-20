@@ -1,0 +1,76 @@
+[
+  {
+    "language": "ar",
+    "version": "13.4.1",
+    "date": "2026-11-20T08:38:33.707Z",
+    "final_url": "http://127.0.0.1:8000/?lang=ar",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.0.0 Safari/537.36",
+    "device": "mobile",
+    "viewport": {
+      "mobile": true,
+      "width": 412,
+      "height": 823,
+      "deviceScaleFactor": 1.75,
+      "disabled": false
+    },
+    "throttling": {
+      "rttMs": 150,
+      "throughputKbps": 1638.4,
+      "requestLatencyMs": 562.5,
+      "downloadThroughputKbps": 1474.5600000000002,
+      "uploadThroughputKbps": 675,
+      "cpuSlowdownMultiplier": 4
+    },
+    "benchmark": 1685.5,
+    "warnings": [],
+    "scores": {
+      "performance": 86,
+      "accessibility": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 1211.3216,
+      "largest-contentful-paint": 2711.3215999999998,
+      "total-blocking-time": 408,
+      "cumulative-layout-shift": 0.00552233030922848,
+      "speed-index": 1544.0434032848525
+    }
+  },
+  {
+    "language": "en",
+    "version": "13.4.1",
+    "date": "2026-11-20T08:38:48.549Z",
+    "final_url": "http://127.0.0.1:8000/?lang=en",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.0.0 Safari/537.36",
+    "device": "mobile",
+    "viewport": {
+      "mobile": true,
+      "width": 412,
+      "height": 823,
+      "deviceScaleFactor": 1.75,
+      "disabled": false
+    },
+    "throttling": {
+      "rttMs": 150,
+      "throughputKbps": 1638.4,
+      "requestLatencyMs": 562.5,
+      "downloadThroughputKbps": 1474.5600000000002,
+      "uploadThroughputKbps": 675,
+      "cpuSlowdownMultiplier": 4
+    },
+    "benchmark": 1763.5,
+    "warnings": [],
+    "scores": {
+      "performance": 92,
+      "accessibility": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 2270.92695,
+      "largest-contentful-paint": 3020.92695,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0.005078733679451096,
+      "speed-index": 2270.92695
+    }
+  }
+]

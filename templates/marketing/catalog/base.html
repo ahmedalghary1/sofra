@@ -1,0 +1,4 @@
+{% extends "marketing/base.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/catalog.css' %}">{% endblock %}
+{% block content %}<div class="catalog"><div class="catalog-wrap">{% block catalog %}{% endblock %}</div></div>{% endblock %}

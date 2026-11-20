@@ -1,0 +1,2486 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Serveza\n"
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "%(minutes)s د %(seconds)s ث"
+msgstr "%(minutes)s m %(seconds)s s"
+
+msgid ". الدعوة موجهة إلى"
+msgstr ". Invited email"
+
+msgid ". تقدر تتابع حالته من هنا."
+msgstr ". Follow its progress here."
+
+msgid "1. نزّل القالب وأدخل البيانات."
+msgstr "1. Download and fill in the template."
+
+msgid "2. ارفع الملف وصحّح الأخطاء المعروضة."
+msgstr "2. Upload the file and correct any errors."
+
+msgid "3. راجع الأصناف والأسعار ثم اضغط اعتماد."
+msgstr "3. Review items and prices, then confirm."
+
+msgid "8 أحرف على الأقل"
+msgstr "At least 8 characters"
+
+msgid "Serveza | إدارة المنصة"
+msgstr "Serveza | Platform administration"
+
+msgid "Serveza — ضيافة ذكية.. وخدمة بلا انتظار."
+msgstr "Serveza — Smart Hospitality. Seamless Service."
+
+msgid "· الإجمالي الحالي"
+msgstr "· Current total"
+
+msgid "· الفرع:"
+msgstr "· Branch"
+
+msgid "· تعديل"
+msgstr "· Revision"
+
+msgid "· سيُنشأ طلب مستقل للطاولة، دون تعديل طلباتها السابقة."
+msgstr "· This creates a separate ticket. Existing orders remain unchanged."
+
+msgid "،"
+msgstr ","
+
+msgid "أحجام الصنف"
+msgstr "Item sizes"
+
+msgid "أحد الأصناف لم يعد متاحًا. حدّث المنيو."
+msgstr "An item is no longer available. Refresh the menu."
+
+msgid "أحد الخيارات غير صالح."
+msgstr "One of the options is invalid."
+
+msgid "أحد الخيارات لا يخص الصنف المحدد."
+msgstr "One option does not belong to this item."
+
+msgid "أحدث الطلبات"
+msgstr "Recent orders"
+
+msgid "أدخل اسم الإضافة."
+msgstr "Enter the modifier name."
+
+msgid "أدخل اسم التصنيف."
+msgstr "Enter a category name."
+
+msgid "أدخل اسم الحجم."
+msgstr "Enter a size name."
+
+msgid "أدخل اسم الصنف."
+msgstr "Enter an item name."
+
+msgid "أدخل اسم الطاولة."
+msgstr "Enter a table name."
+
+msgid "أدخل اسم الفرع."
+msgstr "Enter a branch name."
+
+msgid "أدخل اسم المالك لإنشاء حسابه."
+msgstr "Enter the name of the new owner."
+
+msgid "أدخل اسم المجموعة."
+msgstr "Enter the group name."
+
+msgid "أدخل اسم فرع صالحًا وعنوانًا لا يتجاوز 240 حرفًا."
+msgstr "Enter a valid branch name and an address under 241 characters."
+
+msgid "أدخل اسم محطة المطبخ."
+msgstr "Enter a station name."
+
+msgid "أدخل اسمك."
+msgstr "Enter your name."
+
+msgid "أدخل المجموعة والإضافة."
+msgstr "Enter the group and modifier names."
+
+msgid "أدخل رقم تواصل صالحًا بالأرقام."
+msgstr "Enter a valid phone number."
+
+msgid "أدخل كلمة مرور مؤقتة للمالك الجديد."
+msgstr "Enter a temporary password for the new owner."
+
+msgid "أرسلنا رابط تفعيل صالحًا لمدة 24 ساعة. افتح الرابط من بريدك لتفعيل حساب المالك."
+msgstr "We sent a verification link valid for 24 hours. Open it to activate your owner account."
+
+msgid "أرقام الطلبات المسجلة في هذا الفرع"
+msgstr "Recorded orders at this branch"
+
+msgid "أزمنة التشغيل"
+msgstr "Service timings"
+
+msgid "أصناف إضافية"
+msgstr "Additional items"
+
+msgid "أصناف في سلتك"
+msgstr "items in your cart"
+
+msgid "أصناف هذا الفرع"
+msgstr "Items at this branch"
+
+msgid "أضف"
+msgstr "Add"
+
+msgid "أضف أصناف المنيو"
+msgstr "Add menu items"
+
+msgid "أضف أصنافًا أو راجع الطلب الحالي"
+msgstr "Add items or review the order"
+
+msgid "أضف أصنافًا متاحة قبل إنشاء طلب."
+msgstr "Add available items before creating an order."
+
+msgid "أضف أكثر من صنف واختياراته للطاولة من المنيو الحالي."
+msgstr "Choose items and options from the current menu for a table."
+
+msgid "أضف أول طاولة لتحصل على رمز QR جاهز للطباعة."
+msgstr "Add your first table to get a printable QR code."
+
+msgid "أضف الأصناف للسلة"
+msgstr "Add items to cart"
+
+msgid "أضف الأصناف والطاولات ثم شارك رمز QR مع ضيوفك."
+msgstr "Add items and tables, then share the table QR with your guests."
+
+msgid "أضف تصنيفًا"
+msgstr "Add category"
+
+msgid "أضف تصنيفًا ثم ضع تحته أصناف المنيو."
+msgstr "Add a category, then add menu items to it."
+
+msgid "أضف صنفًا جديدًا"
+msgstr "Add a menu item"
+
+msgid "أضف صنفًا متاحًا في المنيو"
+msgstr "Add an available menu item"
+
+msgid "أضف صنفًا واحدًا على الأقل للسلة."
+msgstr "Add at least one item to the cart."
+
+msgid "أضف طلبًا جديدًا للطاولة"
+msgstr "Add another table order"
+
+msgid "أضف فرعًا"
+msgstr "Add a branch"
+
+msgid "أعضاء الفريق"
+msgstr "Team members"
+
+msgid "أعضاء الفريق الكليين"
+msgstr "Total team"
+
+msgid "أغلق استدعاءات الخدمة المفتوحة قبل إنهاء الجلسة."
+msgstr "Close all service calls before ending the session."
+
+msgid "أكثر الأصناف طلبًا"
+msgstr "Best sellers"
+
+msgid "أكمل الطلبات الجارية وسجل تحصيل غير الملغى قبل إنهاء الجلسة."
+msgstr "Finish active orders and record collection for non-cancelled orders before closing the session."
+
+msgid "أكمل تحضير جميع أصناف الطلب في محطاتها قبل تحويل الطلب إلى جاهز."
+msgstr "Finish all station items before marking the order ready."
+
+msgid "أكمل جميع البيانات."
+msgstr "Complete all required fields."
+
+msgid "أكمل وصف المطعم"
+msgstr "Complete your venue description"
+
+msgid "أمان حسابك"
+msgstr "Account security"
+
+msgid "أنت مسجل بهذا البريد. أكّد قبول الدعوة لإضافة عضويتك في المطعم."
+msgstr "You are signed in with this address. Accept the invitation to join the venue."
+
+msgid "أنشئ QR لكل طاولة"
+msgstr "Create a QR for each table"
+
+msgid "أنشئ المطاعم والفروع، وتابع الاشتراكات والإجراءات المسجلة."
+msgstr "Create venues and branches, review subscriptions and recorded changes."
+
+msgid "أنشئ المطعم وفرعه الأول واربطه بمالك وباقة تجريبية في خطوة واحدة."
+msgstr "Create the venue, first branch, owner membership and trial together."
+
+msgid "أنشئ باقة جديدة"
+msgstr "Create a plan"
+
+msgid "أنشئ حسابك وجهز مطعمك في دقائق بسيطة."
+msgstr "Create an owner account to set up your venue."
+
+msgid "أنشئ طلبًا جديدًا"
+msgstr "Create an order"
+
+msgid "أهلًا بك في Serveza"
+msgstr "Welcome to Serveza"
+
+msgid "أهلًا بك في الفريق."
+msgstr "Welcome to the team"
+
+msgid "أهلًا بك في مطعمك"
+msgstr "Welcome"
+
+msgid "أول طلب هيظهر هنا بمجرد ما الضيف يطلب."
+msgstr "Your first guest order will appear here."
+
+msgid "أُرسلت الدعوة إلى البريد المحدد."
+msgstr "Invitation sent."
+
+msgid "أُلغيت الدعوة."
+msgstr "Invitation revoked."
+
+msgid "إجراء الاستيراد غير معروف."
+msgstr "Unknown import action."
+
+msgid "إجراء غير معروف."
+msgstr "Unknown action."
+
+msgid "إجراء فرع غير معروف."
+msgstr "Unknown branch action."
+
+msgid "إجمالي الطلب أكبر من الحد المسموح."
+msgstr "The order exceeds the maximum total."
+
+msgid "إجمالي الطلبات"
+msgstr "Order count"
+
+msgid "إخفاء التصنيف"
+msgstr "Hide category"
+
+msgid "إدارة الباقات"
+msgstr "Manage plans"
+
+msgid "إدارة الخدمة"
+msgstr "Service management"
+
+msgid "إدارة الطاولات"
+msgstr "Manage tables"
+
+msgid "إدارة المطعم"
+msgstr "Venue management"
+
+msgid "إدارة المنصة"
+msgstr "Platform management"
+
+msgid "إدارة المنيو"
+msgstr "Manage menu"
+
+msgid "إدارة المنيو ·"
+msgstr "Menu management ·"
+
+msgid "إدارة الوصول والأدوار والفروع المسموحة لكل عضو."
+msgstr "Manage access, roles and allowed branches for each member."
+
+msgid "إذا كان البريد مرتبطًا بحساب نشط، ستصلك رسالة فيها رابط صالح لمدة ساعة. راجع البريد الوارد والرسائل غير المرغوبة."
+msgstr "If this email belongs to an active account, a link valid for one hour will arrive. Check your inbox and spam folder."
+
+msgid "إذا كان البريد مسجلًا بالفعل، سيُربط الحساب الحالي بالمطعم الجديد."
+msgstr "An existing email links its account to the new venue."
+
+msgid "إذا كانت البيانات صحيحة، سيصلك رابط تفعيل جديد."
+msgstr "If your details match, you will receive a new activation link."
+
+msgid "إرسال الدعوة ←"
+msgstr "Send invitation"
+
+msgid "إرسال رابط الاستعادة ←"
+msgstr "Send recovery link"
+
+msgid "إزالة الفلتر"
+msgstr "Clear filter"
+
+msgid "إضافة"
+msgstr "Add"
+
+msgid "إضافة الصنف"
+msgstr "Add item"
+
+msgid "إضافة الفرع ＋"
+msgstr "Add branch"
+
+msgid "إضافة الفروع وتفعيلها تخضعان لحد الباقة وصلاحية الاشتراك."
+msgstr "Adding and activating branches requires a valid subscription and an available branch allowance."
+
+msgid "إضافة طاولة جديدة"
+msgstr "Add a table"
+
+msgid "إضافة طاولة ＋"
+msgstr "Add table"
+
+msgid "إضافة فرع ＋"
+msgstr "Add branch"
+
+msgid "إضافة محطة"
+msgstr "Add station"
+
+msgid "إضافة مطعم"
+msgstr "Add venue"
+
+msgid "إظهار التصنيف"
+msgstr "Show category"
+
+msgid "إظهار العنوان والتواصل وساعات العمل للضيف"
+msgstr "Show address, contact and opening hours to guests"
+
+msgid "إعادة إرسال رابط التفعيل"
+msgstr "Resend verification link"
+
+msgid "إعادة التفعيل"
+msgstr "reactivation"
+
+msgid "إعدادات المطعم"
+msgstr "Venue settings"
+
+msgid "إغلاق"
+msgstr "Close"
+
+msgid "إلغاء"
+msgstr "Cancel"
+
+msgid "إلغاء الدعوة"
+msgstr "Revoke invitation"
+
+msgid "إلغاء الطلب"
+msgstr "Cancel order"
+
+msgid "إلى"
+msgstr "to"
+
+msgid "إلى تاريخ"
+msgstr "End date"
+
+msgid "إليك ملخص ما يحدث في"
+msgstr "Today’s service at"
+
+msgid "إنشاء الحساب"
+msgstr "Create account"
+
+msgid "إنشاء المطعم والفرع ←"
+msgstr "Create venue and branch"
+
+msgid "إنشاء حساب مباشر عند تعذر استخدام البريد"
+msgstr "Create account when email is unavailable"
+
+msgid "إنشاء طلب جديد ＋"
+msgstr "Create order"
+
+msgid "إنشاء مباشر"
+msgstr "Create account"
+
+msgid "إنهاء الجلسة"
+msgstr "End session"
+
+msgid "إنهاء جلسة الطاولة؟ ستحتاج الصفحات المفتوحة إلى مسح QR من جديد."
+msgstr "End this table session? Guests will need to scan the QR code again."
+
+msgid "إيقاف"
+msgstr "Disable"
+
+msgid "إيقاف الطاولة"
+msgstr "Deactivate table"
+
+msgid "إيقاف الفرع"
+msgstr "Deactivate branch"
+
+msgid "إيه اللي نفسك فيه النهارده؟"
+msgstr "What would you like today?"
+
+msgid "ابحث باسم المطعم أو المعرّف"
+msgstr "Search by venue name or ID"
+
+msgid "ابدأ الآن"
+msgstr "Get started"
+
+msgid "ابدأ العمل مع مطعمك من مساحة واحدة واضحة."
+msgstr "Manage service with the rest of your team."
+
+msgid "ابدأ بتصنيفك الأول"
+msgstr "Create your first category"
+
+msgid "ابدأ تشغيل Serveza في دقائق"
+msgstr "Manage this shift"
+
+msgid "ابدأ رحلة مطعمك معنا."
+msgstr "Open your venue workspace"
+
+msgid "ابدأ مع Serveza"
+msgstr "Start with Serveza"
+
+msgid "اختار اللي نفسك فيه،"
+msgstr "Choose your favourites."
+
+msgid "اختر التصنيف"
+msgstr "Select category"
+
+msgid "اختر الدور"
+msgstr "Select role"
+
+msgid "اختر الطاولة والأصناف، وستُحسب الأسعار من المنيو الحالي."
+msgstr "Select a table and items. Prices come from the current menu."
+
+msgid "اختر باقة تسمح بفرع واحد على الأقل."
+msgstr "Select a plan that allows at least one branch."
+
+msgid "اختر باقة لمعرفة أثر حدودها على موارد مطعمك وفروعه قبل طلب التغيير."
+msgstr "Choose a plan to compare its allowance with your venue and branches."
+
+msgid "اختر تاريخ بداية ونهاية صالحين."
+msgstr "Choose a valid start and end date."
+
+msgid "اختر طاولة الطلب"
+msgstr "Select order table"
+
+msgid "اختر كلمة مرور قوية لمتابعة إدارة مطعمك."
+msgstr "Choose a strong password to continue."
+
+msgid "اختر ملف CSV."
+msgstr "Select a CSV file."
+
+msgid "اختر ملف Excel بصيغة XLSX."
+msgstr "Select an Excel XLSX file."
+
+msgid "اختيار"
+msgstr "Select"
+
+msgid "اختيارات «{name}» غير مكتملة."
+msgstr "Check the selection count for {name}."
+
+msgid "ادخل إلى مساحة العمل وتابع كل تفاصيل الخدمة."
+msgstr "Sign in to manage today’s service."
+
+msgid "ادعُ عضوًا جديدًا"
+msgstr "Invite a team member"
+
+msgid "اربط الصنف بمحطة ليظهر ضمن تذاكرها. الأصناف غير المعيّنة تظهر في الشاشة العامة."
+msgstr "Assign items to stations to route future tickets. Unassigned items appear in the main kitchen display."
+
+msgid "ارجع إلى لوحة التحكم أو تواصل مع مدير المطعم."
+msgstr "Return to your workspace or contact your venue manager."
+
+msgid "ارفع الملف"
+msgstr "Upload file"
+
+msgid "ارفع ملف CSV أو Excel لمراجعة الأصناف قبل إضافتها إلى منيو هذا الفرع."
+msgstr "Upload a CSV or Excel file to review items before adding them to this branch."
+
+msgid "اسأل فريق المطعم عن الأصناف المتاحة اليوم."
+msgstr "Ask the team about available items today."
+
+msgid "استجابة الويتر"
+msgstr "Waiter response"
+
+msgid "استجابة بعد الحد المحدد"
+msgstr "Acknowledged after the response threshold"
+
+msgid "استخدم بريدًا حقيقيًا أو حسابًا عاديًا بدل حساب العرض المحلي."
+msgstr "Use a regular email or account instead of the local demo account."
+
+msgid "استخدم ورقة عمل واحدة للاستيراد."
+msgstr "Use a single worksheet for import."
+
+msgid "استدعاء الويتر"
+msgstr "Waiter call"
+
+msgid "استدعاءات الويتر والحساب مرتبة من الأحدث."
+msgstr "Waiter calls and bill requests, newest first."
+
+msgid "استعادة الحساب"
+msgstr "Account recovery"
+
+msgid "استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم."
+msgstr "Ordering is temporarily paused. Contact the venue team."
+
+msgid "استقبال طلبات جديدة من طاولات هذا الفرع"
+msgstr "Accept new table orders at this branch"
+
+msgid "استلام الطلب"
+msgstr "Acknowledge"
+
+msgid "استلام ←"
+msgstr "Accept"
+
+msgid "استيراد CSV / Excel ↓"
+msgstr "Import CSV / Excel"
+
+msgid "استيراد الأصناف"
+msgstr "Import items"
+
+msgid "استيراد المنيو"
+msgstr "Menu import"
+
+msgid "اسم الإضافة"
+msgstr "Modifier name"
+
+msgid "اسم الاختيار"
+msgstr "Option name"
+
+msgid "اسم التصنيف"
+msgstr "Category name"
+
+msgid "اسم الحجم"
+msgstr "Size name"
+
+msgid "اسم الحجم، مثال: كبير"
+msgstr "Size name, for example Large"
+
+msgid "اسم الصنف"
+msgstr "Item name"
+
+msgid "اسم الفرع"
+msgstr "Branch name"
+
+msgid "اسم الفرع الأول"
+msgstr "First branch name"
+
+msgid "اسم الفرع الجديد"
+msgstr "New branch name"
+
+msgid "اسم المالك الجديد"
+msgstr "New owner name"
+
+msgid "اسم المجموعة"
+msgstr "Group name"
+
+msgid "اسم المطعم"
+msgstr "Venue name"
+
+msgid "اسم المطعم بالإنجليزية (يظهر للضيف عند إدخاله)"
+msgstr "English venue name (visible to guests when provided)"
+
+msgid "اسم المطعم بالعربية"
+msgstr "Venue name in Arabic"
+
+msgid "اسم محطة المطبخ"
+msgstr "Kitchen station name"
+
+msgid "اسمك"
+msgstr "Your name"
+
+msgid "اضبط اشتراك المطعم قبل إضافة فرع."
+msgstr "Set a subscription before adding a branch."
+
+msgid "اضبط اشتراك المطعم قبل تفعيل الفرع."
+msgstr "Set a subscription before activating this branch."
+
+msgid "اطلب الحساب"
+msgstr "Request bill"
+
+msgid "اطلب المساعدة من فريق المطعم للحصول على رمز جديد."
+msgstr "Ask the team for a new table code."
+
+msgid "اطلب رابطًا جديدًا لاستعادة حسابك."
+msgstr "Request a new recovery link."
+
+msgid "اعتماد واستيراد"
+msgstr "Confirm import"
+
+msgid "اعرض المعاينة"
+msgstr "Preview items"
+
+msgid "افتح الفرع ←"
+msgstr "Open branch"
+
+msgid "افتح شاشة المطبخ"
+msgstr "Open kitchen display"
+
+msgid "افتح شاشة المطبخ على جهاز الموظف بعد تعيينه."
+msgstr "Open the kitchen display on their device."
+
+msgid "افتح ملخص الطلب أسفل الشاشة لتغيير الكمية أو حذف عنصر، واكتب سبب التعديل قبل الحفظ."
+msgstr "Open the summary below to change quantities or remove items. Enter a reason before saving."
+
+msgid "اكتب بريدك الإلكتروني وسنرسل رابطًا لتعيين كلمة مرور جديدة إذا كان الحساب موجودًا."
+msgstr "Enter your email. If an account exists, we will send a password reset link."
+
+msgid "اكتب سبب التصحيح بين 3 و240 حرفًا."
+msgstr "Enter a correction reason between 3 and 240 characters."
+
+msgid "اكتب سبب التعديل بين 3 و240 حرفًا."
+msgstr "Enter a reason between 3 and 240 characters."
+
+msgid "اكتب سبب التغيير قبل الحفظ."
+msgstr "Enter a reason before saving."
+
+msgid "اكتب سبب تعديل الباقة."
+msgstr "Enter a reason for changing the plan."
+
+msgid "اكتب سبب تغيير حالة الفرع."
+msgstr "Enter a reason for changing the branch status."
+
+msgid "اكتمال إعداد الفرع"
+msgstr "Branch setup progress"
+
+msgid "الأحدث أولًا"
+msgstr "Newest first"
+
+msgid "الأسعار هنا إجمالي الطلب، وليست إيرادات محصلة."
+msgstr "Totals reflect order value. Payment collection is recorded separately."
+
+msgid "الأصناف"
+msgstr "Items"
+
+msgid "الأصناف والتصنيفات"
+msgstr "Items and categories"
+
+msgid "الأعمدة المطلوبة بالترتيب: category,name,price,description."
+msgstr "Use the columns category,name,price,description in that order."
+
+msgid "الأعمدة بالترتيب:"
+msgstr "Column order"
+
+msgid "الأقدم أولًا"
+msgstr "Oldest first"
+
+msgid "الأقل"
+msgstr "Minimum"
+
+msgid "الأكثر"
+msgstr "Maximum"
+
+msgid "الإجراء"
+msgstr "Action"
+
+msgid "الإجمالي"
+msgstr "Total"
+
+msgid "الإعدادات"
+msgstr "Settings"
+
+msgid "الإلغاء يتطلب سببًا وطلبًا لم يُقدّم بعد."
+msgstr "Cancellation requires a reason and an order that has not been served."
+
+msgid "الإيقاف"
+msgstr "deactivation"
+
+msgid "الاختيار"
+msgstr "Option"
+
+msgid "الاستخدام أعلى من حدود الباقة الحالية"
+msgstr "Current usage exceeds plan limits"
+
+msgid "الاسم الكامل"
+msgstr "Full name"
+
+msgid "الاشتراك:"
+msgstr "Subscription"
+
+msgid "الانتقال إلى هذه الحالة غير مسموح."
+msgstr "This status transition is unavailable."
+
+msgid "الانتهاء:"
+msgstr "Expires"
+
+msgid "الباقة"
+msgstr "Plan"
+
+msgid "الباقة الحالية"
+msgstr "Current plan"
+
+msgid "الباقة:"
+msgstr "Plan"
+
+msgid "البدء في التشغيل"
+msgstr "Getting started"
+
+msgid "البريد أو كلمة المرور غير صحيحة."
+msgstr "Incorrect email or password."
+
+msgid "البريد الإلكتروني"
+msgstr "Email"
+
+msgid "البريد مستخدم بالفعل. تواصل مع مدير المنصة لإضافته."
+msgstr "This email is already in use. Contact the operator to add it."
+
+msgid "البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة."
+msgstr "Data remains available for review. Editing and ordering resume when the platform operator reactivates this venue."
+
+msgid "التالي"
+msgstr "Next"
+
+msgid "الترتيب"
+msgstr "Sort order"
+
+msgid "التسجيل لا يغير تاريخ انتهاء الاشتراك تلقائيًا."
+msgstr "Recording a payment does not automatically extend the subscription."
+
+msgid "التصنيف"
+msgstr "Category"
+
+msgid "التعديل متاح للطلب الجديد أو المستلم وغير المدفوع فقط. أنشئ طلبًا إضافيًا إذا بدأ التحضير."
+msgstr "Only new or accepted unpaid orders can be edited. Open an additional order once preparation begins."
+
+msgid "التعديل متوقف لهذا المطعم حاليًا."
+msgstr "Editing is paused for this venue."
+
+msgid "التعليق"
+msgstr "suspension"
+
+msgid "التفعيل"
+msgstr "activation"
+
+msgid "التقارير"
+msgstr "Reports"
+
+msgid "التقارير التشغيلية"
+msgstr "Service reports"
+
+msgid "الحالة"
+msgstr "Status"
+
+msgid "الحالة الحالية"
+msgstr "Current status"
+
+msgid "الحالة:"
+msgstr "Status"
+
+msgid "الحجم:"
+msgstr "Size"
+
+msgid "الحد الأدنى أكبر من عدد الخيارات المتاحة بعد الإضافة."
+msgstr "The minimum is higher than the available options after this addition."
+
+msgid "الحد الأدنى أكبر من عدد الخيارات المتاحة."
+msgstr "The minimum is higher than the number of available options."
+
+msgid "الحد الأقصى 12 حجمًا للصنف."
+msgstr "Each item supports up to 12 sizes."
+
+msgid "الحد الأقصى 200 صنف في الدفعة."
+msgstr "The maximum batch size is 200 items."
+
+msgid "الحد الأقصى للملف 1 ميجابايت."
+msgstr "The maximum file size is 1 MB."
+
+msgid "الحدود الفعلية والاستخدام الحالي"
+msgstr "Plan limits and current usage"
+
+msgid "الخدمة ماشية بانسيابية"
+msgstr "Service in progress"
+
+msgid "الخدمة متوقفة مؤقتًا. يرجى التواصل مع المطعم."
+msgstr "Service is paused. Contact the venue team."
+
+msgid "الخيارات الإضافية"
+msgstr "Modifiers"
+
+msgid "الدعوات الحالية تملأ المقاعد المتاحة في الباقة."
+msgstr "Pending invitations fill the remaining seats on your plan."
+
+msgid "الدفع"
+msgstr "Payment"
+
+msgid "الدفع يتم مع فريق المطعم. حالة الطلب تتحدث كل 20 ثانية."
+msgstr "Pay with the venue team. Order status updates every 20 seconds."
+
+msgid "الدور المختار غير مسموح."
+msgstr "You cannot assign this role."
+
+msgid "الدور غير صالح."
+msgstr "Invalid role."
+
+msgid "الدور:"
+msgstr "Role"
+
+msgid "الرئيسية"
+msgstr "Service"
+
+msgid "الرابط غير صالح أو انتهت مدته."
+msgstr "Invalid or expired link"
+
+msgid "السابق"
+msgstr "Previous"
+
+msgid "السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح."
+msgstr "Row {number}: The name, category or description exceeds its length limit."
+
+msgid "السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين."
+msgstr "Row {number}: Use a positive price with up to two decimal places."
+
+msgid "السطر {number}: الصنف مكرر داخل الملف."
+msgstr "Row {number}: This item occurs more than once in the file."
+
+msgid "السطر {number}: عدد الأعمدة أو البيانات غير صالح."
+msgstr "Row {number}: Invalid column count or data."
+
+msgid "السعر"
+msgstr "Price"
+
+msgid "السعر (ج.م)"
+msgstr "Price (EGP)"
+
+msgid "السعر الأساسي متاح دائمًا؛ أضف أحجامًا بأسعار مستقلة. تعطيل حجم يمنع طلبه الجديد ويحفظ الطلبات السابقة."
+msgstr "The base size is always available. Add other sizes at their own prices. Disabling a size keeps previous orders intact."
+
+msgid "السعر غير صالح."
+msgstr "Invalid price."
+
+msgid "السعر والوصف يظهران في منيو الضيوف"
+msgstr "The price and description appear on the guest menu."
+
+msgid "الصفحة غير موجودة"
+msgstr "Page not found"
+
+msgid "الصنف"
+msgstr "Item"
+
+msgid "الصنف جاهز"
+msgstr "Item ready"
+
+msgid "الصورة (اختياري)"
+msgstr "Image (optional)"
+
+msgid "الصورة يجب أن تكون JPG أو PNG أو WebP وأقل من 3 ميجابايت."
+msgstr "Choose a JPG, PNG or WebP image smaller than 3 MB."
+
+msgid "الطاولات"
+msgstr "Tables"
+
+msgid "الطاولات وQR"
+msgstr "Tables & QR"
+
+msgid "الطاولات ورموز QR"
+msgstr "Tables and QR codes"
+
+msgid "الطاولة"
+msgstr "Table"
+
+msgid "الطاولة غير متاحة حاليًا"
+msgstr "Table currently unavailable"
+
+msgid "الطاولة لا تستقبل استدعاءات حاليًا."
+msgstr "Service requests are paused for this table."
+
+msgid "الطاولة لا تستقبل طلبات حاليًا."
+msgstr "This table is currently closed to orders."
+
+msgid "الطاولة والتفاصيل"
+msgstr "Table and items"
+
+msgid "الطريقة"
+msgstr "Method"
+
+msgid "الطلب"
+msgstr "Order"
+
+msgid "الطلب #"
+msgstr "Order #"
+
+msgid "الطلب الجديد تذكرة مستقلة، ولن يغيّر هذا الطلب."
+msgstr "The new order creates a separate ticket."
+
+msgid "الطلبات"
+msgstr "Orders"
+
+msgid "الطلبات / تعديل"
+msgstr "Orders / Edit"
+
+msgid "الطلبات / طلب جديد"
+msgstr "Orders / New order"
+
+msgid "الطلبات الجارية"
+msgstr "Active tickets"
+
+msgid "الطلبات الجديدة ستظهر هنا عند وصولها."
+msgstr "New tickets will appear here."
+
+msgid "الطلبات الرقمية والتقليدية"
+msgstr "QR and staff orders"
+
+msgid "العنوان (اختياري)"
+msgstr "Address (optional)"
+
+msgid "العودة إلى تسجيل الدخول"
+msgstr "Back to sign in"
+
+msgid "العودة لتسجيل الدخول"
+msgstr "Back to sign in"
+
+msgid "العودة للرئيسية"
+msgstr "Back to home"
+
+msgid "العودة للطلبات"
+msgstr "Back to orders"
+
+msgid "العودة للمطاعم"
+msgstr "Back to venues"
+
+msgid "العودة للمنيو"
+msgstr "Back to menu"
+
+msgid "الفترة"
+msgstr "Period"
+
+msgid "الفرع"
+msgstr "Branch"
+
+msgid "الفرع الأول"
+msgstr "First branch"
+
+msgid "الفرع الحالي"
+msgstr "Current branch"
+
+msgid "الفرع غير صالح."
+msgstr "Invalid branch."
+
+msgid "الفرع متوقف حاليًا."
+msgstr "This branch is inactive."
+
+msgid "الفرع:"
+msgstr "Branch"
+
+msgid "الفروع"
+msgstr "Branches"
+
+msgid "الفروع ·"
+msgstr "Branches ·"
+
+msgid "الفروع الكلية"
+msgstr "Total branches"
+
+msgid "الفريق"
+msgstr "Team"
+
+msgid "القائمة الرئيسية"
+msgstr "Main navigation"
+
+msgid "القيمة قبل وبعد كل تعديل، مع السبب والموظف."
+msgstr "Before and after amounts, reason and team member for each change."
+
+msgid "الكميات الحالية تحتفظ بسعرها وقت الطلب. أي صنف جديد يُسعّر من المنيو الحالي، وسيظهر التعديل في شاشة المطبخ."
+msgstr "Existing items retain their original prices. New items use current menu prices. The kitchen will see the updated ticket."
+
+msgid "المالك:"
+msgstr "Owner"
+
+msgid "المبالغ المسجلة يدويًا لدى إدارة المنصة؛ ليست مدفوعات إلكترونية."
+msgstr "Payments recorded manually by the operator."
+
+msgid "المبلغ"
+msgstr "Amount"
+
+msgid "المبلغ بالجنيه المصري"
+msgstr "Amount in EGP"
+
+msgid "المتاح في الباقة:"
+msgstr "Remaining allowance"
+
+msgid "المجموعة"
+msgstr "Group"
+
+msgid "المحطات"
+msgstr "Stations"
+
+msgid "المرجع"
+msgstr "Reference"
+
+msgid "المسؤول:"
+msgstr "Assigned to"
+
+msgid "المطاعم والاشتراكات"
+msgstr "Venues and subscriptions"
+
+msgid "المطبخ مباشر ·"
+msgstr "Kitchen display ·"
+
+msgid "المطبخ هادئ الآن"
+msgstr "The kitchen is clear"
+
+msgid "المطعم أو الفرع متوقف حاليًا."
+msgstr "This venue or branch is inactive."
+
+msgid "المطعم معلق حاليًا"
+msgstr "Venue suspended"
+
+msgid "المعاينة صالحة 15 دقيقة. لا تُضاف الأصناف قبل الاعتماد."
+msgstr "Preview expires after 15 minutes. Confirm to add these items."
+
+msgid "الملاحظة طويلة جدًا."
+msgstr "The note is too long."
+
+msgid "الملف لا يحتوي أصنافًا."
+msgstr "The file contains no items."
+
+msgid "الملف يتجاوز حد الأصناف في الباقة ({limit})."
+msgstr "This file exceeds the plan item limit ({limit})."
+
+msgid "الملف يحتوي {row_count} صنفًا، والمتاح في الباقة {remaining}."
+msgstr "This file has {row_count} items. Your remaining allowance is {remaining}."
+
+msgid "المنيو / استيراد"
+msgstr "Menu / Import"
+
+msgid "المنيو فارغ"
+msgstr "Empty menu"
+
+msgid "المنيو في طريقه إليك"
+msgstr "The menu is on its way"
+
+msgid "المنيو والطاولات"
+msgstr "Menu and tables"
+
+msgid "المورد أو الفرع غير صالح."
+msgstr "Invalid resource or branch."
+
+msgid "الوصف"
+msgstr "Description"
+
+msgid "الوقت"
+msgstr "Time"
+
+msgid "اليوم لسه بيبدأ"
+msgstr "No orders yet"
+
+msgid "اليوم."
+msgstr "today."
+
+msgid "انتظر قليلًا قبل إرسال استدعاء جديد."
+msgstr "Please wait before making another service request."
+
+msgid "انتقال حالة الصنف غير مسموح. حدّث شاشة المطبخ وراجع حالة الطلب."
+msgstr "This item transition is unavailable. Refresh the kitchen display and check the ticket."
+
+msgid "انتهت جلسة هذه الطاولة أو توقف استقبال الطلبات. لإضافة طلب جديد، تواصل مع فريق المطعم أو امسح رمز QR الموجود على الطاولة."
+msgstr "This table session has ended or ordering is paused. For another order, contact the team or scan the table QR again."
+
+msgid "انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب."
+msgstr "This table session has ended. Scan the QR code again before ordering."
+
+msgid "انتهت جلسة هذه الطاولة. امسح رمز QR من جديد."
+msgstr "This table session has ended. Scan the QR code again."
+
+msgid "انتهت صلاحية الدعوة أو استُخدمت سابقًا."
+msgstr "This invitation has expired or was already used."
+
+msgid "انتهت صلاحية المعاينة. ارفع الملف مجددًا."
+msgstr "The preview has expired. Upload the file again."
+
+msgid "انتهت فترة الاشتراك أو التجربة"
+msgstr "Subscription or trial expired"
+
+msgid "انتهت فترة التجربة أو الاشتراك. إضافة الموظفين متوقفة مؤقتًا."
+msgstr "Renew the trial or subscription to add team members."
+
+msgid "انتهت فترة التجربة أو الاشتراك. البيانات متاحة للعرض، لكن الإضافة متوقفة."
+msgstr "The trial or subscription has expired. You can still view existing data."
+
+msgid "انتهت فترة التجربة أو الاشتراك. لا يمكن إضافة موارد جديدة."
+msgstr "Renew the trial or subscription to add resources."
+
+msgid "انتهت فترة التجربة أو الاشتراك. لا يمكن تفعيل موارد جديدة."
+msgstr "Renew the trial or subscription to activate resources."
+
+msgid "انضم إلى"
+msgstr "Join"
+
+msgid "انضممت إلى فريق المطعم بنجاح."
+msgstr "You have joined the team."
+
+msgid "بانتظار التحضير أو التقديم"
+msgstr "Awaiting preparation or service"
+
+msgid "بانتظار جاهزية جميع الأصناف في محطاتها"
+msgstr "Waiting for all stations to finish their items"
+
+msgid "بانتظار رد بعد الحد"
+msgstr "awaiting a response beyond the threshold"
+
+msgid "بحث"
+msgstr "Search"
+
+msgid "بدء التحضير"
+msgstr "Start preparing"
+
+msgid "بدء التحضير ←"
+msgstr "Start preparing"
+
+msgid "بدء الصنف"
+msgstr "Start item"
+
+msgid "بداية الفترة"
+msgstr "Period start"
+
+msgid "بريد المالك"
+msgstr "Owner email"
+
+msgid "بلا محطة"
+msgstr "Unassigned"
+
+msgid "بلغت حد الدعوات لهذه الساعة. حاول لاحقًا."
+msgstr "Hourly invitation limit reached. Try later."
+
+msgid "بلغت حد المعاينات المؤقتة. حاول لاحقًا."
+msgstr "Temporary preview limit reached. Try again later."
+
+msgid "بيانات التعديل غير صالحة."
+msgstr "Invalid order edit."
+
+msgid "بيانات الطلب غير صالحة."
+msgstr "Invalid order data."
+
+msgid "بيانات المطعم"
+msgstr "Venue details"
+
+msgid "بيانات المطعم وحالة استقبال الطلبات في"
+msgstr "Venue details and ordering availability for"
+
+msgid "بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام."
+msgstr "Data is retained. To add more active resources in an affected category, change the plan or reduce usage first."
+
+msgid "تأكد من ظهور طلبات الفرع على جهاز المطبخ."
+msgstr "Check this branch’s tickets on the kitchen device."
+
+msgid "تأكيد الإلغاء"
+msgstr "Confirm cancellation"
+
+msgid "تأكيد الاستلام"
+msgstr "Accept order"
+
+msgid "تأكيد البريد يساعدك في استعادة الحساب واستقبال دعوات الفريق بأمان."
+msgstr "Verify your email to recover your account and receive team invitations."
+
+msgid "تأكيد التصحيح"
+msgstr "Confirm correction"
+
+msgid "تأكيد تسجيل التحصيل اليدوي لهذا الطلب؟"
+msgstr "Record manual collection for this order?"
+
+msgid "تأكيد كلمة المرور"
+msgstr "Confirm password"
+
+msgid "تابع احتياجات الضيوف"
+msgstr "Follow up on guest requests"
+
+msgid "تابع الطلبات"
+msgstr "View orders"
+
+msgid "تابع الطلبات قيد التنفيذ"
+msgstr "Review active tickets"
+
+msgid "تابع الطلبات، المنيو، وفريقك من مكان واحد."
+msgstr "View orders, menu and team activity."
+
+msgid "تاريخ الانتهاء"
+msgstr "End date"
+
+msgid "تاريخ الانتهاء غير صالح."
+msgstr "Invalid expiry date."
+
+msgid "تاريخ التسجيل"
+msgstr "Recorded on"
+
+msgid "تجاوز الأصناف"
+msgstr "Excess items"
+
+msgid "تجاوز الطاولات"
+msgstr "Excess tables"
+
+msgid "تجاوز المحطات"
+msgstr "Excess stations"
+
+msgid "تجاوز حد الاستجابة وينتظر الاستلام"
+msgstr "Past threshold · awaiting acknowledgement"
+
+msgid "تجاوز حد التنبيه · راجع الطلب"
+msgstr "Past prep threshold · review ticket"
+
+msgid "تجديد الرمز"
+msgstr "Rotate QR code"
+
+msgid "تجربة"
+msgstr "Trial"
+
+msgid "تجربة افتراضية · 14 يومًا"
+msgstr "Default trial · 14 days"
+
+msgid "تحتاج متابعة من الفريق"
+msgstr "Awaiting follow-up"
+
+msgid "تحدثت حالة الاستدعاء."
+msgstr "Service call updated."
+
+msgid "تحدثت حالة الطلب."
+msgstr "Order status updated."
+
+msgid "تحدثت حالة تحضير الصنف."
+msgstr "Item prep status updated."
+
+msgid "تحصيل مسجل"
+msgstr "Payment recorded"
+
+msgid "تحضير الأصناف"
+msgstr "Item prep time"
+
+msgid "تحقق من البريد والدور."
+msgstr "Check the email and role."
+
+msgid "تحقق من الرابط، أو ارجع إلى الصفحة الرئيسية."
+msgstr "Check the link or return to the homepage."
+
+msgid "تحقق من بريدك"
+msgstr "Check your email"
+
+msgid "تحقق من بريدك الإلكتروني"
+msgstr "Check your email"
+
+msgid "تحقق من كلمة المرور وتأكيدها. يجب أن تستوفي شروط الأمان."
+msgstr "Check both passwords and make sure they meet the security requirements."
+
+msgid "تحويل بنكي"
+msgstr "Bank transfer"
+
+msgid "ترتيب الإضافة"
+msgstr "Modifier position"
+
+msgid "ترتيب الإضافة يجب أن يكون بين 0 و999."
+msgstr "Modifier order must be from 0 to 999."
+
+msgid "تستطيع إضافة أكثر من صنف واختيار الإضافات والكمية."
+msgstr "Add multiple items and choose modifiers and quantities."
+
+msgid "تسجيل التحصيل"
+msgstr "Record collection"
+
+msgid "تسجيل الخروج"
+msgstr "Sign out"
+
+msgid "تسجيل الدخول"
+msgstr "Sign in"
+
+msgid "تسجيل الدخول ←"
+msgstr "Sign in"
+
+msgid "تسجيل تحصيل اشتراك"
+msgstr "Record subscription payment"
+
+msgid "تصحيح الحالة السابقة"
+msgstr "Correct previous status"
+
+msgid "تصدير CSV ↓"
+msgstr "Export CSV"
+
+msgid "تصفح الأصناف وأضف اللي يعجبك للسلة."
+msgstr "Browse the menu and add items to your cart."
+
+msgid "تصله رسالة برابط صالح لمدة 7 أيام، ويُنشئ كلمة مروره بنفسه."
+msgstr "They receive a seven-day invitation link and choose their own password."
+
+msgid "تطبيق الفلاتر"
+msgstr "Apply filters"
+
+msgid "تعديل الاشتراك"
+msgstr "Edit subscription"
+
+msgid "تعديل الصنف أو إيقافه لا يغير تفاصيل الطلبات السابقة."
+msgstr "Changes to an item preserve historical order details."
+
+msgid "تعديل الصنف والإضافات"
+msgstr "Edit item and modifiers"
+
+msgid "تعديل الطلب"
+msgstr "Edit order"
+
+msgid "تعديل الطلب #"
+msgstr "Edit order #"
+
+msgid "تعديل طلب ·"
+msgstr "Edit order ·"
+
+msgid "تعذر إرسال البريد الآن. حاول لاحقًا."
+msgstr "Email could not be sent. Try again later."
+
+msgid "تعذر إرسال الدعوة. حاول مجددًا بعد فحص إعدادات البريد."
+msgstr "Could not send the invitation. Check email delivery settings and try again."
+
+msgid "تعذر إرسال رابط التفعيل الآن."
+msgstr "Unable to send the activation link at this time."
+
+msgid "تعذر إرسال رابط التفعيل. حاول لاحقًا."
+msgstr "Could not send the activation email. Try again later."
+
+msgid "تعذر إرسال رابط التفعيل. حاول مجددًا بعد فحص البريد."
+msgstr "Could not send the activation link. Check your email and try again."
+
+msgid "تعذر إنشاء الحساب بهذا البريد. حاول تسجيل الدخول أو إعادة المحاولة."
+msgstr "Could not create this account. Try signing in or try again."
+
+msgid "تعذر إنشاء المطعم بسبب تعارض في البيانات. حدّث الصفحة ثم حاول مرة أخرى."
+msgstr "A conflicting record prevented venue creation. Refresh the page and try again."
+
+msgid "تعذر اعتماد الملف"
+msgstr "Import failed"
+
+msgid "تعذر التحقق من الطلب. حدّث الصفحة وحاول مجددًا."
+msgstr "Refresh the page and try again to verify this order."
+
+msgid "تعذر ربط حساب المالك؛ حدّث الصفحة وراجع البريد وكلمة المرور."
+msgstr "Unable to link the owner. Refresh the page and check the email and password."
+
+msgid "تعذر قراءة الملف. استخدم CSV بترميز UTF-8."
+msgstr "Upload a readable UTF-8 CSV file."
+
+msgid "تعذر قراءة ملف Excel. استخدم ملف XLSX صالحًا."
+msgstr "Upload a valid XLSX workbook."
+
+msgid "تعذّر إكمال الطلب"
+msgstr "Request interrupted"
+
+msgid "تعذّر إكمال طلبك الآن"
+msgstr "We couldn’t complete your request"
+
+msgid "تعرض الأرقام أدناه جميع الفترات لأن نطاق التاريخ لم يُطبّق."
+msgstr "Showing all periods because the date range could not be applied."
+
+msgid "تعطيل"
+msgstr "Deactivate"
+
+msgid "تعطيل العضو يوقف عملياته الجديدة دون حذف سجلاته."
+msgstr "Deactivating a member prevents new actions and preserves their history."
+
+msgid "تعليق المطعم"
+msgstr "Suspend venue"
+
+msgid "تغير الطلب منذ فتح الصفحة. حدّث الصفحة وراجع التعديل مجددًا."
+msgstr "This order has changed. Refresh and review your changes."
+
+msgid "تغيرت بيانات المنيو أثناء الاستيراد. راجع الملف وحاول مجددًا."
+msgstr "Menu data changed during import. Review the file and try again."
+
+msgid "تغيرت حالة الطلب منذ فتح الصفحة. حدّث القائمة وراجع الطلب."
+msgstr "The order status has changed. Refresh the list and review the ticket."
+
+msgid "تغيير الباقة الحالي يتم يدويًا بواسطة مشغل المنصة ويسري فور حفظه؛ لا توجد جدولة تلقائية لنهاية دورة الاشتراك."
+msgstr "The platform operator changes the plan manually. The change takes effect immediately upon saving."
+
+msgid "تغيير الفرع"
+msgstr "Change branch"
+
+msgid "تغيير المطعم"
+msgstr "Switch venue"
+
+msgid "تغيّر إجمالي الطلب. حدّث المنيو وراجع الأسعار قبل الإرسال."
+msgstr "Prices changed. Refresh the menu and review the current prices before placing this order."
+
+msgid "تفاصيل التعديل غير صالحة."
+msgstr "Invalid changes."
+
+msgid "تفاصيل العنصر الموجود غير صالحة."
+msgstr "Invalid existing item details."
+
+msgid "تفعيل"
+msgstr "Enable"
+
+msgid "تفعيل البريد الإلكتروني"
+msgstr "Verify email"
+
+msgid "تفعيل الطاولة"
+msgstr "Activate table"
+
+msgid "تفعيل الفرع"
+msgstr "Activate branch"
+
+msgid "تفعيل بريد مالك المطعم في Serveza"
+msgstr "Verify your Serveza owner email"
+
+msgid "تم إنشاء الطلب #{number}."
+msgstr "Order #{number} created."
+
+msgid "تم إنشاء المطعم وفرعه الأول وربط حساب المالك بالتجربة."
+msgstr "Created the venue, first branch and owner trial."
+
+msgid "تم إنشاء حساب الموظف."
+msgstr "Team account created."
+
+msgid "تم استلام طلبك."
+msgstr "Request received"
+
+msgid "تم استيراد {count} صنف."
+msgstr "Imported {count} items."
+
+msgid "تم الاستلام"
+msgstr "Accepted"
+
+msgid "تم التقديم"
+msgstr "Served"
+
+msgid "تم التقديم ✓"
+msgstr "Mark served"
+
+msgid "تم التنفيذ ✓"
+msgstr "Complete"
+
+msgid "تم بنجاح"
+msgstr "Success"
+
+msgid "تم تحديث الدور."
+msgstr "Role updated."
+
+msgid "تم تحديث حالة العضو."
+msgstr "Team member status updated."
+
+msgid "تم تحديث فرع العضو."
+msgstr "Team member branch updated."
+
+msgid "تم تسجيل التحصيل اليدوي. هذه ليست عملية دفع إلكتروني."
+msgstr "Manual collection recorded."
+
+msgid "تم تسجيل تحصيل هذا الطلب بالفعل."
+msgstr "Payment has already been recorded for this order."
+
+msgid "تم تسجيل طلبك بنجاح"
+msgstr "Order received"
+
+msgid "تم تغيير كلمة المرور"
+msgstr "Password changed"
+
+msgid "تم تفعيل بريدك الإلكتروني."
+msgstr "Email verified."
+
+msgid "تم حفظ الإعدادات."
+msgstr "Settings saved."
+
+msgid "تم حفظ التغيير بنجاح."
+msgstr "Change saved."
+
+msgid "تم حفظ التغيير وتسجيل السبب."
+msgstr "Change saved and reason recorded."
+
+msgid "تم حفظ الفرع."
+msgstr "Branch saved."
+
+msgid "تنتهي"
+msgstr "Expires"
+
+msgid "تنتهي في"
+msgstr "Expires"
+
+msgid "تنزيل QR ↓"
+msgstr "Download QR"
+
+msgid "تنزيل قالب CSV جاهز ↓"
+msgstr "Download CSV template"
+
+msgid "تنظيم الصالة"
+msgstr "Floor management"
+
+msgid "توجد بيانات غير صالحة في السلة."
+msgstr "Check the items in your cart."
+
+msgid "توجد دعوة نشطة لهذا البريد بالفعل."
+msgstr "An active invitation already exists for this email."
+
+msgid "تُراجع الشاشة الطلبات مع الخادم كل 10 ثوانٍ. علامة التأخير مؤشر للمراجعة وليس حكمًا على سبب التأخير."
+msgstr "Tickets refresh every 10 seconds. A delay flag indicates a ticket needs review."
+
+msgid "تُراجع كل الصفوف أولًا، ثم تُضاف دفعة واحدة."
+msgstr "Review all rows, then import them together."
+
+msgid "تُلغى تلقائيًا بعد 7 أيام أو عند قبولها."
+msgstr "Invitations expire after seven days or when accepted."
+
+msgid "ج.م"
+msgstr "EGP"
+
+msgid "ج.م ←"
+msgstr "EGP"
+
+msgid "جاهز"
+msgstr "Ready"
+
+msgid "جاهز للتقديم"
+msgstr "Ready to serve"
+
+msgid "جاهز — بانتظار فريق الصالة"
+msgstr "Ready · awaiting floor team"
+
+msgid "جاهز ←"
+msgstr "Ready"
+
+msgid "جاهزية الطلب"
+msgstr "Time to ready"
+
+msgid "جديد"
+msgstr "New"
+
+msgid "جرّب البحث باسم آخر أو أضف مطعمًا جديدًا."
+msgstr "Search another name or create a venue."
+
+msgid "جميع الطلبات المسجلة"
+msgstr "All recorded orders"
+
+msgid "جميع المطاعم"
+msgstr "All venues"
+
+msgid "جهّز"
+msgstr "Set up"
+
+msgid "جهّز الطاولات"
+msgstr "Set up tables"
+
+msgid "جهّز طاولة نشطة"
+msgstr "Activate a table"
+
+msgid "جهّز قائمة الطعام"
+msgstr "Prepare your menu"
+
+msgid "حالة الاشتراك"
+msgstr "Subscription status"
+
+msgid "حالة الاشتراك غير صالحة."
+msgstr "Invalid subscription status."
+
+msgid "حاول مرة أخرى بعد قليل. إذا كنت قد أرسلت طلبًا للطاولة، تواصل مع فريق المطعم للتأكد من حالته."
+msgstr "Try again shortly. If you placed a table order, ask the team to check its status before retrying."
+
+msgid "حجم الصنف غير صالح."
+msgstr "Invalid item size."
+
+msgid "حجم الصنف لم يعد متاحًا. حدّث المنيو."
+msgstr "This size is no longer available. Refresh the menu."
+
+msgid "حد استجابة استدعاء الويتر بالدقائق"
+msgstr "Waiter response threshold (minutes)"
+
+msgid "حد استجابة طلب الحساب بالدقائق"
+msgstr "Bill response threshold (minutes)"
+
+msgid "حد تنبيه تأخر طلب المطبخ بالدقائق"
+msgstr "Kitchen delay threshold (minutes)"
+
+msgid "حدود اختيار الإضافات غير صالحة."
+msgstr "Invalid selection limits."
+
+msgid "حدّث صفحة الطاولة قبل إرسال الاستدعاء."
+msgstr "Refresh the table menu before sending a request."
+
+msgid "حدّد أقل وأكبر عدد اختيارات داخل المجموعة."
+msgstr "Set the minimum and maximum selections per group."
+
+msgid "حذف"
+msgstr "Remove"
+
+msgid "حذف الإضافة من المنيو؟ الطلبات السابقة ستبقى محفوظة."
+msgstr "Remove this modifier from the menu? Previous orders will keep their details."
+
+msgid "حساب المالك"
+msgstr "Owner account"
+
+msgid "حسب الحالة"
+msgstr "By status"
+
+msgid "حسب المصدر"
+msgstr "By source"
+
+msgid "حفظ"
+msgstr "Save"
+
+msgid "حفظ الإضافة"
+msgstr "Save modifier"
+
+msgid "حفظ الإعدادات"
+msgstr "Save settings"
+
+msgid "حفظ الاشتراك"
+msgstr "Save subscription"
+
+msgid "حفظ التعديلات"
+msgstr "Save changes"
+
+msgid "حفظ الدور"
+msgstr "Save role"
+
+msgid "حفظ المجموعة"
+msgstr "Save group"
+
+msgid "حفظ المحطة"
+msgstr "Save station"
+
+msgid "حفظ كلمة المرور"
+msgstr "Save password"
+
+msgid "حمّل رمز QR وضعه على الطاولة."
+msgstr "Download its QR code and place it on the table."
+
+msgid "خدمة أفضل تبدأ من ترتيب التفاصيل."
+msgstr "Today’s service"
+
+msgid "خطوات سريعة"
+msgstr "Quick actions"
+
+msgid "خطوة تأكيد الحساب"
+msgstr "Account verification"
+
+msgid "خطوة واحدة قبل البداية."
+msgstr "One more step"
+
+msgid "خليها تبدأ صح."
+msgstr "Follow it through service."
+
+msgid ""
+"دعاك {venue} للانضمام إلى فريق {branch}.\n"
+"افتح الرابط خلال 7 أيام: {link}"
+msgstr ""
+"{venue} invited you to join the team at {branch}.\n"
+"Accept your invitation within 7 days:\n"
+"{link}"
+
+msgid "دعوات قيد الانتظار"
+msgstr "Pending invitations"
+
+msgid "دعوة فريق العمل"
+msgstr "Team invitation"
+
+msgid "دعوة للانضمام إلى Serveza"
+msgstr "Invitation to join a Serveza team"
+
+msgid "دفعة الاستيراد لا تخص هذا الحساب."
+msgstr "This import batch belongs to a different account."
+
+msgid "دور"
+msgstr "Role"
+
+msgid "رؤية أوضح ·"
+msgstr "Branch insights ·"
+
+msgid "رابط التفعيل غير صالح"
+msgstr "Invalid verification link"
+
+msgid "رابط الدعوة غير صالح."
+msgstr "Invalid invitation."
+
+msgid "رابط الدعوة غير متاح"
+msgstr "Invitation unavailable"
+
+msgid "رابط تفعيل بريد مالك المطعم في Serveza"
+msgstr "Your new Serveza verification link"
+
+msgid "راجع التعديل"
+msgstr "Review changes"
+
+msgid "راجع الطلب"
+msgstr "Review order"
+
+msgid "راجع الطلبات الجارية"
+msgstr "Review open orders"
+
+msgid "رحلة الطلب من الاستلام إلى التقديم"
+msgstr "From acceptance to service"
+
+msgid "رقم التواصل"
+msgstr "Contact number"
+
+msgid "رقم السجل"
+msgstr "Record"
+
+msgid "رقم الطلب"
+msgstr "Order number"
+
+msgid "رمز خاص لكل طاولة يفتح منيو ضيوفك مباشرة."
+msgstr "Each table has its own QR link to the guest menu."
+
+msgid "ساعات العمل"
+msgstr "Opening hours"
+
+msgid "سبب"
+msgstr "Reason"
+
+msgid "سبب الإلغاء"
+msgstr "Cancellation reason"
+
+msgid "سبب التصحيح"
+msgstr "Correction reason"
+
+msgid "سبب التعديل"
+msgstr "Reason for change"
+
+msgid "سبب التغيير"
+msgstr "Reason for change"
+
+msgid "سبب تصحيح حالة الطلب"
+msgstr "Reason for correcting the order status"
+
+msgid "سبب تغيير حالة"
+msgstr "Reason for changing status of"
+
+msgid "ستظهر هذه المعلومات للمالك في مساحة عمله."
+msgstr "These details appear in the owner workspace."
+
+msgid "سجل التعديلات"
+msgstr "Revision history"
+
+msgid "سجل الطلبات"
+msgstr "Order history"
+
+msgid "سجل تحصيل الاشتراك"
+msgstr "Subscription payment history"
+
+msgid "سجّل الخروج لإنشاء حساب البريد المدعو."
+msgstr "Sign out to create an account using the invited email."
+
+msgid "سجّل الدخول بالبريد المدعو لقبول الدعوة."
+msgstr "Sign in with the invited email address."
+
+msgid "سجّل دخولك"
+msgstr "Sign in"
+
+msgid "سعداء برجوعك."
+msgstr "Sign in to your workspace"
+
+msgid "سعر الإضافة"
+msgstr "Modifier price"
+
+msgid "سعر الحجم"
+msgstr "Size price"
+
+msgid "سمِّها برقم أو اسم واضح لفريق العمل."
+msgstr "Choose a number or a name your team recognizes."
+
+msgid "سيصبح رمز QR القديم غير صالح. هل تريد المتابعة؟"
+msgstr "Rotate the QR code? The old code will stop working."
+
+msgid "سُجل التحصيل اليدوي. صلاحية الاشتراك لا تتغير تلقائيًا."
+msgstr "Manual payment recorded. Subscription expiry stays the same."
+
+msgid "سُجل يدويًا، دون بوابة دفع"
+msgstr "Recorded manually"
+
+msgid "شاشة المطبخ"
+msgstr "Kitchen display"
+
+msgid "صباح الخير،"
+msgstr "Welcome,"
+
+msgid "صفحات الطلبات"
+msgstr "Order pages"
+
+msgid "صفحات المطاعم"
+msgstr "Venue pages"
+
+msgid "صفحة"
+msgstr "Page"
+
+msgid "صنف"
+msgstr "items"
+
+msgid "صنف / طاولة في الفرع"
+msgstr "Items / tables at this branch"
+
+msgid "صنف جارٍ بلا محطة تحضير"
+msgstr "active items without a station"
+
+msgid "صنف. الحد الأقصى 200 سطر و1 ميجابايت."
+msgstr "items. Maximum 200 rows and 1 MB."
+
+msgid "صورة جديدة (اختياري)"
+msgstr "New image (optional)"
+
+msgid "صيغة الصورة أو أبعادها غير مدعومة."
+msgstr "Unsupported image format or dimensions."
+
+msgid "صُححت حالة الطلب وسُجل السبب."
+msgstr "Order status corrected and reason recorded."
+
+msgid "طاولات هذا الفرع"
+msgstr "Tables at this branch"
+
+msgid "طاولة"
+msgstr "tables"
+
+msgid "طريقة التحصيل"
+msgstr "Collection method"
+
+msgid "طلب"
+msgstr "orders"
+
+msgid "طلب #"
+msgstr "Order #"
+
+msgid "طلب إضافي جديد"
+msgstr "New additional order"
+
+msgid "طلب إضافي للطاولة"
+msgstr "Additional table order"
+
+msgid "طلب الحساب"
+msgstr "Bill request"
+
+msgid "طلب تقليدي من الفريق"
+msgstr "Staff order"
+
+msgid "طلب تم تسجيله اليوم"
+msgstr "Orders recorded today"
+
+msgid "طلب جارٍ"
+msgstr "active tickets"
+
+msgid "طلب جديد"
+msgstr "New order"
+
+msgid "طلب رابط جديد"
+msgstr "Request new link"
+
+msgid "طلب رقم"
+msgstr "Order"
+
+msgid "طلب ظاهر"
+msgstr "tickets shown"
+
+msgid "طلب من فريق العمل"
+msgstr "Staff order"
+
+msgid "طلبات"
+msgstr "Orders for"
+
+msgid "طلبات الخدمة"
+msgstr "Service calls"
+
+msgid "طلبات الضيوف ستظهر هنا عندما يحتاجون مساعدة."
+msgstr "Guest requests will appear here."
+
+msgid "طلبات الطاولة"
+msgstr "Orders by table"
+
+msgid "طلبات اليوم"
+msgstr "Today’s orders"
+
+msgid "طلبات جارية"
+msgstr "Active orders"
+
+msgid "طلبات خدمة"
+msgstr "Service calls"
+
+msgid "طلبك السابق ما زال قيد التنفيذ."
+msgstr "Your previous request is still in progress."
+
+msgid "طلبك وصلنا!"
+msgstr "We’ve received your order"
+
+msgid "ظاهر"
+msgstr "Visible"
+
+msgid "عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى."
+msgstr "Too many orders at this table. Try again in one minute."
+
+msgid "عدد الوحدات في الطلبات غير الملغاة، اعتمادًا على اسم الصنف وقت الطلب."
+msgstr "Units in non-cancelled orders, using item names at the time of sale."
+
+msgid "عرض الطلبات"
+msgstr "Show orders"
+
+msgid "عرض الكل ←"
+msgstr "View all"
+
+msgid "عرض المعاينة"
+msgstr "Preview limits"
+
+msgid "عرّف الضيف بمطعمك في صفحة المنيو."
+msgstr "Introduce your venue on the guest menu."
+
+msgid "عضو"
+msgstr "members"
+
+msgid "عضو فريق."
+msgstr "team members."
+
+msgid "علامة التأخير مؤشر للمراجعة، ولا تعني أن الموظف تجاهل الاستدعاء. تُحسب من وقت الخادم حتى وقت الاستلام."
+msgstr "The threshold measures time from the guest request to acknowledgement. Check the details before following up."
+
+msgid "على"
+msgstr "at"
+
+msgid "عناصر في الطلب"
+msgstr "order items"
+
+msgid "عندما يرسل الضيف طلبًا سيظهر هنا وفي شاشة المطبخ."
+msgstr "Guest orders appear here and in the kitchen."
+
+msgid "عنصر غير صالح أو كمية غير مسموحة."
+msgstr "Invalid item or quantity."
+
+msgid "عنوان الفرع"
+msgstr "Branch address"
+
+msgid "عينة · من إنشاء الاستدعاء حتى الإقرار"
+msgstr "samples · call to acknowledgement"
+
+msgid "عينة · من إنشاء الطلب حتى أصبح جاهزًا"
+msgstr "samples · creation to ready"
+
+msgid "عينة · من إنشاء الطلب حتى إقرار الاستلام"
+msgstr "samples · creation to acceptance"
+
+msgid "عينة · من بدء الصنف حتى جاهزيته، من انتقالات الحالة المسجلة"
+msgstr "samples · recorded prep start to ready"
+
+msgid "عيّن كلمة مرور جديدة."
+msgstr "Set a new password"
+
+msgid "عيّن موظفًا للمطبخ"
+msgstr "Assign a kitchen team member"
+
+msgid "غير مدفوع"
+msgstr "Unpaid"
+
+msgid "غير معيّن"
+msgstr "Unassigned"
+
+msgid "غيّر الفلاتر لعرض طلبات أخرى."
+msgstr "Change the filters to view other tickets."
+
+msgid "غيّر حالة تحضير كل صنف بعد بدء تحضير الطلب. تُعلن جاهزية الطلب كله من شاشة كل المحطات."
+msgstr "Update individual items after preparation begins. Mark the whole ticket ready from All stations."
+
+msgid "فتح القائمة"
+msgstr "Open menu"
+
+msgid "فرع"
+msgstr "branches"
+
+msgid "فرع ·"
+msgstr "branches ·"
+
+msgid "فرع الدعوة"
+msgstr "Invitation branch"
+
+msgid "فرع و"
+msgstr "branches and"
+
+msgid "فريق الصالة"
+msgstr "Floor team"
+
+msgid "فريق العمل"
+msgstr "Team"
+
+msgid "فريقنا موجود عشان يخدمك."
+msgstr "The floor team can help."
+
+msgid ""
+"فعّل بريدك خلال 24 ساعة من الرابط التالي:\n"
+"{link}"
+msgstr ""
+"Verify your owner email within 24 hours using this new link:\n"
+"{link}"
+
+msgid "في أول ورقة Excel أو ملف CSV. الوصف اختياري، والسعر بالجنيه المصري بدقتين عشريتين. صيغ Excel غير مقبولة. الاستيراد ينشئ التصنيفات الناقصة داخل هذا الفرع."
+msgstr "in the first Excel sheet or CSV. Description is optional. Use EGP with up to two decimal places. Formulas are unsupported. Missing categories are created in this branch."
+
+msgid "قائمة الطعام"
+msgstr "Menu"
+
+msgid "قبل الاعتماد"
+msgstr "Before importing"
+
+msgid "قبل بدء التحضير فقط"
+msgstr "Before preparation only"
+
+msgid "قبول الدعوة ←"
+msgstr "Accept invitation"
+
+msgid "قبول دعوة الفريق"
+msgstr "Accept team invitation"
+
+msgid "قد يكون الرابط منتهيًا أو استُخدم من قبل. اطلب رابطًا جديدًا أدناه."
+msgstr "This link may have expired or already been used. Request another below."
+
+msgid "قد يكون انتهت صلاحيته أو استُخدم أو أُلغي. اطلب دعوة جديدة من مدير المطعم."
+msgstr "This invitation has expired, was used, or was withdrawn. Ask your manager for a new one."
+
+msgid "قلل الحد الأدنى للمجموعة قبل حذف هذا الخيار."
+msgstr "Lower the group minimum before deleting this option."
+
+msgid "قيد التحضير"
+msgstr "Preparing"
+
+msgid "قيد التنفيذ"
+msgstr "In progress"
+
+msgid "قيمة الطلبات"
+msgstr "Order value"
+
+msgid "كاشير"
+msgstr "Cashier"
+
+msgid "كل الأصناف"
+msgstr "All items"
+
+msgid "كل التفاصيل قدامك لحظة بلحظة"
+msgstr "The details of every order in one place"
+
+msgid "كل الحالات"
+msgstr "All statuses"
+
+msgid "كل الطاولات"
+msgstr "All tables"
+
+msgid "كل الفترات والمحطات"
+msgstr "All periods and stations"
+
+msgid "كل الفروع"
+msgstr "All branches"
+
+msgid "كل المحطات"
+msgstr "All stations"
+
+msgid "كل شيء جاهز لبدء الخدمة؟"
+msgstr "Ready to open?"
+
+msgid "كل طلب له حكاية."
+msgstr "Every order starts at the table."
+
+msgid "كل مسح للرمز يفتح المنيو على هذه الطاولة."
+msgstr "Each scan opens the menu for this table."
+
+msgid "كلمة المرور"
+msgstr "Password"
+
+msgid "كلمة المرور اتغيّرت."
+msgstr "Your password has been updated"
+
+msgid "كلمة المرور الجديدة"
+msgstr "New password"
+
+msgid "كلمة مرور المالك الجديد"
+msgstr "New owner password"
+
+msgid "كلمة مرور جديدة"
+msgstr "New password"
+
+msgid "كلمة مرور مؤقتة"
+msgstr "Temporary password"
+
+msgid "كمية أو خيارات غير صالحة."
+msgstr "Invalid quantity or options."
+
+msgid "لا تمثل إيرادًا محصلًا"
+msgstr "Orders before collection"
+
+msgid "لا توجد أصناف في هذا التصنيف بعد."
+msgstr "This category has no items yet."
+
+msgid "لا توجد استدعاءات"
+msgstr "No service calls"
+
+msgid "لا توجد بيانات"
+msgstr "No data"
+
+msgid "لا توجد بيانات بعد."
+msgstr "No data yet."
+
+msgid "لا توجد طاولات بعد"
+msgstr "No tables yet"
+
+msgid "لا توجد طلبات بعد"
+msgstr "No orders yet"
+
+msgid "لا توجد طلبات مطابقة"
+msgstr "No matching tickets"
+
+msgid "لا توجد فروع لهذا المطعم."
+msgstr "No branches for this venue."
+
+msgid "لا توجد محطة مضافة بعد."
+msgstr "No stations yet."
+
+msgid "لا توجد مطاعم مطابقة"
+msgstr "No matching venues"
+
+msgid "لا يمكن إيقاف هذا الخيار قبل تقليل الحد الأدنى للمجموعة."
+msgstr "Lower the group minimum before disabling this option."
+
+msgid "لا يمكن اختيار الإضافة نفسها مرتين."
+msgstr "Each modifier can only be selected once."
+
+msgid "لا يمكن التفعيل: حد {label} في باقتك هو {limit}."
+msgstr "Cannot activate this resource. The limit for {label} is {limit}."
+
+msgid "لا يمكن تسجيل تحصيل لطلب ملغي."
+msgstr "Cancelled orders cannot be collected."
+
+msgid "لا يمكن ربط هذا الحساب كمالك. استخدم حسابًا نشطًا عاديًا."
+msgstr "Select an active standard account for this owner."
+
+msgid "لا يوجد اشتراك لهذا المطعم."
+msgstr "This venue has no subscription."
+
+msgid "لا يوجد تحصيل اشتراك مسجل حتى الآن."
+msgstr "No subscription payments recorded."
+
+msgid "لا يوجد فرع مسموح"
+msgstr "No branch assigned"
+
+msgid "لديك حساب بالفعل؟"
+msgstr "Already have an account?"
+
+msgid "لكل فرع منيو وطاولات وطلبات مستقلة داخل مطعمك."
+msgstr "Each branch has its own menu, tables and orders."
+
+msgid "للبريد الجديد، أدخل الاسم وكلمة مرور مؤقتة وشاركها مع المالك بطريقة آمنة. للحساب الموجود، اترك كلمة المرور فارغة."
+msgstr "For a new email, enter a name and temporary password and share it securely with the owner. For an existing account, leave the password empty."
+
+msgid "لم تعد صلاحية الداعي كافية لإكمال هذه الدعوة."
+msgstr "The inviter no longer has permission to complete this invitation."
+
+msgid "لم نجد هذه الصفحة"
+msgstr "We couldn’t find that page"
+
+msgid "لم يبدأ"
+msgstr "Pending"
+
+msgid "لم يُحدد عنوان بعد"
+msgstr "No address entered"
+
+msgid "لوحة التحكم"
+msgstr "Dashboard"
+
+msgid "لوحة المشغل"
+msgstr "Operator workspace"
+
+msgid "ليس لديك حساب؟"
+msgstr "New to Serveza?"
+
+msgid "مالك"
+msgstr "Owner"
+
+msgid "متابعة مباشرة لطلبات مطعمك"
+msgstr "Latest activity at your venue"
+
+msgid "متاح"
+msgstr "Available"
+
+msgid "متصل · الطلبات محدثة"
+msgstr "Connected · tickets up to date"
+
+msgid "متوسطات الطلبات التي أُنشئت ضمن الفترة المختارة، والاستدعاءات التي أُنشئت فيها. الحالات غير المكتملة مستبعدة. فلتر المحطة يطبق على زمن تحضير الأصناف فقط."
+msgstr "Averages use orders and calls opened in the selected period. Incomplete stages are excluded. The station filter applies only to item prep time."
+
+msgid "متوقف"
+msgstr "Inactive"
+
+msgid "متوقفة"
+msgstr "Inactive"
+
+msgid "مثال: المشروبات"
+msgstr "For example, Drinks"
+
+msgid "مثال: برجر البيت"
+msgstr "For example, House burger"
+
+msgid "مثال: بيت المذاق"
+msgstr "For example, Garden Café"
+
+msgid "مثال: طاولة 01"
+msgstr "For example, Table 01"
+
+msgid "مثل المقبلات أو الأطباق الرئيسية"
+msgstr "For example, starters or mains"
+
+msgid "محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى."
+msgstr "Too many attempts. Try again in 15 minutes."
+
+msgid "محتاج مساعدة؟"
+msgstr "Need a hand?"
+
+msgid "محطات المطبخ"
+msgstr "Kitchen stations"
+
+msgid "محطات هذا الفرع"
+msgstr "Stations at this branch"
+
+msgid "محطة التحضير"
+msgstr "Prep station"
+
+msgid "مخفي"
+msgstr "Hidden"
+
+msgid "مدفوع"
+msgstr "Paid"
+
+msgid "مدير"
+msgstr "Manager"
+
+msgid "مرجع التحصيل"
+msgstr "Payment reference"
+
+msgid "مرجع التحصيل مسجل بالفعل لهذا المطعم."
+msgstr "This payment reference already exists for this venue."
+
+msgid ""
+"مرحبًا {name}،\n"
+"فعّل بريدك خلال 24 ساعة من الرابط التالي:\n"
+"{link}"
+msgstr ""
+"Hello {name},\n"
+"Verify your owner email within 24 hours using this link:\n"
+"{link}"
+
+msgid "مرحبًا بعودتك"
+msgstr "Welcome back"
+
+msgid "مساحة العمل"
+msgstr "Workspace"
+
+msgid "مساحة مطعمك"
+msgstr "Your workspace"
+
+msgid "مطاعم نشطة"
+msgstr "Active venues"
+
+msgid "مطاعمي"
+msgstr "My venues"
+
+msgid "مطبخ"
+msgstr "Kitchen"
+
+msgid "معاينة"
+msgstr "Preview"
+
+msgid "معاينة الاستيراد غير صالحة."
+msgstr "Invalid import preview."
+
+msgid "معاينة حدود باقة أخرى"
+msgstr "Preview another plan"
+
+msgid "معاينة منيو الضيف ↗"
+msgstr "Preview guest menu"
+
+msgid "معاينة ↗"
+msgstr "Preview"
+
+msgid "معطل"
+msgstr "Inactive"
+
+msgid "معلق"
+msgstr "Suspended"
+
+msgid "معلومات الفرع"
+msgstr "Branch information"
+
+msgid "مفتاح التعديل غير صالح."
+msgstr "Invalid edit key."
+
+msgid "مفتاح التعديل مستخدم لتغيير مختلف."
+msgstr "This edit key was used for a different change."
+
+msgid "مفتاح الطلب مستخدم بالفعل لطلب آخر."
+msgstr "Another order used this request key."
+
+msgid "مكتمل"
+msgstr "Complete"
+
+msgid "مكونات الصنف وطعمه المميز"
+msgstr "Ingredients and description"
+
+msgid "ملاحظة:"
+msgstr "Note"
+
+msgid "ملغي"
+msgstr "Cancelled"
+
+msgid "ملف CSV بترميز UTF-8 أو Excel XLSX"
+msgstr "UTF-8 CSV or Excel XLSX file"
+
+msgid "ملف الصورة غير صالح."
+msgstr "Invalid image file."
+
+msgid "من"
+msgstr "of"
+
+msgid "من الموظف"
+msgstr "Staff"
+
+msgid "من تاريخ"
+msgstr "Start date"
+
+msgid "من رمز QR"
+msgstr "Table QR"
+
+msgid "من لحظة وصولها حتى تقديمها."
+msgstr "from arrival to service."
+
+msgid "منتهي"
+msgstr "Expired"
+
+msgid "منذ"
+msgstr "Elapsed"
+
+msgid "منذ بداية التشغيل"
+msgstr "since opening"
+
+msgid "منيو"
+msgstr "Menu"
+
+msgid "موظف"
+msgstr "Staff"
+
+msgid "نادِ الويتر"
+msgstr "Call waiter"
+
+msgid "نسخة"
+msgstr "Revision"
+
+msgid "نسيت كلمة المرور؟"
+msgstr "Forgot your password?"
+
+msgid "نشط"
+msgstr "Active"
+
+msgid "نشطة"
+msgstr "Active"
+
+msgid "نطاق التاريخ يجب أن يكون مرتبًا وألا يتجاوز 366 يومًا."
+msgstr "Select a date range of up to 366 days, with the start on or before the end."
+
+msgid "نظرة عامة"
+msgstr "Overview"
+
+msgid "نظّم أصناف"
+msgstr "Organize items for"
+
+msgid "نظّم التصنيفات والأسعار"
+msgstr "Organize categories and prices"
+
+msgid "نظّم المنيو، تابع الطلبات، وخلّي فريقك دايمًا خطوة قدّام."
+msgstr "Manage your menu, follow orders and keep the team in sync."
+
+msgid "نقدًا"
+msgstr "Cash"
+
+msgid "نهاية الفترة"
+msgstr "Period end"
+
+msgid "نهاية الفترة يجب ألا تسبق بدايتها."
+msgstr "The end of the period must be on or after its start."
+
+msgid "نوع الاستدعاء غير صالح."
+msgstr "Invalid service request type."
+
+msgid "هذا البريد عضو في المطعم بالفعل."
+msgstr "This email already belongs to a venue team member."
+
+msgid "هذا البريد مستخدم بالفعل. إذا لم يصلك رابط التفعيل، اطلب إعادة إرساله."
+msgstr "This email is already registered. Request another verification link if needed."
+
+msgid "هذا الحساب عضو في المطعم بالفعل."
+msgstr "This account already belongs to the venue."
+
+msgid "هذا الحساب موجود بالفعل؛ اترك كلمة المرور فارغة."
+msgstr "This account already exists. Leave its password blank."
+
+msgid "هذا الطلب غير قابل للتعديل الآن"
+msgstr "This order can no longer be edited"
+
+msgid "هذا الفرع لا يقبل استيرادًا حاليًا."
+msgstr "Imports are paused for this branch."
+
+msgid "هذه الباقة لا تسمح بإنشاء الفرع الأول."
+msgstr "This plan cannot accommodate the first branch."
+
+msgid "هذه الخطوات تُحسب من بيانات الفرع الحالية."
+msgstr "Progress reflects the current settings for this branch."
+
+msgid "هذه الدفعة اعتُمدت سابقًا."
+msgstr "This batch was already imported."
+
+msgid "هذه الصفحة غير متاحة لحسابك"
+msgstr "This page is unavailable for your account"
+
+msgid "هذه معاينة للموارد الكلية، بما فيها المعطلة. لا تحذف الباقة الأصناف أو الطاولات أو السجلات السابقة. إذا تجاوزت الموارد النشطة الحد، قد يلزم تعطيل بعضها قبل تفعيل موارد جديدة."
+msgstr "The preview includes inactive resources. Changing plans keeps historical data. You may need to deactivate resources before activating new ones."
+
+msgid "والباقي علينا."
+msgstr "Order from your table."
+
+msgid "وتنتهي في"
+msgstr "· Expires"
+
+msgid "وسيلة أخرى"
+msgstr "Other method"
+
+msgid "وصف المطعم"
+msgstr "Venue description"
+
+msgid "وصف قصير"
+msgstr "Short description"
+
+msgid "وصف يظهر في المنيو"
+msgstr "Guest menu description"
+
+msgid "وصل طلبك لفريق الخدمة."
+msgstr "The floor team received your request."
+
+msgid "وصلت إلى حد {label} في باقتك ({limit})."
+msgstr "You have reached the plan limit for {label} ({limit})."
+
+msgid "وصلت إلى حد محطات المطبخ في باقتك."
+msgstr "You have reached the station limit on this plan."
+
+msgid "وقدّم لضيوفك منيو واضحًا ومحدّثًا."
+msgstr "and keep the guest menu up to date."
+
+msgid "ويتر"
+msgstr "Waiter"
+
+msgid "يبدأ الاشتراك كتجربة لمدة 14 يومًا. لإضافة أكثر من فرع اختر باقة بحد مناسب، أو"
+msgstr "The trial lasts 14 days. Choose a plan with the required branch allowance, or"
+
+msgid "يتجاوز العدد الكلي حد الباقة:"
+msgstr "Above plan allowance by"
+
+msgid "يجب أن يحتوي الطلب على صنف واحد على الأقل."
+msgstr "An order requires at least one item."
+
+msgid "يظهر اسم المطعم والوصف للضيف. لا تظهر بيانات الاتصال والعنوان وساعات العمل إلا عند تفعيل خيار النشر أعلاه."
+msgstr "Guests see your venue name and description. Show address, contact and opening hours by enabling the option above."
+
+msgid "يظهر في شاشة كل المحطات وقائمة «بلا محطة». عيّن محطة للصنف من إدارة المنيو للطلبات القادمة؛ التذاكر الحالية تحتفظ بتوجيهها الأصلي."
+msgstr "These items appear under all stations and Unassigned. Set a station in the menu for future orders. Existing tickets keep their original routing."
+
+msgid "يمكن إضافة فروع أخرى من لوحة المنصة ضمن حد الباقة."
+msgstr "Add other branches within the plan allowance from the platform workspace."
+
+msgid "يمكن تصحيح آخر خطوة لطلب جارٍ وغير مدفوع فقط."
+msgstr "Only the last stage of an active unpaid order can be corrected."
+
+msgid "يمكن تعديل طلب جديد أو مستلم وغير مدفوع فقط. أنشئ طلبًا إضافيًا عند بدء التحضير."
+msgstr "Only new or accepted unpaid orders can be edited. Create an additional order once preparation starts."
+
+msgid "يمكن للضيف طلب الأصناف المتاحة فقط."
+msgstr "Guests can order available items."
+
+msgid "يمكن لمشغل المنصة تعديل حد الفروع في باقتك."
+msgstr "Your platform operator can change the branch allowance on your plan."
+
+msgid "يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة."
+msgstr "Sign in with your new password."
+
+msgid "يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة."
+msgstr "Review and export historical data. Renew with the operator to add resources or orders."
+
+msgid "يوجد فرع بهذا الاسم في المطعم."
+msgstr "A branch with this name already exists at this venue."
+
+msgid "يوميًا 10 صباحًا – 11 مساءً"
+msgstr "Daily, 10 am – 11 pm"
+
+msgid "يُربط الحساب بالفرع المختار حاليًا. اطلب من الموظف تغيير كلمة المرور بعد الدخول."
+msgstr "The account is linked to the selected branch. Ask the team member to change their password after signing in."
+
+msgid "يُقيّد الفرع أدوار الكاشير والمطبخ والويتر. دور المدير يستطيع الوصول إلى كل فروع المطعم."
+msgstr "Cashier, kitchen and waiter access is limited to their assigned branches. Managers can access all branches in their venue."
+
+msgid "↪ &nbsp; تسجيل الخروج"
+msgstr "Sign out"
+
+msgid "＋ إضافة"
+msgstr "Add"
+
+msgid "＋ إضافة حجم"
+msgstr "Add size"
+
+msgid "＋ إضافة مطعم"
+msgstr "Add venue"

@@ -1,0 +1,33 @@
+{% load showroom %}
+<section class="sz-section" id="service-demo" aria-labelledby="sz-demo-title">
+  <div class="sz-section-head"><div><span class="sz-kicker">{% bi 'تجربة تفاعلية' 'Interactive demo' %}</span><{% if standalone %}h1{% else %}h2{% endif %} id="sz-demo-title">{% bi 'خد طاولة من أول طلب لحد الخدمة.' 'Take a table from first order to service.' %}</{% if standalone %}h1{% else %}h2{% endif %}></div>
+  <p>{% bi 'اختار مشروبًا، أكّد الطلب، وبدّل بين أدوار الفريق. كل التغييرات تجريبية داخل المتصفح.' 'Pick a drink, confirm the order, then switch roles to follow it through service. This simulation runs in your browser.' %}</p></div>
+  <div data-sandbox class="sz-lab">
+    <header class="sz-lab-head"><div><span class="sz-kicker">{% bi 'مقهى الساحة · عرض تجريبي' 'Courtyard Café · Demo' %}</span><strong>{% bi 'طاولة 4' 'Table 4' %}</strong></div><button type="button" class="sz-quiet" data-act="reset">{% bi 'ابدأ من جديد' 'Reset demo' %}</button></header>
+    <noscript><p>{% bi 'فعّل JavaScript للتفاعل مع التجربة.' 'Enable JavaScript to operate the demo.' %}</p></noscript>
+    <div data-tabset class="sz-workspace">
+      <div class="sz-tabs" data-tabs aria-label="{% bi 'أدوار التجربة' 'Demo roles' %}">
+        <a href="#sandbox-menu">{% bi 'المنيو' 'Menu' %}</a><a href="#sandbox-guest">{% bi 'الضيف' 'Guest' %}</a><a href="#sandbox-kitchen">{% bi 'المطبخ' 'Kitchen' %}</a><a href="#sandbox-waiter">{% bi 'الصالة' 'Waiter' %}</a><a href="#sandbox-owner">{% bi 'الإدارة' 'Dashboard' %}</a>
+      </div>
+      <div class="sz-lab-grid"><div class="sz-workpanels">
+        <section id="sandbox-menu" data-panel><h3>{% bi 'من بار القهوة' 'From the coffee bar' %}</h3><p>{% bi 'حضّر مشروب الطاولة ثم راجع السلة في شاشة الضيف.' 'Customize a drink for the table, then review the cart in the guest view.' %}</p>
+          <div class="sz-drink"><div class="sz-cup-art" aria-hidden="true">{% include 'marketing/cup.html' %}</div><div><h4>{% bi 'فلات وايت' 'Flat white' %}</h4><b>80 {% bi 'ج.م' 'EGP' %}</b></div></div>
+          <label class="sz-field">{% bi 'اختيار اللبن' 'Milk option' %}<select data-milk><option value="regular">{% bi 'لبن كامل الدسم' 'Whole milk' %}</option><option value="oat">{% bi 'لبن شوفان (+15 ج.م)' 'Oat milk (+15 EGP)' %}</option></select></label>
+          <div class="sz-action-row"><button type="button" data-act="add" class="sz-primary">{% bi 'أضف مشروبًا' 'Add a drink' %}</button><button type="button" data-go="sandbox-guest" class="sz-quiet">{% bi 'راجع السلة' 'Review cart' %}</button></div>
+        </section>
+        <section id="sandbox-guest" data-panel><h3>{% bi 'سلة الطاولة' 'Table cart' %}</h3><ul class="sz-lines" data-lines></ul><div class="sz-tally"><span>{% bi 'إجمالي الطلب' 'Order total' %}</span><b data-total>0</b></div><div class="sz-action-row"><button type="button" class="sz-primary" data-act="submit">{% bi 'تأكيد الطلب التجريبي' 'Confirm demo order' %}</button><button type="button" class="sz-quiet" data-act="remove">{% bi 'احذف آخر مشروب' 'Remove last drink' %}</button></div>
+          <div class="sz-action-row"><button type="button" class="sz-quiet" data-act="call">{% bi 'نادِ الويتر' 'Call waiter' %}</button><button type="button" class="sz-quiet" data-act="bill">{% bi 'اطلب الحساب' 'Request bill' %}</button><button type="button" class="sz-quiet" data-go="sandbox-kitchen">{% bi 'انتقل للمطبخ' 'View kitchen' %}</button></div>
+        </section>
+        <section id="sandbox-kitchen" data-panel><h3>{% bi 'تذكرة التحضير' 'Preparation ticket' %}</h3><p data-order-title></p><ul class="sz-lines" data-ticket-lines></ul><strong data-stage></strong>
+          <div class="sz-action-row"><button type="button" data-act="accept" class="sz-primary">{% bi 'استلام الطلب' 'Accept ticket' %}</button><button type="button" data-act="prepare" class="sz-primary">{% bi 'بدء التحضير' 'Start preparing' %}</button><button type="button" data-act="ready" class="sz-primary">{% bi 'تحديد كجاهز' 'Mark ready' %}</button><button type="button" data-go="sandbox-waiter" class="sz-quiet">{% bi 'انتقل للصالة' 'View waiter' %}</button></div>
+        </section>
+        <section id="sandbox-waiter" data-panel><h3>{% bi 'طلبات الخدمة' 'Floor service' %}</h3><dl class="sz-stats"><div><dt>{% bi 'الطلب' 'Order' %}</dt><dd data-stage></dd></div><div><dt>{% bi 'نداء الويتر' 'Service call' %}</dt><dd data-call>{% bi 'لا يوجد' 'None' %}</dd></div><div><dt>{% bi 'طلب الحساب' 'Bill request' %}</dt><dd data-bill>{% bi 'لا يوجد' 'None' %}</dd></div></dl>
+          <div class="sz-action-row"><button type="button" data-act="serve" class="sz-primary">{% bi 'تم تقديم الطلب' 'Mark served' %}</button><button type="button" data-act="ackCall" class="sz-quiet">{% bi 'تلبية النداء' 'Answer call' %}</button><button type="button" data-act="ackBill" class="sz-quiet">{% bi 'تسليم الحساب' 'Deliver bill' %}</button></div>
+        </section>
+        <section id="sandbox-owner" data-panel><h3>{% bi 'سجل الطاولة' 'Table activity' %}</h3><dl class="sz-stats"><div><dt>{% bi 'طلبات مؤكدة' 'Confirmed orders' %}</dt><dd data-confirmed>0</dd></div><div><dt>{% bi 'قيمة الطلبات' 'Order value' %}</dt><dd data-confirmed-total>0</dd></div></dl><ol class="sz-events" data-events></ol></section>
+      </div>
+      <aside class="sz-receipt"><span class="sz-receipt-symbol" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3l2 1.5L10 3l2 1.5L14 3l2 1.5L18 3l2 1.5L22 3v22l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 25Z"/><path d="M10 10h8m-8 4h8m-8 4h5"/></svg></span><span class="sz-kicker">{% bi 'ملخص مباشر' 'Live summary' %}</span><h3>{% bi 'طاولة 4' 'Table 4' %}</h3><dl class="sz-stats"><div><dt>{% bi 'أصناف السلة' 'Cart quantity' %}</dt><dd data-quantity>0</dd></div><div><dt>{% bi 'قيمة السلة' 'Cart value' %}</dt><dd data-total>0</dd></div><div><dt>{% bi 'حالة الطلب' 'Order status' %}</dt><dd data-stage>{% bi 'لم يُرسل' 'Unsubmitted' %}</dd></div><div><dt>{% bi 'نداء الصالة' 'Floor call' %}</dt><dd data-call>{% bi 'لا يوجد' 'None' %}</dd></div><div><dt>{% bi 'الحساب' 'Bill request' %}</dt><dd data-bill>{% bi 'لا يوجد' 'None' %}</dd></div></dl></aside>
+      </div>
+    </div><p class="sz-notice" role="status" aria-live="polite" data-notice>{% bi 'أضف مشروبًا من المنيو لبدء التجربة.' 'Add a drink from the menu to begin.' %}</p>
+  </div>
+</section>

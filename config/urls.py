@@ -1,13 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 from core import views
 
+handler500 = 'core.marketing.server_error'
+
 urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('', views.home, name='home'),
+    path('', include('core.showcase_catalog')),
+    path('', include('core.marketing')),
     path('demo/menu/', views.demo_menu, name='demo_menu'),
     path('demo/menu/order/', views.place_demo_order, name='place_demo_order'),
     path('register/', views.register, name='register'),
@@ -50,6 +54,7 @@ urlpatterns = [
     path('app/<slug:slug>/orders/<int:order_id>/payment/', views.order_payment_change, name='order_payment_change'),
     path('app/<slug:slug>/calls/<int:call_id>/status/', views.call_status_change, name='call_status_change'),
     path('app/<slug:slug>/tables/<int:table_id>/qr/', views.table_qr, name='table_qr'),
+    path('app/<slug:slug>/tables/<int:table_id>/summary/', views.table_summary, name='table_summary'),
     path('t/<str:token>/', views.public_menu, name='public_menu'),
     path('t/<str:token>/order/', views.place_order, name='place_order'),
     path('t/<str:token>/call/', views.create_call, name='create_call'),

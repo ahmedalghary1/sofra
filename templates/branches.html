@@ -1,16 +1,16 @@
-{% extends 'app_base.html' %}
-{% block title %}الفروع{% endblock %}{% block crumb %}الفروع{% endblock %}
+{% extends 'app_base.html' %}{% load i18n showroom %}
+{% block title %}{% translate 'الفروع' %}{% endblock %}{% block crumb %}{% translate 'الفروع' %}{% endblock %}
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">إدارة المطعم</span><h1>الفروع</h1><p>لكل فرع منيو وطاولات وطلبات مستقلة داخل مطعمك.</p></div><span class="usage-pill">{{ branches.count }} / {{ limit }} فرع</span></div>
-<section class="panel add-panel"><div><h2>أضف فرعًا</h2><p>يمكن لمشغل المنصة تعديل حد الفروع في باقتك.</p></div>
-  <form method="post" class="staff-order-form">{% csrf_token %}<input type="hidden" name="action" value="create"><input name="name" required maxlength="120" placeholder="اسم الفرع"><input name="address" maxlength="240" placeholder="العنوان (اختياري)"><button class="btn btn-primary">إضافة الفرع ＋</button></form>
+<div class="page-head"><div><span class="eyebrow">{% translate 'إدارة المطعم' %}</span><h1>{% translate 'الفروع' %}</h1><p>{% translate 'لكل فرع منيو وطاولات وطلبات مستقلة داخل مطعمك.' %}</p></div><span class="usage-pill">{{ branches.count }} / {{ limit }} {% translate 'فرع' %}</span></div>
+<section class="panel add-panel"><div><h2>{% translate 'أضف فرعًا' %}</h2><p>{% translate 'يمكن لمشغل المنصة تعديل حد الفروع في باقتك.' %}</p></div>
+  <form method="post" class="staff-order-form">{% csrf_token %}<input type="hidden" name="action" value="create"><input name="name" required maxlength="120" placeholder="{% translate 'اسم الفرع' %}"><input name="address" maxlength="240" placeholder="{% translate 'العنوان (اختياري)' %}"><button class="btn btn-primary">{% symbol 'plus' %} {% bi 'إضافة الفرع' 'Add branch' %}</button></form>
 </section>
 <div class="table-card-grid">
 {% for choice in branches %}<article class="table-card">
-  <div class="table-card-top"><span class="table-symbol">◫</span><span class="status {% if choice.active %}status-ready{% else %}status-cancelled{% endif %}">{% if choice.active %}نشط{% else %}متوقف{% endif %}</span></div>
-  <h3>{{ choice.name }}</h3><p>{{ choice.address|default:'لم يُحدد عنوان بعد' }}</p>
-  <div class="table-card-actions">{% if choice.active %}<form method="post" action="{% url 'select_branch' restaurant.slug %}">{% csrf_token %}<input type="hidden" name="branch_id" value="{{ choice.pk }}"><button class="btn btn-dark btn-sm">افتح الفرع ←</button></form>{% endif %}</div>
-  <div class="table-card-footer"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="branch_id" value="{{ choice.pk }}"><button class="text-button">{% if choice.active %}إيقاف الفرع{% else %}تفعيل الفرع{% endif %}</button></form></div>
+  <div class="table-card-top"><span class="table-symbol">{% symbol 'store' %}</span><span class="status {% if choice.active %}status-ready{% else %}status-cancelled{% endif %}">{% if choice.active %}{% translate 'نشط' %}{% else %}{% translate 'متوقف' %}{% endif %}</span></div>
+  <h3>{{ choice.name }}</h3><p>{% if choice.address %}{{ choice.address }}{% else %}{% translate 'لم يُحدد عنوان بعد' %}{% endif %}</p>
+  <div class="table-card-actions">{% if choice.active %}<form method="post" action="{% url 'select_branch' restaurant.slug %}">{% csrf_token %}<input type="hidden" name="branch_id" value="{{ choice.pk }}"><button class="btn btn-dark btn-sm">{% bi 'افتح الفرع' 'Open branch' %} {% symbol 'arrow-right' %}</button></form>{% endif %}</div>
+  <div class="table-card-footer"><form {% if choice.active %}data-confirm="{% if english %}Deactivate guest service and staff access for this branch?{% else %}إيقاف خدمة الضيوف ووصول الفريق إلى هذا الفرع؟{% endif %}"{% endif %} method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="branch_id" value="{{ choice.pk }}"><button class="text-button">{% if choice.active %}{% translate 'إيقاف الفرع' %}{% else %}{% translate 'تفعيل الفرع' %}{% endif %}</button></form></div>
 </article>{% endfor %}
 </div>
 {% endblock %}

@@ -32,22 +32,52 @@ ITEMS = {
     for item_id, title, _, price in items
 }
 
+ENGLISH_SECTIONS = {'mezze': 'Mezze', 'grill': 'From the grill', 'sweets': 'Desserts', 'drinks': 'Drinks'}
+ENGLISH_ITEMS = {
+    1: ('Lemon hummus', 'Chickpeas, tahini and olive oil with warm baladi bread.'),
+    2: ('Chargrilled aubergine', 'Charcoal-roasted aubergine with pomegranate molasses, seeds and parsley.'),
+    3: ('Rocket salad', 'Rocket, aged cheese, tomatoes and sumac onions.'),
+    4: ('Chargrilled chicken skewers', 'Lemon and yogurt chicken with sumac onions, bread and tahini.'),
+    5: ('House kofta', 'Grilled kofta with vermicelli rice and tahini salad.'),
+    6: ('Seasonal grilled vegetables', 'Courgette, pepper and aubergine with freekeh and mint yogurt.'),
+    7: ('Pistachio Om Ali', 'Warm layers of pastry baked with milk and cream, finished with pistachios.'),
+    8: ('Rosewater milk pudding', 'Chilled milk pudding with dried rose and toasted almonds.'),
+    9: ('Hibiscus and orange', 'Cold-steeped hibiscus with orange juice over ice.'),
+    10: ('Mint lemonade', 'Fresh lemon juice blended with mint and crushed ice.'),
+    11: ('Sand-brewed coffee', 'Cardamom-spiced coffee, sweetened to taste.'),
+}
 
-def demo_order_total(payload):
+
+def sample_menu(english=False):
+    sections = SECTIONS
+    if english:
+        sections = [
+            (key, ENGLISH_SECTIONS[key], [
+                (item_id, *ENGLISH_ITEMS[item_id], price)
+                for item_id, _, _, price in rows
+            ])
+            for key, _, rows in SECTIONS
+        ]
+    items = [dict(ITEMS[item_id], name=title) for _, _, rows in sections for item_id, title, _, _ in rows]
+    return sections, items
+
+
+def demo_order_total(payload, english=False):
+    invalid = 'Invalid cart data.' if english else 'توجد بيانات غير صالحة في السلة.'
     if not isinstance(payload, dict) or not isinstance(payload.get('lines'), list):
-        raise ValidationError('توجد بيانات غير صالحة في السلة.')
+        raise ValidationError(invalid)
     lines = payload['lines']
     if not lines or len(lines) > len(ITEMS):
-        raise ValidationError('أضف أصنافًا من المنيو التجريبية للسلة.')
+        raise ValidationError('Add items from the sample menu.' if english else 'أضف أصنافًا من المنيو التجريبية للسلة.')
 
     total = Decimal('0.00')
     for line in lines:
         if not isinstance(line, dict):
-            raise ValidationError('توجد بيانات غير صالحة في السلة.')
+            raise ValidationError(invalid)
         item_id, quantity = line.get('item_id'), line.get('quantity')
         if type(item_id) is not int or item_id not in ITEMS:
-            raise ValidationError('أحد الأصناف غير موجود في المنيو التجريبية.')
+            raise ValidationError('An item is missing from the sample menu.' if english else 'أحد الأصناف غير موجود في المنيو التجريبية.')
         if type(quantity) is not int or not 1 <= quantity <= 30:
-            raise ValidationError('اختر كمية من ١ إلى ٣٠ لكل صنف.')
+            raise ValidationError('Choose a quantity from 1 to 30 for each item.' if english else 'اختر كمية من 1 إلى 30 لكل صنف.')
         total += Decimal(ITEMS[item_id]['price']) * quantity
     return total

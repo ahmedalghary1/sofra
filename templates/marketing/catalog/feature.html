@@ -1,0 +1,26 @@
+{% extends "marketing/catalog/base.html" %}{% load showroom static %}
+{% block extra_css %}{{ block.super }}{% if entry.slug == 'upselling' or entry.slug == 'analytics' %}<link rel="stylesheet" href="{% static 'css/showcase.css' %}">{% endif %}{% endblock %}
+{% block extra_js %}{{ block.super }}{% if entry.slug == 'upselling' or entry.slug == 'analytics' %}<script defer src="{% static 'js/showcase.js' %}"></script>{% endif %}{% endblock %}
+{% block catalog %}
+<nav class="cat-breadcrumb" aria-label="{% bi 'مسار التصفح' 'Breadcrumb' %}"><a href="{% public_url 'features' %}">{% bi 'دليل المميزات' 'Feature guide' %}</a><span aria-hidden="true">/</span><span>{{ entry.title }}</span></nav>
+<header class="cat-intro cat-detail">
+  <div><p class="cat-kicker">{{ entry.group_name }}</p><h1>{{ entry.headline }}</h1><p>{{ entry.summary }}</p><a class="cat-button" href="#capabilities">{% bi 'راجع حالة المميزات' 'Check feature availability' %}</a></div>
+  <div class="cat-art">{% include "marketing/catalog/preview.html" %}</div>
+</header>
+<section class="cat-section"><div class="cat-section-title"><h2>{% if entry.slug == 'reservations' or entry.slug == 'promotions' %}{% bi 'سيناريو مقترح' 'Proposed workflow' %}{% else %}{% bi 'خطوات الشغل' 'How it works' %}{% endif %}</h2><p>{% bi 'الأدوار ذات الصلة' 'Relevant roles' %} · {{ entry.roles|join:" · " }}</p></div>
+  <ol class="cat-steps">{% for step in entry.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+</section>
+<section class="cat-section" id="capabilities"><div class="cat-section-title"><h2>{{ entry.title }}</h2><p>{% bi 'التفاصيل وحالة كل مجموعة وظائف' 'Capabilities and their current status' %}</p></div>
+  <ul class="cat-capabilities">{% for item in entry.items %}<li id="{{ item.anchor }}"><span class="cat-state {{ item.status }}">{{ item.label }}</span><p>{{ item.text }}</p></li>{% endfor %}</ul>
+</section>
+{% if entry.slug == 'upselling' %}{% include 'marketing/upsell.html' %}
+{% elif entry.slug == 'analytics' %}{% include 'marketing/roi.html' %}
+{% elif entry.slug == 'digital-menu' or entry.slug == 'qr-ordering' %}<aside class="cat-try"><div><h2>{% bi 'اختَر من منيو دار الليمون' 'Try the Dar El Limoun menu' %}</h2><p>{% bi 'كوّن سلة وراجع إجمالي الطلب على نسخة من واجهة الضيف ببيانات تجريبية.' 'Build a basket and check the order total in the guest interface using demo items.' %}</p></div><a class="cat-button" href="{% public_url 'demo_menu' %}">{% bi 'افتح منيو الديمو' 'Open demo menu' %}</a></aside>{% endif %}
+<section class="cat-faq cat-section"><h2>{% bi 'أسئلة قبل التشغيل' 'Before you start' %}</h2>
+  <details><summary>{{ faq_question }}</summary><p>{{ faq_answer }}</p></details>
+  <details><summary>{% bi 'إزاي أعرف الباقة المناسبة؟' 'Which plan covers this workflow?' %}</summary><p>{% if entry.slug == 'reservations' %}{% bi 'الحجز مخطط ولم يُطرح ضمن اشتراك حالي.' 'Reservations are planned and have no current subscription entitlement.' %}{% elif entry.slug == 'multi-branch' %}{% bi 'إضافة فرع تاني محتاجة حد فروع أعلى من واحد في عقد مطعمك.' 'Adding a second location requires a branch allowance greater than one.' %}{% elif entry.slug == 'kitchen-display' %}{% bi 'الاشتراك يحدد عدد محطات المطبخ اللي يقدر الفرع ينشئها.' 'Each subscription sets the number of stations a branch can create.' %}{% else %}{% bi 'الوظائف المتاحة تخضع لدور الموظف وحدود موارد الباقة. البنود المخططة ليست مزايا اشتراك حالية.' 'Available tools depend on role and resource capacity. Planned entries have no current subscription entitlement.' %}{% endif %}</p>{% if fit and entry.slug != 'reservations' %}<p>{% bi 'الباقات المسجلة المطابقة' 'Matching configured plans' %} · {% for plan in fit %}{{ plan.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}<a href="{% public_url 'pricing' %}">{% bi 'عرض حدود الباقات' 'View plan limits' %}</a></details>
+  <details><summary>{% bi 'أجرّب رحلة الضيف والفريق فين؟' 'Where can I try the guest and team workflow?' %}</summary><p>{% bi 'افتح بيئة العرض لتتابع طلب مثال من السلة للخدمة.' 'Open the sandbox to follow a sample order from basket to service.' %}</p><a href="{% public_url 'demo' %}">{% bi 'تجربة المنتج' 'Try the demo' %}</a></details>
+</section>
+<nav class="cat-related" aria-label="{% bi 'مميزات مرتبطة' 'Related features' %}"><h2>{% bi 'استكشف مميزات مرتبطة' 'Explore related features' %}</h2><div>{% for topic in related %}<a href="{% public_url 'feature_detail' topic.slug %}">{{ topic.title }}</a>{% endfor %}</div></nav>
+<div class="cat-bottom"><h2>{% bi 'شوف رحلة الطلب من الطاولة للمطبخ' 'See an order travel from table to kitchen' %}</h2><a class="cat-button" href="{% public_url 'demo' %}">{% bi 'افتح الديمو' 'Open demo' %}</a></div>
+{% endblock %}

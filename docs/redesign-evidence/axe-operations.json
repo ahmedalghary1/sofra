@@ -1,0 +1,91 @@
+{
+  "width": 390,
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "checks": [
+    {
+      "language": "ar",
+      "screen": "app-home",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "app-orders",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "app-settings",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "platform",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "kds",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "waiter",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "login",
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "screen": "guest",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "app-home",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "app-orders",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "app-settings",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "platform",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "kds",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "waiter",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "login",
+      "violations": []
+    },
+    {
+      "language": "en",
+      "screen": "guest",
+      "violations": []
+    }
+  ]
+}

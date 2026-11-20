@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% load showroom %}
+{% block body %}
+<main class="reset-shell">
+  <div class="reset-nav"><a class="brand" href="{% public_url 'home' %}">{% include '_brand_logo.html' only %}</a>{% include '_ops_language.html' %}</div>
+  <div class="reset-card">
+    <div class="reset-emblem">{% block emblem %}{% symbol 'key-round' %}{% endblock %}</div>
+    {% block reset_content %}{% endblock %}
+  </div>
+</main>
+{% endblock %}
+

@@ -1,3 +1,4 @@
+from django.utils.translation import gettext
 import csv
 import io
 from decimal import Decimal, InvalidOperation
@@ -26,24 +27,24 @@ def validate_menu_rows(sources):
             errors.append('الحد الأقصى 200 صنف في الدفعة.')
             break
         if None in source or all(not str(source.get(key) or '').strip() for key in HEADERS):
-            errors.append(f'السطر {number}: عدد الأعمدة أو البيانات غير صالح.')
+            errors.append(gettext('السطر {number}: عدد الأعمدة أو البيانات غير صالح.').format(number=number))
             continue
         category = str(source['category'] or '').strip()
         name = str(source['name'] or '').strip()
         description = str(source['description'] or '').strip()
         if not category or len(category) > 80 or not name or len(name) > 120 or len(description) > 300:
-            errors.append(f'السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح.')
+            errors.append(gettext('السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح.').format(number=number))
             continue
         try:
             price = Decimal(str(source['price'] or '').strip())
             if not price.is_finite() or price < 0 or price > 9999999 or price.as_tuple().exponent < -2:
                 raise InvalidOperation
         except InvalidOperation:
-            errors.append(f'السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين.')
+            errors.append(gettext('السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين.').format(number=number))
             continue
         signature = (category.casefold(), name.casefold())
         if signature in seen:
-            errors.append(f'السطر {number}: الصنف مكرر داخل الملف.')
+            errors.append(gettext('السطر {number}: الصنف مكرر داخل الملف.').format(number=number))
             continue
         seen.add(signature)
         rows.append({'category': category, 'name': name, 'description': description,
@@ -117,7 +118,7 @@ def commit_menu_import(batch, actor):
     subscription = check_creation_limit(restaurant, 'item', branch)
     current_count = MenuItem.objects.filter(category__branch=branch).count()
     if current_count + len(batch.rows) > subscription.plan.max_items:
-        raise ValidationError(f'الملف يتجاوز حد الأصناف في الباقة ({subscription.plan.max_items}).')
+        raise ValidationError(gettext('الملف يتجاوز حد الأصناف في الباقة ({limit}).').format(limit=subscription.plan.max_items))
     categories = {category.name: category for category in Category.objects.filter(branch=branch)}
     items = []
     for row in batch.rows:

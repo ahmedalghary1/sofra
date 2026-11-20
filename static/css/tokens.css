@@ -1,0 +1,20 @@
+:root {
+  --brand-primary:#0f2a3d; --brand-accent:#4baa9c; --brand-accent-strong:#2c7a6f;
+  --text-secondary:#4a5568; --canvas:#f6f8fa; --surface:#fff; --border:#e2e8f0;
+  --dark-canvas:#0a1e2d; --dark-surface:#173448; --mint:#e0f1eb;
+  --success:#196748; --warning:#805514; --error:#9a3137; --info:#245a7b;
+  --focus:#20786d; --radius-control:10px; --radius-panel:20px;
+}
+:focus-visible {outline:3px solid var(--focus);outline-offset:3px}
+.ui-icon {
+  display:inline-block;
+  width:1.18em;
+  height:1.18em;
+  flex:none;
+  vertical-align:-.19em;
+  pointer-events:none;
+}
+[dir="rtl"] :is(.ui-icon-arrow-right,.ui-icon-arrow-left) {transform:scaleX(-1)}
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

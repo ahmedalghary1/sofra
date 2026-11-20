@@ -1,51 +1,51 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load i18n showroom %}
 {% block bodyclass %}app-body{% endblock %}
 {% block body %}
+<a class="ops-skip" href="#workspaceMain">{% if english %}Skip to workspace{% else %}انتقل إلى المحتوى{% endif %}</a>
 <div class="app-layout">
-  <aside class="sidebar" id="sidebar">
-    <a class="brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' with subtitle='مساحة المطعم' only %}</a>
-    <div class="workspace-label">مساحة العمل</div>
+  <aside class="sidebar" tabindex="-1"  id="sidebar">
+    <a class="brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' only %}</a>
+    <button class="close-nav" id="closeNav" type="button" aria-label="{% translate 'إغلاق' %}">{% symbol 'x' %}</button><div class="workspace-label">{% translate 'مساحة العمل' %}</div>
     <div class="restaurant-switch"><span class="restaurant-avatar">{{ restaurant.name|slice:':1' }}</span><span><strong>{{ restaurant.name }}</strong><small>{{ branch.name }}</small></span></div>
     {% if available_restaurants.count > 1 %}
-    <details class="restaurant-selector"><summary>تغيير المطعم</summary><nav aria-label="مطاعمي">{% for choice in available_restaurants %}<a href="{% url 'dashboard' choice.restaurant.slug %}" {% if choice.restaurant_id == restaurant.pk %}aria-current="page"{% endif %}>{{ choice.restaurant.name }} <small>· {{ choice.get_role_display }}</small></a>{% endfor %}</nav></details>
+    <details class="restaurant-selector"><summary>{% translate 'تغيير المطعم' %}</summary><nav aria-label="{% translate 'مطاعمي' %}">{% for choice in available_restaurants %}<a href="{% url 'dashboard' choice.restaurant.slug %}" {% if choice.restaurant_id == restaurant.pk %}aria-current="page"{% endif %}>{{ choice.restaurant.name }} <small>· {% translate choice.get_role_display %}</small></a>{% endfor %}</nav></details>
     {% endif %}
     {% if available_branches.count > 1 %}
     <form class="branch-selector" method="post" action="{% url 'select_branch' restaurant.slug %}">{% csrf_token %}
-      <label for="branch-select">الفرع الحالي</label>
+      <label for="branch-select">{% translate 'الفرع الحالي' %}</label>
       <select id="branch-select" name="branch_id" onchange="this.form.submit()">
         {% for choice in available_branches %}<option value="{{ choice.pk }}" {% if choice.pk == branch.pk %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
       </select>
-      <noscript><button type="submit">اختيار</button></noscript>
+      <noscript><button type="submit">{% translate 'اختيار' %}</button></noscript>
     </form>
     {% endif %}
-    <div class="nav-label">الرئيسية</div>
-    <nav class="side-nav" aria-label="القائمة الرئيسية">
-      <a class="{% if page == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' restaurant.slug %}"><span>◫</span> نظرة عامة</a>
-      <a class="{% if page == 'orders' %}active{% endif %}" href="{% url 'manage_orders' restaurant.slug %}"><span>▤</span> الطلبات</a>
-      {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'kitchen' %}<a class="{% if page == 'kitchen' %}active{% endif %}" href="{% url 'kitchen' restaurant.slug %}"><span>▣</span> شاشة المطبخ</a>{% endif %}
-      {% if membership.role != 'kitchen' %}<a class="{% if page == 'calls' %}active{% endif %}" href="{% url 'manage_calls' restaurant.slug %}"><span>♧</span> طلبات الخدمة</a>{% endif %}
+    <div class="nav-label">{% translate 'الرئيسية' %}</div>
+    <nav class="side-nav" aria-label="{% translate 'القائمة الرئيسية' %}">
+      <a {% if page == 'dashboard' %}class="active" aria-current="page"{% endif %} href="{% url 'dashboard' restaurant.slug %}">{% symbol 'layout-dashboard' %} {% translate 'نظرة عامة' %}</a>
+      <a {% if page == 'orders' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_orders' restaurant.slug %}">{% symbol 'clipboard-list' %} {% translate 'الطلبات' %}</a>
+      {% if membership.role == 'owner' or membership.role == 'manager' or membership.role == 'kitchen' %}<a {% if page == 'kitchen' %}class="active" aria-current="page"{% endif %} href="{% url 'kitchen' restaurant.slug %}">{% symbol 'chef-hat' %} {% translate 'شاشة المطبخ' %}</a>{% endif %}
+      {% if membership.role != 'kitchen' %}<a {% if page == 'calls' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_calls' restaurant.slug %}">{% symbol 'concierge-bell' %} {% translate 'طلبات الخدمة' %}</a>{% endif %}
     </nav>
     {% if membership.role == 'owner' or membership.role == 'manager' %}
-    <div class="nav-label">إدارة المطعم</div>
-    <nav class="side-nav" aria-label="إدارة المطعم">
-      <a class="{% if page == 'menu_manage' %}active{% endif %}" href="{% url 'manage_menu' restaurant.slug %}"><span>◈</span> قائمة الطعام</a>
-      <a class="{% if page == 'tables' %}active{% endif %}" href="{% url 'manage_tables' restaurant.slug %}"><span>▦</span> الطاولات وQR</a>
-      <a class="{% if page == 'branches' %}active{% endif %}" href="{% url 'manage_branches' restaurant.slug %}"><span>◫</span> الفروع</a>
-      <a class="{% if page == 'reports' %}active{% endif %}" href="{% url 'reports' restaurant.slug %}"><span>▥</span> التقارير</a>
-      <a class="{% if page == 'staff' %}active{% endif %}" href="{% url 'staff' restaurant.slug %}"><span>♙</span> فريق العمل</a>
-      <a class="{% if page == 'settings' %}active{% endif %}" href="{% url 'restaurant_settings' restaurant.slug %}"><span>⚙</span> الإعدادات</a>
+    <div class="nav-label">{% translate 'إدارة المطعم' %}</div>
+    <nav class="side-nav" aria-label="{% translate 'إدارة المطعم' %}">
+      <a {% if page == 'menu_manage' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_menu' restaurant.slug %}">{% symbol 'book-open' %} {% translate 'قائمة الطعام' %}</a>
+      <a {% if page == 'tables' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_tables' restaurant.slug %}">{% symbol 'qr-code' %} {% translate 'الطاولات وQR' %}</a>
+      <a {% if page == 'branches' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_branches' restaurant.slug %}">{% symbol 'store' %} {% translate 'الفروع' %}</a>
+      <a {% if page == 'reports' %}class="active" aria-current="page"{% endif %} href="{% url 'reports' restaurant.slug %}">{% symbol 'chart-no-axes-column' %} {% translate 'التقارير' %}</a>
+      <a {% if page == 'staff' %}class="active" aria-current="page"{% endif %} href="{% url 'staff' restaurant.slug %}">{% symbol 'users' %} {% translate 'فريق العمل' %}</a>
+      <a {% if page == 'settings' %}class="active" aria-current="page"{% endif %} href="{% url 'restaurant_settings' restaurant.slug %}">{% symbol 'settings' %} {% translate 'الإعدادات' %}</a>
     </nav>
     {% endif %}
     <div class="sidebar-bottom">
-      <div class="help-card"><span>✦</span><strong>كل شيء جاهز لبدء الخدمة؟</strong><p>أضف الأصناف والطاولات ثم شارك رمز QR مع ضيوفك.</p></div>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout" type="submit">↪ &nbsp; تسجيل الخروج</button></form>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout" type="submit">{% symbol 'log-out' %} {% translate 'تسجيل الخروج' %}</button></form>
     </div>
   </aside>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <div class="main-wrap">
-    <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="فتح القائمة">☰</button><a class="mobile-brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' only %}</a><div class="breadcrumb">مساحة العمل <span>/</span> {% block crumb %}نظرة عامة{% endblock %}</div><div class="topbar-actions"><span class="today-date">{% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
-    <main class="main-content">{% block content %}{% endblock %}</main>
+    <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-controls="sidebar" aria-expanded="false" aria-label="{% translate 'فتح القائمة' %}">{% symbol 'menu' %}</button><a class="mobile-brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' only %}</a><div class="breadcrumb">{% translate 'مساحة العمل' %} <span>/</span> {% block crumb %}{% translate 'نظرة عامة' %}{% endblock %}</div><div class="topbar-actions">{% include '_ops_language.html' %}<span class="today-date">{% symbol 'calendar-days' %} {% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
+    <main class="main-content" id="workspaceMain" tabindex="-1">{% block content %}{% endblock %}</main>
   </div>
 </div>
-<script>const t=document.getElementById('menuToggle'),s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');t?.addEventListener('click',()=>{s.classList.toggle('open');o.classList.toggle('show')});o?.addEventListener('click',()=>{s.classList.remove('open');o.classList.remove('show')});</script>
+
 {% endblock %}

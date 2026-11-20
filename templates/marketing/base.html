@@ -1,0 +1,42 @@
+{% load static showroom %}<!doctype html>
+<html lang="{{ lang }}" dir="{% if english %}ltr{% else %}rtl{% endif %}">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f2a3d">
+<title>{% block title %}{{ page_title }}{% endblock %} | Serveza</title>
+<meta name="description" content="{{ page_description }}">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Serveza">
+<meta property="og:title" content="{{ page_title }}"><meta property="og:description" content="{{ page_description }}">
+<meta property="og:url" content="{{ canonical_url }}"><meta property="og:image" content="{{ og_image }}">
+<meta name="twitter:card" content="summary_large_image">
+{% if kind == 'maintenance' or kind == 'offline' or kind == 'terms' or kind == 'privacy' or kind == 'cookies' %}<meta name="robots" content="noindex, follow">{% endif %}
+<link rel="canonical" href="{{ canonical_url }}"><link rel="alternate" hreflang="ar" href="{{ arabic_url }}"><link rel="alternate" hreflang="en" href="{{ english_url }}">
+<link rel="icon" href="{% static 'brand/serveza-favicon-32.webp' %}"><link rel="apple-touch-icon" href="{% static 'brand/serveza-apple-touch.png' %}">
+<link rel="preload" href="{% if english %}{% static 'fonts/cairo/Cairo-Latin.woff2' %}{% else %}{% static 'fonts/cairo/Cairo-Variable.woff2' %}{% endif %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% static 'css/typography.css' %}"><link rel="stylesheet" href="{% static 'css/tokens.css' %}"><link rel="stylesheet" href="{% static 'css/marketing.css' %}">
+{% if kind == 'home' or kind == 'demo' %}<link rel="stylesheet" href="{% static 'css/showcase.css' %}"><script src="{% static 'js/showcase.js' %}" defer></script>{% endif %}
+{% block extra_css %}{% endblock %}<script src="{% static 'js/marketing.js' %}" defer></script>{% block extra_js %}{% endblock %}
+{% if kind == 'home' %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Serveza","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":["ar","en"]}</script>{% endif %}
+</head>
+<body class="mk" id="page-top">
+<a href="#main" class="mk-skip">{% bi 'انتقل إلى المحتوى' 'Skip to content' %}</a>
+<header class="mk-header"><div class="mk-wrap mk-headrow">
+<a class="mk-brand" href="{% public_url 'home' %}" aria-label="{% bi 'الصفحة الرئيسية · Serveza' 'Serveza home' %}">{% include '_brand_logo.html' only %}</a>
+<nav class="mk-desktop" aria-label="{% bi 'التنقل الرئيسي' 'Main navigation' %}">{% for name,label in site_nav %}{% if name == 'features' %}
+<details class="mk-mega"><summary>{{ label }} {% symbol 'chevron' %}</summary><div class="mk-pop">
+<div class="mk-pop-head"><strong>{% bi 'استكشف أدوات المطعم' 'Explore the product' %}</strong><a href="{% public_url 'features' %}">{% bi 'كل المميزات' 'All features' %}</a></div>
+<div class="mk-megacols">{% for group,topics in feature_groups %}<div><b>{{ group }}</b>{% for slug,title in topics %}<a href="{% public_url 'feature_detail' slug %}">{{ title }}</a>{% endfor %}</div>{% endfor %}</div></div></details>
+{% else %}<a href="{% public_url name %}" {% if name == request.resolver_match.url_name %}aria-current="page"{% endif %}>{{ label }}</a>{% endif %}{% endfor %}</nav>
+<div class="mk-head-actions"><a class="mk-lang" href="{{ language_switch_url }}" lang="{% if english %}ar{% else %}en{% endif %}" aria-label="{% bi 'Switch to English' 'التغيير إلى العربية' %}">{% symbol 'globe' %}{% bi 'EN' 'عربي' %}</a><a class="mk-login" href="{% public_url 'login' %}">{% bi 'دخول' 'Log in' %}</a><a class="mk-btn mk-primary mk-top-cta" href="{% public_url 'contact' %}">{% bi 'احجز عرضًا' 'Book a demo' %}</a>
+<button type="button" data-nav-open class="mk-nav-trigger" aria-controls="mk-mobile-nav" aria-expanded="false" aria-label="{% bi 'فتح القائمة' 'Open navigation' %}">{% symbol 'menu' %}</button></div>
+</div></header>
+<dialog class="mk-drawer" id="mk-mobile-nav" aria-labelledby="mk-nav-title"><div class="mk-drawer-head"><b id="mk-nav-title">{% bi 'القائمة' 'Navigation' %}</b><button type="button" data-nav-close aria-label="{% bi 'إغلاق القائمة' 'Close navigation' %}">{% symbol 'close' %}</button></div>
+<nav>{% for name,label in site_nav %}<a href="{% public_url name %}" {% if name == request.resolver_match.url_name %}aria-current="page"{% endif %}>{% public_nav_icon name %}{{ label }}</a>{% if name == 'features' %}<details><summary>{% bi 'أقسام المنتج' 'Product categories' %}</summary>{% for group,topics in feature_groups %}<b>{{ group }}</b>{% for slug,title in topics %}<a href="{% public_url 'feature_detail' slug %}">{{ title }}</a>{% endfor %}{% endfor %}</details>{% endif %}{% endfor %}<a href="{% public_url 'login' %}">{% bi 'تسجيل الدخول' 'Log in' %}</a><a href="{% public_url 'contact' %}" class="mk-btn mk-primary">{% bi 'احجز عرضًا' 'Book a demo' %}</a></nav></dialog>
+<noscript><nav class="mk-nojs">{% for name,label in site_nav %}<a href="{% public_url name %}">{{ label }}</a>{% endfor %}</nav></noscript>
+<main id="main" tabindex="-1">{% if messages %}<div class="mk-wrap">{% for m in messages %}<p role="status" class="mk-alert">{{ m }}</p>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main>
+<footer class="mk-footer"><div class="mk-wrap"><div class="mk-footer-grid"><div class="mk-footer-brand"><a class="mk-brand" href="{% public_url 'home' %}">{% include '_brand_logo.html' only %}</a><p lang="en" dir="ltr">Smart Hospitality.<br>Seamless Service.</p></div>
+<div><h2>{% bi 'المنتج' 'Product' %}</h2><a href="{% public_url 'features' %}">{% bi 'كل المميزات' 'All features' %}</a><a href="{% public_url 'how_it_works' %}">{% bi 'كيف تعمل' 'How it works' %}</a><a href="{% public_url 'pricing' %}">{% bi 'الباقات' 'Pricing' %}</a><a href="{% public_url 'demo' %}">{% bi 'الديمو التفاعلي' 'Interactive demo' %}</a></div>
+<div><h2>{% bi 'الحلول' 'Solutions' %}</h2><a href="{% public_url 'solution_detail' 'cafes' %}">{% bi 'الكافيهات' 'Cafés' %}</a><a href="{% public_url 'solution_detail' 'restaurants' %}">{% bi 'المطاعم' 'Restaurants' %}</a><a href="{% public_url 'solution_detail' 'chains' %}">{% bi 'الفروع' 'Groups' %}</a></div>
+<div><h2>{% bi 'المساعدة' 'Help' %}</h2><a href="{% public_url 'resources' %}">{% bi 'أدلة التشغيل' 'Field guides' %}</a><a href="{% public_url 'faq' %}">{% bi 'الأسئلة الشائعة' 'FAQ' %}</a><a href="{% public_url 'contact' %}">{% bi 'تواصل معنا' 'Contact' %}</a><a href="{% public_url 'about' %}">{% bi 'عن Serveza' 'About Serveza' %}</a></div>
+<div><h2>{% bi 'معلومات الموقع' 'Site information' %}</h2><a href="{% public_url 'privacy' %}">{% bi 'الخصوصية' 'Privacy' %}</a><a href="{% public_url 'terms' %}">{% bi 'الاستخدام' 'Terms' %}</a><a href="{% public_url 'cookies' %}">{% bi 'ملفات الارتباط' 'Cookies' %}</a></div></div>
+<div class="mk-colophon"><bdi>© {% now "Y" %} Serveza</bdi><a href="#page-top" class="mk-back-top">{% symbol 'chevron' %} {% bi 'العودة إلى أعلى الصفحة' 'Back to top' %}</a><a href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></div></div></footer></body></html>

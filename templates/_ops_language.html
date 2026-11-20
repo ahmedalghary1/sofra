@@ -1,0 +1,1 @@
+{% load i18n showroom %}<a href="{% if language_switch_url %}{{ language_switch_url }}{% elif english %}?lang=ar{% else %}?lang=en{% endif %}" class="ops-language" lang="{% if english %}ar{% else %}en{% endif %}" hreflang="{% if english %}ar{% else %}en{% endif %}">{% symbol 'globe' %} {% if english %}العربية{% else %}English{% endif %}</a>

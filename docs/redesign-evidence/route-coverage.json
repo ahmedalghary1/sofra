@@ -1,0 +1,534 @@
+{
+  "before": {
+    "calls": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "guest": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "home": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "kitchen": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "login": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "menu-demo": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "owner": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "platform": {
+      "requests": 3,
+      "widths": [
+        390,
+        768,
+        1440
+      ],
+      "languages": [
+        "ar"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    }
+  },
+  "after": {
+    "about": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "calls": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "contact": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "demo": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "feature-detail": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "features": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "guest": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "home": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "how-it-works": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "kitchen": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "login": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "menu-demo": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "orders": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "owner": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "platform": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "pricing": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "reports": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "resources": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "solutions": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    },
+    "tables": {
+      "requests": 12,
+      "widths": [
+        360,
+        390,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "http": [
+        200
+      ],
+      "overflow": false,
+      "browser_findings": []
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{% extends "marketing/catalog/base.html" %}{% load showroom %}
+{% block catalog %}
+<header class="cat-intro cat-hero">
+  <div><p class="cat-kicker">{% bi 'دليل المنتج' 'Product guide' %}</p>
+    <h1>{% bi 'كل أدوات الخدمة، من الطاولة للإدارة' 'Explore the tools behind a service' %}</h1>
+    <p>{% bi 'ابحث عن خطوة من يوم الشغل، وشوف مين بيستخدمها وإيه المتاح منها دلوقتي.' 'Find a task from your shift, see who handles it and check what is available today.' %}</p>
+    <a class="cat-button" href="#catalog-filters">{% symbol 'search' %} {% bi 'ابحث في المميزات' 'Search features' %}</a>
+  </div>
+  <div class="cat-art">{% include "marketing/catalog/preview.html" with entry=hero_preview %}</div>
+</header>
+<form id="catalog-filters" method="get" class="cat-filters" role="search">
+  {% if english %}<input type="hidden" name="lang" value="en">{% endif %}
+  <label class="cat-search">{% bi 'بحث في المميزات' 'Search features' %}<input type="search" name="q" maxlength="150" value="{{ query }}" placeholder="{% bi 'ابحث عن الطاولات أو الحساب أو Excel…' 'Search for tables, billing, Excel…' %}"></label>
+  <label>{% bi 'القسم' 'Category' %}<select name="category"><option value="">{% bi 'كل الأقسام' 'All categories' %}</option>{% for key,label in categories %}<option value="{{ key }}"{% if filters.category == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>{% bi 'المستخدم' 'Role' %}<select name="role"><option value="">{% bi 'كل الأدوار' 'All roles' %}</option>{% for key,label in roles %}<option value="{{ key }}"{% if filters.role == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>{% bi 'الحالة' 'Availability' %}<select name="state"><option value="">{% bi 'كل الحالات' 'Any status' %}</option>{% for key,label in states %}<option value="{{ key }}"{% if filters.state == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>{% bi 'الباقة' 'Plan' %}<select name="plan"><option value="">{% bi 'كل الباقات' 'All plans' %}</option><option value="common"{% if filters.plan == 'common' %} selected{% endif %}>{% bi 'وظائف متاحة بلا ترقية محددة' 'Available without a tier upgrade' %}</option>{% for plan in plans %}<option value="{{ plan.slug }}"{% if filters.plan == plan.slug %} selected{% endif %}>{{ plan.name }}</option>{% endfor %}</select></label>
+  <div class="cat-actions"><button class="cat-button" type="submit">{% symbol 'list-filter' %} {% bi 'عرض النتائج' 'Show results' %}</button><a href="{% public_url 'features' %}#catalog-filters">{% bi 'مسح الفلاتر' 'Clear filters' %}</a></div>
+</form>
+<div class="cat-index-layout">
+  {% if sections %}<nav class="cat-index" aria-label="{% bi 'فهرس الكتالوج' 'Catalog index' %}"><strong>{% bi 'داخل الدليل' 'In this guide' %}</strong>{% for group in sections %}<a href="#group-{{ group.id }}">{{ group.name }}</a>{% endfor %}</nav>{% endif %}
+  <div class="cat-results"><p class="cat-counter" role="status">{% bi 'عدد الأقسام المطابقة' 'Matching categories' %} <b>{{ entries|length }}</b></p>
+    {% for group in sections %}<section class="cat-group" id="group-{{ group.id }}"><h2>{{ group.name }}</h2>
+      {% for entry in group.topics %}<article class="cat-result">
+        <div><h3><a href="{% public_url 'feature_detail' entry.slug %}">{{ entry.title }}</a></h3><p>{{ entry.summary }}</p>
+          <ul class="cat-matches">{% for item in entry.items %}<li><span class="cat-state {{ item.status }}">{{ item.label }}</span><a href="{% public_url 'feature_detail' entry.slug %}#{{ item.anchor }}">{{ item.text }}</a></li>{% endfor %}</ul>
+        </div>
+        {% if forloop.first %}<a class="cat-result-art" href="{% public_url 'feature_detail' entry.slug %}" aria-label="{{ entry.title }}">{% include "marketing/catalog/preview.html" %}</a>{% endif %}
+      </article>{% endfor %}
+    </section>{% empty %}
+    <section class="cat-empty"><h2>{% bi 'مفيش نتائج مطابقة' 'No matching features' %}</h2><p>{% bi 'جرّب مصطلح أوسع أو امسح الفلاتر لعرض الدليل الكامل.' 'Try a broader search or clear the filters to see the complete guide.' %}</p><a class="cat-button" href="{% public_url 'features' %}#catalog-filters">{% bi 'عرض كل المميزات' 'Show all features' %}</a></section>
+    {% endfor %}
+  </div>
+</div>
+<div class="cat-bottom"><h2>{% bi 'اختبر رحلة الطلب بنفسك' 'Try the order flow for yourself' %}</h2><div class="cat-actions"><a class="cat-button" href="{% public_url 'demo' %}">{% bi 'افتح الديمو' 'Open demo' %}</a><a href="{% public_url 'pricing' %}">{% bi 'قارن الباقات' 'Compare plans' %}</a></div></div>
+{% endblock %}

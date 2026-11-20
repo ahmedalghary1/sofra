@@ -1,10 +1,12 @@
+from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
 from django import forms
+from .models import DemoRequest
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
-admin.site.site_header = 'Serveza | إدارة المنصة'
+admin.site.site_header = _('Serveza | إدارة المنصة')
 admin.site.site_title = 'Serveza'
-admin.site.index_title = 'إدارة المنصة'
+admin.site.index_title = _('إدارة المنصة')
 
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
@@ -17,6 +19,19 @@ class RestaurantAdmin(ReadOnlyAdmin):
     search_fields = ('name','slug')
     list_filter = ('active',)
 
+
+@admin.register(DemoRequest)
+class DemoRequestAdmin(ReadOnlyAdmin):
+    list_display = ('venue', 'name', 'email', 'language', 'created_at')
+    search_fields = ('venue', 'email')
+    list_filter = ('language', 'created_at')
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
 @admin.register(Branch)
 class BranchAdmin(ReadOnlyAdmin):
     list_display = ('name','restaurant','active','accepting_orders')
@@ -26,14 +41,14 @@ class BranchAdmin(ReadOnlyAdmin):
 class PlanAdmin(admin.ModelAdmin):
     list_display = ('name','price_monthly','max_branches','max_tables','max_items','max_staff','max_stations')
     class PlanForm(forms.ModelForm):
-        change_reason = forms.CharField(label='سبب التعديل', required=False)
+        change_reason = forms.CharField(label=_('سبب التعديل'), required=False)
         class Meta:
             model = Plan
             fields = '__all__'
         def clean_change_reason(self):
             reason = self.cleaned_data['change_reason'].strip()
             if self.instance.pk and not reason:
-                raise forms.ValidationError('اكتب سبب تعديل الباقة.')
+                raise forms.ValidationError(_('اكتب سبب تعديل الباقة.'))
             return reason
     form = PlanForm
     def save_model(self, request, obj, form, change):

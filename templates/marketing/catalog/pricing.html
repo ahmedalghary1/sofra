@@ -1,0 +1,24 @@
+{% extends "marketing/catalog/base.html" %}{% load showroom %}
+{% block catalog %}
+<header class="cat-intro cat-heading"><p class="cat-kicker">{% bi 'الباقات' 'Pricing' %}</p>
+<h1>{% bi 'اختَر باقتك بحجم فريقك وفروعك' 'Choose a plan for your team and branches' %}</h1>
+<p>{% bi 'قارن سعة الطاولات ومحطات المطبخ وحسابات الفريق. إجمالي الحسابات يشمل المالك، وتقدر توزّع باقي الحسابات حسب احتياج الوردية.' 'Compare tables, kitchen stations and team seats. The owner counts as one seat. Allocate the remaining accounts to suit your shifts.' %}</p></header>
+<nav class="cat-plan-jump" aria-label="{% bi 'انتقل إلى باقة' 'Jump to a plan' %}">{% for plan in plans %}<a href="#plan-{{ plan.slug }}">{{ plan.name }}</a>{% endfor %}<a href="#compare-title">{% bi 'جدول المقارنة' 'Comparison table' %}</a></nav>
+<div class="cat-plans">{% for plan in plans %}{% include 'marketing/catalog/_plan_card.html' %}{% endfor %}</div>
+<section class="cat-section"><div class="cat-section-title"><h2 id="compare-title">{% bi 'مقارنة الباقات' 'Plan comparison' %}</h2><p>{% bi 'قارن إجمالي الفريق للمطعم كله، ثم سعة كل فرع. محطة KDS هي نقطة تحضير مثل الشواية أو المشروبات، ويظهر أمام كل أداة مدى توافرها في الباقة.' 'Compare seats across the whole venue and capacity per branch. A KDS station is a prep area such as the grill or drinks counter. Check each tool below to see which plans cover it.' %}</p></div>
+<div class="cat-table-scroll" role="region" tabindex="0" aria-labelledby="compare-title"><table class="cat-compare">
+<thead><tr><th scope="col">{% bi 'السعة والوظائف' 'Capacity and capabilities' %}</th>{% for plan in plans %}<th scope="col"><span lang="en">{{ plan.name }}</span><small>{% if plan.configured %}{% bi 'مسجل' 'Configured' %}{% else %}{% bi 'مقترح' 'Proposed' %}{% endif %}</small></th>{% endfor %}</tr></thead>
+<tbody>{% for label,values in rows %}<tr><th scope="row">{{ label }}</th>{% for value in values %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
+</tbody><tbody><tr class="cat-role-divider"><th scope="rowgroup" colspan="4">{% bi 'مثال لتوزيع الحسابات داخل إجمالي كل باقة' 'Example allocation within each plan’s seat total' %}</th></tr>
+{% for label,values in staff_rows %}<tr><th scope="row">{{ label }}</th>{% for value in values %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
+</tbody><tbody>
+<tr class="cat-role-divider"><th scope="rowgroup" colspan="4">{% bi 'أدوات التشغيل المتاحة' 'Included operating tools' %}</th></tr>
+{% for group,availability in tools %}<tr><th scope="row"><a href="{% public_url 'feature_detail' group.slug %}">{{ group.title }}</a></th>
+{% for included in availability %}<td>{% if included %}<span class="cat-included-check">{% symbol 'check' %} {% bi 'متاح' 'Included' %}</span>{% else %}{% bi 'خارج سعة الباقة' 'Outside plan capacity' %}{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div></section>
+<section class="cat-section cat-faq"><h2>{% bi 'عن الاشتراك' 'Subscription questions' %}</h2>
+<details><summary>{% bi 'إزاي أعرف حدود اشتراكي الفعلي؟' 'Where can I check my actual limits?' %}</summary><p>{% bi 'المالك يفتح إعدادات المطعم لمراجعة الباقة والتاريخ والاستخدام. يمكنه معاينة أثر تغيير الباقة قبل التواصل مع مشغّل المنصة.' 'Owners can open restaurant settings to see their plan, dates and usage, and preview a plan change before contacting the operator.' %}</p></details>
+<details><summary>{% bi 'هل يمكن الدفع من الصفحة؟' 'Can I pay on this page?' %}</summary><p>{% bi 'فريق المنصة يدير الاشتراكات ويسجل التحصيل يدويًا. استخدم التواصل لمناقشة الباقة المناسبة.' 'The operator manages subscriptions and records collections manually. Use the contact page to discuss terms.' %}</p></details>
+<details><summary>{% bi 'هل المميزات المخططة ضمن الاشتراك؟' 'Does a subscription include roadmap features?' %}</summary><p>{% bi 'راجع حالة كل وظيفة في دليل المميزات. الوظائف المخططة تنتظر التنفيذ.' 'Check the state of each tool in the feature guide. Planned tools are awaiting implementation.' %}</p><a href="{% public_url 'features' %}">{% bi 'دليل المميزات' 'Feature guide' %}</a></details></section>
+<div class="cat-bottom"><h2>{% bi 'جرّب الطلب قبل اختيار الباقة' 'Try the workflow before choosing a plan' %}</h2><a class="cat-button" href="{% public_url 'demo' %}">{% bi 'تجربة المنتج' 'Try the demo' %}</a></div>
+{% endblock %}

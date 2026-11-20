@@ -1,0 +1,103 @@
+{
+  "engine": "axe-core 4.13.0",
+  "origin": "http://127.0.0.1:8000",
+  "results": [
+    {
+      "language": "ar",
+      "route": "/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/demo/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/demo/menu/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/features/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/pricing/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/contact/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/solutions/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "ar",
+      "route": "/how-it-works/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/demo/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/demo/menu/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/features/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/pricing/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/contact/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/solutions/",
+      "width": 390,
+      "violations": []
+    },
+    {
+      "language": "en",
+      "route": "/how-it-works/",
+      "width": 390,
+      "violations": []
+    }
+  ],
+  "browser": "145.0.7632.6"
+}

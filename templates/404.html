@@ -1,3 +1,3 @@
-{% extends 'base.html' %}
-{% block title %}الصفحة غير موجودة{% endblock %}
-{% block body %}<main class="center-state"><a class="brand state-brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a><span aria-hidden="true">404</span><h1>لم نجد هذه الصفحة</h1><p>تحقق من الرابط، أو ارجع إلى الصفحة الرئيسية.</p><a class="btn btn-primary" href="{% url 'home' %}">العودة للرئيسية</a></main>{% endblock %}
+{% extends 'base.html' %}{% load i18n %}
+{% block title %}{% translate 'الصفحة غير موجودة' %}{% endblock %}
+{% block body %}<main class="center-state">{% include '_ops_language.html' %}<a class="brand state-brand" href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a><span aria-hidden="true">404</span><h1>{% translate 'لم نجد هذه الصفحة' %}</h1><p>{% translate 'تحقق من الرابط، أو ارجع إلى الصفحة الرئيسية.' %}</p><a class="btn btn-primary" href="{% url 'home' %}">{% translate 'العودة للرئيسية' %}</a></main>{% endblock %}

@@ -1,0 +1,18 @@
+{% load showroom %}
+<div class="mk-tier-grid" data-tier-grid>
+  {% for plan in plans %}
+  <article data-tier="{{ plan.slug }}" class="mk-tier{% if plan.slug == 'business' %} mk-tier-business{% endif %}">
+    <header><h3 lang="en" dir="ltr">{{ plan.name }}</h3><small data-tier-label>{% if plan.configured %}{% bi 'باقة مسجلة' 'Configured tier' %}{% else %}{% bi 'تسعير مقترح' 'Proposed pricing' %}{% endif %}</small></header>
+    <p class="mk-tier-price"><bdi data-tier-price>{{ plan.price }}</bdi> <small>{% bi 'ج.م / شهر' 'EGP / month' %}</small></p>
+    <p data-tier-focus>{{ plan.focus }}</p>
+    <dl><div><dt>{% bi 'الفروع' 'Branches' %}</dt><dd data-tier-limit="max_branches">{{ plan.limits.max_branches }}</dd></div>
+      <div><dt>{% bi 'حسابات الفريق' 'Team accounts' %}</dt><dd data-tier-limit="max_staff">{{ plan.limits.max_staff }}</dd></div>
+      <div><dt>{% bi 'محطات KDS / فرع' 'KDS stations / branch' %}</dt><dd data-tier-limit="max_stations">{{ plan.limits.max_stations }}</dd></div></dl>
+    <p class="mk-team-example"><small>{% bi 'من إجمالي الحسابات، مثلًا' 'Example seats within that total' %}</small>
+      <span>{% bi 'الويتر' 'Waiters' %} <b data-tier-role="waiter">{{ plan.staff.waiter }}</b></span> ·
+      <span>{% bi 'الإدارة' 'Admins' %} <b data-tier-role="admin">{{ plan.staff.admin }}</b></span></p>
+    <ul class="mk-tier-features">{% for text in plan.highlights|slice:':2' %}<li>{{ text }}</li>{% endfor %}</ul>
+    <a class="mk-textlink" href="{% public_url 'pricing' %}#plan-{{ plan.slug }}">{% bi 'مميزات' 'Explore' %} {{ plan.name }} {% symbol 'arrow-right' %}</a>
+  </article>
+  {% endfor %}
+</div>

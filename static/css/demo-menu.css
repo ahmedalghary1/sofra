@@ -1,6 +1,8 @@
 .demo-wrap { max-width: 1120px; padding-bottom: 80px; }
 .demo-header { min-height: 84px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .demo-header .brand-logo { width: clamp(120px, 16vw, 178px); }
+.demo-header-actions { display: flex; align-items: center; justify-content: end; flex-wrap: wrap; gap: .7rem; }
+.demo-language { display: inline-flex; align-items: center; min-height: 44px; color: #24594f; font-size: .875rem; font-weight: 700; }
 .demo-cover { display: grid; grid-template-columns: 0.9fr 1.1fr; background: var(--navy); color: white; border-radius: var(--radius); overflow: hidden; }
 .demo-intro { align-self: center; padding: clamp(24px, 5vw, 70px); }
 .demo-intro h1 { margin: 8px 0 12px; font-size: var(--text-display); }
@@ -20,7 +22,7 @@
 .demo-section li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid var(--line); }
 .demo-section li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 .demo-section li:last-child { border: 0; padding-bottom: 0; }
-.demo-section h3 { font-size: var(--text-lead); margin: 0 0 3px; }
+.demo-section h3 { font-size: var(--text-lead); margin-block: 0 var(--space-related); }
 .demo-section p { font-size: var(--text-detail); margin: 0; }
 .demo-item-actions { flex: none; display: grid; gap: 5px; justify-items: end; }
 .demo-price { white-space: nowrap; color: var(--teal-ink); font-weight: 800; }
@@ -34,4 +36,5 @@
 }
 @media (max-width: 360px) {
   .demo-nav { grid-template-columns: repeat(2, 1fr); }
+  .demo-header-actions { gap: .35rem; }
 }
