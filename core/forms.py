@@ -8,6 +8,30 @@ from django.utils.translation import gettext_lazy as _
 from .models import Plan, SubscriptionPayment
 
 
+class OwnerRegistrationForm(forms.Form):
+    name = forms.CharField(label=_('اسمك'), max_length=150,
+                           widget=forms.TextInput(attrs={'autocomplete': 'name', 'placeholder': _('الاسم الكامل')}))
+    restaurant = forms.CharField(label=_('اسم المطعم'), max_length=120,
+                                 widget=forms.TextInput(attrs={'autocomplete': 'organization', 'placeholder': _('مثال: بيت المذاق')}))
+    email = forms.EmailField(label=_('البريد الإلكتروني'), max_length=150,
+                             widget=forms.EmailInput(attrs={'autocomplete': 'email', 'placeholder': 'name@example.com'}))
+    password = forms.CharField(label=_('كلمة المرور'), strip=False,
+                               widget=forms.PasswordInput(attrs={'autocomplete': 'new-password', 'minlength': 8,
+                                                                 'placeholder': _('8 أحرف على الأقل')}))
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].lower()
+        if User.objects.filter(username=email).exists():
+            raise forms.ValidationError(_('هذا البريد مستخدم بالفعل. إذا لم يصلك رابط التفعيل، اطلب إعادة إرساله.'))
+        return email
+
+    def clean_password(self):
+        email = self.cleaned_data.get('email', '')
+        password = self.cleaned_data['password']
+        validate_password(password, user=User(username=email, email=email, first_name=self.cleaned_data.get('name', '')))
+        return password
+
+
 class SubscriptionPaymentForm(forms.Form):
     amount = forms.DecimalField(label='المبلغ بالجنيه المصري', max_digits=10, decimal_places=2,
                                 min_value=0.01)

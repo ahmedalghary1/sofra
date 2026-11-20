@@ -89,7 +89,19 @@
 .ops-password {display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap;width:100%}
 .ops-password input {flex:1;min-width:9em;width:auto}
 .ops-password button {border:1px solid var(--ops-line);padding:8px 10px;border-radius:8px;min-height:42px;color:var(--ops-ink);background:var(--ops-canvas);font:inherit;font-size:.85rem}
-.guest-header {gap:8px}
+.guest-header {gap:12px;height:auto;min-height:76px;padding-block:12px}
+.guest-body .guest-hero {min-height:0;padding:16px clamp(16px,4vw,42px)}
+.guest-body .guest-hero h1 {margin:0;color:#fff}
+.guest-body .guest-place {width:54px;border-width:4px;margin-inline:12px;box-shadow:0 0 0 1px #839d96,3px 5px 0 #102e36}
+.guest-body .guest-main {padding-block-start:18px}
+.guest-venue-details {margin-block-end:12px}
+.guest-venue-details summary {width:fit-content;min-height:44px;align-content:center;color:#24594f;cursor:pointer;font-weight:700}
+.guest-venue-details p,.guest-venue-details .guest-contact {margin:6px 0 12px}
+.registration-field {display:grid;gap:4px}
+.registration-field .ops-password {margin:0}
+.registration-field input {width:100%}
+.stack-form .errorlist {margin:0;padding-inline-start:1.25rem;color:#912e30;font-size:var(--text-detail)}
+.stack-form .trial-terms {margin:0;color:#365a51;font-size:var(--text-detail)}
 .guest-header .ops-language {margin-inline-start:auto}
 .guest-header .guest-brand {min-width:0}
 .guest-hero {background:#133a43}
@@ -147,8 +159,10 @@
 .auth-box input[type="email"],.reset-card input[type="email"] {direction:ltr}
 @media(max-width:520px) {
   .topbar .breadcrumb {display:none}
-  .guest-header .guest-brand {flex:1}
-  .guest-header .guest-table {flex-basis:100%;width:fit-content;max-width:fit-content}
+  .guest-header {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}
+  .guest-header .guest-brand {grid-row:1 / 3}
+  .guest-header .ops-language,.guest-header .guest-table {grid-column:2;justify-self:end;margin:0}
+  .guest-header .guest-table {max-width:9rem;white-space:normal;overflow-wrap:anywhere}
   .guest-place {margin-inline:10px}
   .kitchen-filters select {min-height:44px}
 }

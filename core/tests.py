@@ -648,6 +648,17 @@ class SafraTests(TestCase):
         self.assertContains(invitation, 'Accept invitation')
         self.assertContains(invitation, 'lang="en"')
 
+    def test_invalid_registration_keeps_contact_fields_and_marks_only_invalid_inputs(self):
+        values = {'name': 'Nour', 'restaurant': 'Nour Café', 'email': 'nour@example.com', 'password': '12345678'}
+        response = self.client.post(reverse('register') + '?lang=en', values)
+        for field in ('name', 'restaurant', 'email'):
+            self.assertContains(response, f'value="{values[field]}"')
+        self.assertContains(response, 'aria-describedby="id_password_error"')
+        self.assertContains(response, 'id="id_password_error"')
+        self.assertNotContains(response, 'value="12345678"')
+        self.assertContains(response, '14-day trial')
+        self.assertFalse(User.objects.filter(username=values['email']).exists())
+
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_registration_creates_isolated_restaurant(self):
         response = self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com','restaurant':'بيتنا','password':'StrongPass!123'})

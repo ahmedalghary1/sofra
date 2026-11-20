@@ -32,10 +32,11 @@ from django.utils.translation import gettext
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.gzip import gzip_page
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
-from .forms import PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
+from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
 from .presentation import localized_url
@@ -57,6 +58,7 @@ def health(request):
     response['Cache-Control'] = 'no-store'
     return response
 
+@gzip_page
 def home(request):
     if request.user.is_authenticated:
         if request.user.is_superuser:
@@ -88,52 +90,40 @@ def place_demo_order(request):
 
 
 def register(request):
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        restaurant_name = request.POST.get('restaurant', '').strip()
-        password = request.POST.get('password', '')
-        if not all([name, email, restaurant_name]):
-            messages.error(request, 'أكمل جميع البيانات.')
-        elif User.objects.filter(username=email).exists():
-            messages.error(request, 'هذا البريد مستخدم بالفعل. إذا لم يصلك رابط التفعيل، اطلب إعادة إرساله.')
+    form = OwnerRegistrationForm(request.POST if request.method == 'POST' else None)
+    if form.is_valid():
+        name = form.cleaned_data['name']
+        email = form.cleaned_data['email']
+        restaurant_name = form.cleaned_data['restaurant']
+        password = form.cleaned_data['password']
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(username=email, email=email, password=password,
+                                                first_name=name, is_active=False)
+                restaurant = Restaurant.objects.create(name=restaurant_name, slug='rest-' + secrets.token_hex(5))
+                Branch.objects.create(restaurant=restaurant)
+                Membership.objects.create(user=user, restaurant=restaurant, role='owner')
+                plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={'max_tables': 10, 'max_items': 50, 'max_staff': 5})
+                Subscription.objects.create(restaurant=restaurant, plan=plan, ends_at=timezone.now()+timedelta(days=Subscription.TRIAL_DAYS))
+                raw_token = secrets.token_urlsafe(32)
+                OwnerEmailVerification.objects.create(user=user,
+                    token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+                    expires_at=timezone.now()+timedelta(days=1))
+                link = request.build_absolute_uri(localized_url('verify_owner_email', request.LANGUAGE_CODE == 'en', raw_token))
+                delivered = send_mail(gettext('تفعيل بريد مالك المطعم في Serveza'),
+                    gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=name, link=link),
+                    settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
+                if delivered != 1:
+                    raise ValidationError('تعذر إرسال رابط التفعيل. حاول مجددًا بعد فحص البريد.')
+        except IntegrityError:
+            form.add_error('email', gettext('تعذر إنشاء الحساب بهذا البريد. حاول تسجيل الدخول أو إعادة المحاولة.'))
+        except (SMTPException, OSError):
+            form.add_error(None, gettext('تعذر إرسال رابط التفعيل. حاول لاحقًا.'))
+        except ValidationError as exc:
+            form.add_error(None, error_text(exc))
         else:
-            try:
-                validate_email(email)
-                validate_password(password, user=User(username=email, email=email, first_name=name))
-            except ValidationError as exc:
-                messages.error(request, error_text(exc))
-                return render(request, 'auth.html', {'mode': 'register'})
-            try:
-                with transaction.atomic():
-                    user = User.objects.create_user(username=email, email=email, password=password,
-                                                    first_name=name, is_active=False)
-                    restaurant = Restaurant.objects.create(name=restaurant_name, slug='rest-' + secrets.token_hex(5))
-                    Branch.objects.create(restaurant=restaurant)
-                    Membership.objects.create(user=user, restaurant=restaurant, role='owner')
-                    plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={'max_tables': 10, 'max_items': 50, 'max_staff': 5})
-                    Subscription.objects.create(restaurant=restaurant, plan=plan, ends_at=timezone.now()+timedelta(days=14))
-                    raw_token = secrets.token_urlsafe(32)
-                    OwnerEmailVerification.objects.create(user=user,
-                        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
-                        expires_at=timezone.now()+timedelta(days=1))
-                    link = request.build_absolute_uri(localized_url('verify_owner_email', request.LANGUAGE_CODE == 'en', raw_token))
-                    delivered = send_mail(gettext('تفعيل بريد مالك المطعم في Serveza'),
-                        gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=name, link=link),
-                        settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
-                    if delivered != 1:
-                        raise ValidationError('تعذر إرسال رابط التفعيل. حاول مجددًا بعد فحص البريد.')
-            except IntegrityError:
-                messages.error(request, 'تعذر إنشاء الحساب بهذا البريد. حاول تسجيل الدخول أو إعادة المحاولة.')
-                return render(request, 'auth.html', {'mode': 'register'})
-            except (SMTPException, OSError):
-                messages.error(request, 'تعذر إرسال رابط التفعيل. حاول لاحقًا.')
-                return render(request, 'auth.html', {'mode': 'register'})
-            except ValidationError as exc:
-                messages.error(request, error_text(exc))
-                return render(request, 'auth.html', {'mode': 'register'})
             return redirect('verification_pending')
-    return render(request, 'auth.html', {'mode': 'register'})
+    return render(request, 'auth.html', {'mode': 'register', 'form': form, 'trial_days': Subscription.TRIAL_DAYS})
 
 
 @require_GET
@@ -290,7 +280,7 @@ def platform_create_restaurant(request):
                     restaurant=restaurant, name=data['branch_name'], address=data['branch_address'])
                 Membership.objects.create(user=owner, restaurant=restaurant, role='owner')
                 Subscription.objects.create(restaurant=restaurant, plan=plan, status='trial',
-                                            ends_at=timezone.now()+timedelta(days=14))
+                                            ends_at=timezone.now()+timedelta(days=Subscription.TRIAL_DAYS))
                 audit(restaurant, request.user, 'platform.restaurant.create',
                       f'owner={owner.pk}; branch={branch.pk}; plan={plan.pk}')
             messages.success(request, 'تم إنشاء المطعم وفرعه الأول وربط حساب المالك بالتجربة.')
@@ -1407,7 +1397,10 @@ def public_menu(request, token):
     items = serialize_menu_items(categories)
     subscription = getattr(table.branch.restaurant, 'subscription', None)
     accepting = table.branch.accepting_orders and (subscription is None or subscription.valid())
-    return render(request, 'public_menu.html', {'table': table, 'categories': categories, 'items_json': items, 'accepting': accepting})
+    return render(request, 'public_menu.html', {
+        'table': table, 'categories': categories, 'items_json': items, 'accepting': accepting,
+        'cart_session': hashlib.sha256(table.session_token.bytes).hexdigest(),
+    })
 
 def serialize_menu_items(categories):
     items = []

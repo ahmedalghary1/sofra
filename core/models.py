@@ -93,6 +93,7 @@ class StaffInvitation(models.Model):
         return not self.accepted_at and not self.revoked_at and self.expires_at > timezone.now()
 
 class Subscription(models.Model):
+    TRIAL_DAYS = 14
     restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name='subscription')
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
     status = models.CharField(max_length=12, choices=[('trial','تجربة'),('active','نشط'),('expired','منتهي')], default='trial')

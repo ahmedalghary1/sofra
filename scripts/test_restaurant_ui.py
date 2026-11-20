@@ -1,5 +1,7 @@
 ﻿"""Run with python manage.py test scripts.test_restaurant_ui (Playwright and Chrome)."""
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -15,12 +17,53 @@ from core.models import (
     Membership,
     MenuItem,
     MenuSize,
+    ModifierGroup,
+    ModifierOption,
     Order,
     Restaurant,
 )
 
 
 class ServiceAcrossRolesTests(StaticLiveServerTestCase):
+    def test_guest_draft_is_table_session_scoped_and_rechecks_catalog(self):
+        venue = Restaurant.objects.create(name='مطعم الحي · Neighborhood Kitchen', slug='draft-menu')
+        branch = Branch.objects.create(restaurant=venue, name='الفرع الرئيسي · Main branch')
+        table = DiningTable.objects.create(branch=branch, name='Window')
+        other = DiningTable.objects.create(branch=branch, name='Patio')
+        menu = Category.objects.create(branch=branch, name='Drinks')
+        item = MenuItem.objects.create(category=menu, name='Latte', price='60.00')
+        group = ModifierGroup.objects.create(item=item, name='Milk', min_select=1)
+        oat = ModifierOption.objects.create(group=group, name='Oat', price='10.00')
+        url = self.live_server_url + reverse('public_menu', args=[table.public_token])
+        with ThreadPoolExecutor(max_workers=1) as database, sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel='chrome')
+            page = browser.new_page(viewport={'width': 360, 'height': 740})
+            page.goto(url + '?lang=en')
+            page.evaluate('document.fonts.ready')
+            brand = page.locator('.guest-brand').bounding_box()
+            self.assertLessEqual(brand['y'] + brand['height'], page.locator('.guest-hero').bounding_box()['y'])
+            add = page.get_by_role('button', name='Add Latte')
+            self.assertLess(add.bounding_box()['y'] + add.bounding_box()['height'], 740)
+            add.click()
+            page.get_by_label('Oat', exact=False).check()
+            page.get_by_label('Increase quantity', exact=True).click()
+            page.get_by_role('button', name='Add to cart', exact=False).click()
+            page.goto(self.live_server_url + reverse('public_menu', args=[other.public_token]))
+            expect(page.locator('#cartBar')).to_be_hidden()
+            page.goto(url + '?lang=ar')
+            expect(page.locator('#cartCount')).to_have_text('2')
+            expect(page.locator('#cartTotal')).to_have_text('140')
+            oat.price = Decimal('20')
+            database.submit(oat.save, update_fields=['price']).result()
+            page.reload()
+            expect(page.locator('#cartMenuChange')).to_be_visible()
+            expect(page.locator('#cartTotal')).to_have_text('160')
+            table.session_token = uuid4()
+            database.submit(table.save, update_fields=['session_token']).result()
+            page.reload()
+            expect(page.locator('#cartBar')).to_be_hidden()
+            browser.close()
+
     def test_branch_picker_and_order_headings_have_vertical_clearance(self):
         venue = Restaurant.objects.create(name='QA Café', slug='two-branches')
         Branch.objects.create(restaurant=venue, name='الفرع الرئيسي')
@@ -96,7 +139,20 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             guest.get_by_role('button', name='Add to cart', exact=False).click()
             guest.locator('#openCart').click()
             expect(guest.locator('.cart-total')).to_contain_text('80 EGP')
+            guest.locator('textarea').fill('Less foam')
+            guest.reload()
+            guest.locator('#openCart').click()
+            expect(guest.locator('textarea')).to_have_value('Less foam')
+            expect(guest.locator('.cart-total')).to_contain_text('80 EGP')
+            endpoint = '**' + reverse('place_order', args=[table.public_token])
+            def lose_response(route):
+                self.assertEqual(route.fetch().status, 200)
+                route.abort()
+            guest.route(endpoint, lose_response, times=1)
             guest.get_by_role('button', name='Confirm and place order').click()
+            expect(guest.get_by_role('button', name='Check order')).to_be_visible()
+            guest.reload()
+            guest.get_by_role('button', name='Check order').click()
             expect(guest.locator('.track-lines')).to_contain_text('Large')
             expect(guest.locator('.track-total')).to_contain_text('80.00')
             kitchen.evaluate("window.dispatchEvent(new Event('online'))")
@@ -106,6 +162,7 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
                 kitchen.get_by_role('button', name=label).click()
             expect(kitchen.locator('.kitchen-ticket')).to_have_attribute('data-status', 'ready')
             guest.get_by_role('link', name='Add another table order').click()
+            expect(guest.locator('#cartBar')).to_be_hidden()
             guest.get_by_role('button', name='Request bill').click()
             waiter = open_page('waiter', reverse('manage_calls', args=[venue.slug]))
             waiter.get_by_role('button', name='Acknowledge').click()
@@ -117,4 +174,5 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             expect(cashier.locator('.data-table')).to_contain_text('تحصيل مسجل')
             browser.close()
         order = Order.objects.get(table=table)
+        self.assertEqual(order.note, 'Less foam')
         self.assertEqual((order.total, order.status, order.payment_status), (Decimal('80.00'), 'served', 'paid'))

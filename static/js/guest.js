@@ -21,6 +21,8 @@ let editReason = '';
 let submittedTableId = null;
 let submitting = false;
 let modalOpener = null;
+const draftKey = window.SAFRA.cartSession ? 'serveza:table-cart:' + window.SAFRA.cartTable : null;
+let pendingOrder = null;
 const money = v => Number(v).toLocaleString(guestEnglish ? 'en-EG' : 'ar-EG-u-nu-latn', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!==undefined)n.textContent=txt; return n; };
 
@@ -32,6 +34,118 @@ function newRequestKey() {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+}
+
+function orderLines() {
+  return cart.map(row => ({item_id: row.item.id, quantity: row.quantity, size_id: row.sizeId, options: row.options}));
+}
+
+function saveDraft() {
+  if (!draftKey) return;
+  try {
+    if (!cart.length && !pendingOrder) {
+      sessionStorage.removeItem(draftKey);
+      return;
+    }
+    sessionStorage.setItem(draftKey, JSON.stringify({session: window.SAFRA.cartSession, requestKey,
+      lines: orderLines(), prices: cart.map(row => row.unit.toFixed(2)), note: cartNote, pending: pendingOrder}));
+  } catch { /* Ordering also works when browser storage is unavailable. */ }
+}
+
+function restoreLine(line) {
+  const item = items.find(item => item.id === line?.item_id);
+  if (!item || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 30 ||
+      !Array.isArray(line.options)) return null;
+  const size = item.sizes.find(size => size.id === line.size_id);
+  if (line.size_id !== null && !size) return null;
+  const options = new Set(line.options);
+  let matches = 0;
+  let unit = Number(size?.price ?? item.price);
+  for (const group of item.groups) {
+    const selected = group.options.filter(option => options.has(option.id));
+    if (selected.length < group.min || selected.length > group.max) return null;
+    matches += selected.length;
+    for (const option of selected) unit += Number(option.price);
+  }
+  if (matches !== line.options.length) return null;
+  return {item, sizeId: line.size_id, sizeName: size?.name || '', options: line.options, quantity: line.quantity, unit};
+}
+
+function restoreDraft() {
+  if (!draftKey) return;
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(draftKey));
+    if (draft?.session !== window.SAFRA.cartSession || !Array.isArray(draft.lines)) {
+      saveDraft();
+      return;
+    }
+    const restored = draft.lines.map(restoreLine);
+    const changed = restored.some((row, index) => !row || row.unit.toFixed(2) !== draft.prices?.[index]);
+    cart.push(...restored.filter(Boolean));
+    cartNote = typeof draft.note === 'string' ? draft.note.slice(0, 500) : '';
+    if (/^[a-f0-9-]{36}$/i.test(draft.requestKey)) requestKey = draft.requestKey;
+    if (draft.pending?.idempotency_key === requestKey && Array.isArray(draft.pending.lines)) {
+      pendingOrder = draft.pending;
+    }
+    if (changed) document.getElementById('cartMenuChange').hidden = false;
+    saveDraft();
+  } catch { /* Ignore invalid or unavailable session storage. */ }
+  renderCartBar();
+  if (pendingOrder) showPendingOrder();
+}
+
+function showPendingOrder() {
+  const panel = el('div', 'cart-modal');
+  const status = el('p', 'muted', guestCopy('يمكنك إعادة إرسال نفس الطلب بأمان لمعرفة حالته.', 'Retry the same order to confirm its status.'));
+  status.setAttribute('role', 'status');
+  const retry = el('button', 'btn btn-primary btn-full', guestCopy('التحقق من الطلب', 'Check order'));
+  retry.type = 'button';
+  retry.onclick = () => sendGuestOrder(status, retry);
+  panel.append(el('h2', '', guestCopy('بانتظار تأكيد المطعم', 'Awaiting order confirmation')),
+    el('strong', '', guestCopy('إجمالي الطلب · ', 'Order total · ') + money(pendingOrder.reviewed_total) + guestCopy(' ج.م', ' EGP')), status, retry);
+  show(panel);
+}
+
+async function sendGuestOrder(status, button) {
+  if (submitting) return;
+  submitting = true;
+  button.disabled = closeModal.disabled = true;
+  backdrop.querySelectorAll('textarea, .cart-list').forEach(node => { node.inert = true; });
+  status.textContent = guestCopy('جارٍ إرسال الطلب…', 'Sending order…');
+  try {
+    const response = await fetch(window.SAFRA.orderUrl, {method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.SAFRA.csrf},
+      body: JSON.stringify({...pendingOrder, session_token: window.SAFRA.sessionToken})});
+    const result = await response.json();
+    if (response.ok && result.ok && result.order_url) {
+      cart.length = 0;
+      pendingOrder = null;
+      cartNote = '';
+      saveDraft();
+      renderCartBar();
+      location.assign(result.order_url);
+    } else if (response.status === 400 && result.ok === false) {
+      pendingOrder = null;
+      saveDraft();
+      renderCartBar();
+      submitting = false;
+      openCart();
+      const error = el('p', 'form-error', result.error);
+      error.setAttribute('role', 'alert');
+      const refresh = el('button', 'text-button', guestCopy('تحديث المنيو والأسعار', 'Refresh menu and prices'));
+      refresh.type = 'button';
+      refresh.onclick = () => location.reload();
+      content.querySelector('.cart-modal h2').after(error, refresh);
+    } else {
+      showPendingOrder();
+    }
+  } catch {
+    showPendingOrder();
+  } finally {
+    submitting = false;
+    button.disabled = closeModal.disabled = false;
+    backdrop.querySelectorAll('[inert]').forEach(node => { node.inert = false; });
+  }
 }
 
 function show(node) {
@@ -117,10 +231,12 @@ function updateCart() {
   requestKey = newRequestKey();
   submittedTableId = null;
   renderCartBar();
+  saveDraft();
 }
 
 function openItem(id){
   if (!backdrop.hidden) return;
+  if (pendingOrder) { showPendingOrder(); return; }
   current=items.find(x=>x.id===id); if(!current)return;
   const wrap=el('div','item-modal');
   wrap.append(el('span','eyebrow',guestCopy("اختار صنفك", "Customize item")),el('h2','',current.name),el('p','muted',current.description||guestCopy("طبق محضّر بعناية", "Prepared to order")));
@@ -182,10 +298,17 @@ function openItem(id){
   wrap.append(form);show(wrap);
 }
 function cartTotal(){return cart.reduce((s,x)=>s+x.quantity*x.unit,0)+existingRows.reduce((s,x)=>s+x.quantity*Number(x.unit_price),0)}
-function renderCartBar(){const bar=document.getElementById('cartBar');const count=cart.reduce((s,x)=>s+x.quantity,0)+existingRows.reduce((s,x)=>s+x.quantity,0);bar.hidden=!count;document.getElementById('cartCount').textContent=count;document.getElementById('cartTotal').textContent=money(cartTotal());}
+function renderCartBar() {
+  const rows = pendingOrder?.lines ?? [...cart, ...existingRows];
+  const count = rows.reduce((sum, row) => sum + row.quantity, 0);
+  document.getElementById('cartBar').hidden = !count;
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('cartTotal').textContent = money(pendingOrder?.reviewed_total ?? cartTotal());
+}
 document.getElementById('openCart').onclick=openCart;
 function openCart(){
   if (submitting) return;
+  if (pendingOrder) { showPendingOrder(); return; }
   const editing=!!window.SAFRA.editMode;
   const wrap=el('div','cart-modal');
   wrap.append(el('h2', '', editing ? guestCopy("تفاصيل الطلب بعد التعديل", "Review order changes") : guestCopy("راجع طلبك", "Review your order")));
@@ -243,7 +366,7 @@ function openCart(){
     note = el('textarea');
     const noteLabel=el('label','note-label',editing?guestCopy("سبب التعديل (إلزامي)", "Reason for editing (required)"):guestCopy("ملاحظة للطلب (اختياري)", "Order note (optional)"));
     note.maxLength=editing?240:500;note.placeholder=editing?guestCopy("مثال: طلب العميل تغيير الكمية", "For example, guest changed the quantity"):guestCopy("مثال: بدون بصل", "For example, no onions");note.value=editing?editReason:cartNote;
-    note.oninput=()=>{if(editing)editReason=note.value;else cartNote=note.value};
+    note.oninput=()=>{if(editing)editReason=note.value;else {cartNote=note.value;saveDraft()}};
     noteLabel.append(note);wrap.append(noteLabel);
     if(!editing)wrap.append(el('p','allergy-note',guestCopy("لو عندك حساسية غذائية، أخبر فريق المطعم مباشرة.", "Please tell the venue team directly about food allergies.")));
   }
@@ -263,7 +386,13 @@ function openCart(){
 
   send.onclick = async () => {
     if (submitting) return;
-    const newLines = cart.map(row => ({item_id: row.item.id, quantity: row.quantity, size_id: row.sizeId, options: row.options}));
+    const newLines = orderLines();
+    if (draftKey) {
+      pendingOrder = {idempotency_key: requestKey, note: cartNote, lines: newLines, reviewed_total: cartTotal().toFixed(2)};
+      saveDraft();
+      await sendGuestOrder(error, send);
+      return;
+    }
     let payload;
     if (demoMode) {
       payload = {lines: newLines};
@@ -346,3 +475,5 @@ function showDemoConfirmation(total) {
   show(confirmation);
 }
 if(window.SAFRA.editMode)renderCartBar();
+restoreDraft();
+if (draftKey) window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });

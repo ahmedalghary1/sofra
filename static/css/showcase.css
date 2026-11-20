@@ -1,4 +1,7 @@
 /* Product illustrations, browser-local demos and calculator. */
+@media (scripting: enabled) {
+  [data-panel] ~ [data-panel]:not([role="tabpanel"]):not(:target) { display: none; }
+}
 .sz-product { margin: 0; min-width: 0; container-type: inline-size; }
 .sz-canvas { position: relative; isolation: isolate; aspect-ratio: 1.34; overflow: hidden; border-radius: 24px; background: #b9d6cc; color: var(--brand-primary, #0f2a3d); font-size: 2.35cqw; line-height: 1.4; }
 .sz-service-lines { position: absolute; inset: 0; width: 100%; height: 100%; color: #8db6a9; opacity: .8; }
@@ -26,6 +29,8 @@
 .sz-phone { position: absolute; inset-inline-end: 4%; bottom: 7%; width: 28%; border: .7cqw solid #153443; border-radius: 3.8cqw; background: #fefdf8; box-shadow: 0 1.4cqw 3.7cqw #143c3740; }
 .sz-speaker { width: 24%; height: 1.1cqw; position: absolute; left: 38%; top: .7cqw; border-radius: 5cqw; background: #153443; }
 .sz-phone-top { display: flex; justify-content: space-between; direction: ltr; padding: .8cqw 1.8cqw; color: #193e42; font-size: 1.25cqw; font-weight: 800; }
+.sz-phone-battery { align-self: center; width: 2.2cqw; height: .9cqw; border: 1px solid currentColor; border-radius: .25cqw; background: linear-gradient(to right,currentColor 70%,transparent 70%); }
+.mk-hero .mk-pricing-shortcut { margin-block-start: .65rem; padding-block: .3rem; }
 .sz-phone-inner { padding: 1.3cqw 1.8cqw 2cqw; }
 .sz-phone-inner strong { display: block; font-size: 2.8cqw; }
 .sz-phone-inner img { width: 100%; height: auto; aspect-ratio: 1.55; object-fit: cover; border-radius: .9cqw; margin: 1.2cqw 0; }
@@ -113,6 +118,7 @@
 .sz-pairing-cover svg { width: 100%; }
 .sz-pairing-detail { padding: clamp(.9rem,2.3vw,1.6rem); }
 .sz-tally { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.sz-pairing-detail .sz-tally { color: #193c38; background: #f8f3ec; }
 @media (max-width: 740px) {
   .sz-estimator, .sz-offer, .sz-tour-panel { grid-template-columns: 1fr; }
   .sz-lab-grid { grid-template-columns: minmax(0,1fr); }

@@ -28,12 +28,12 @@ STAFF_ROLES = {
     'kitchen': ('المطبخ', 'Kitchen staff'), 'cashier': ('الكاشير', 'Cashiers'),
 }
 PLAN_FOCUS = {
-    'Starter': ('للخدمة اليومية من أول مسح للكود حتى طلب الحساب.',
-                'Take a table from its first QR scan to the bill request.'),
-    'Growth': ('وزّع التحضير بين المحطات، وتابع جاهزية كل صنف وقت الزحمة.',
-               'Split prep between stations and track each item through a busy shift.'),
-    'Business': ('كل أدوات التشغيل، مع منيو ومطبخ وتقارير مستقلة لكل فرع.',
-                 'All operating tools, with a separate menu, kitchen and reports for each branch.'),
+    'Starter': ('لكافيه صغير يخدم حتى {max_tables} طاولة في الفرع. يطلب الضيف من المنيو ويتابع الويتر الطلب حتى الحساب.',
+                'For a café serving up to {max_tables} tables per branch. Guests order by QR and the waiter follows each order through to the bill.'),
+    'Growth': ('لوردية مزدحمة. افصل تذاكر الشواية عن المشروبات، ووزّع التحضير على ما يصل إلى {max_stations} محطات في الفرع.',
+               'For the rush. Give the grill and drinks counter separate tickets, with up to {max_stations} prep stations per branch.'),
+    'Business': ('لتشغيل عدة فروع. أدِر حتى {max_branches} فروع و{max_staff} حسابًا للفريق، بمنيو ومطبخ وتقارير مستقلة لكل فرع.',
+                 'Run up to {max_branches} branches with {max_staff} team accounts and a separate menu, kitchen and reports for each branch.'),
 }
 HIGHLIGHTS = {
     'Starter': (
@@ -102,7 +102,7 @@ def public_plans(english=False, configured=True):
             focus = ('تابع الفريق والمطبخ وتقارير التشغيل في مساحة واحدة.', 'Manage staff, kitchen and reporting in one workspace.')
         if name == 'Growth' and limits['max_stations'] <= 1:
             focus = ('تابع طلبات الصالة والتحصيل في الوردية.', 'Track floor orders and collections throughout the shift.')
-        plan['focus'] = focus[english]
+        plan['focus'] = focus[english].format(**limits)
         plan['staff'] = _staff_example(limits['max_staff'])
         plan['staff_rows'] = [(label[english], plan['staff'][role]) for role, label in STAFF_ROLES.items()]
         plan['highlights'] = [(ar, en)[english] for slug, ar, en in HIGHLIGHTS[name]

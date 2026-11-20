@@ -66,12 +66,19 @@
 .mk-flow-icon{display:grid;place-items:center;background:#ecf4f0;color:#23645d;width:44px;height:44px;border-radius:12px;margin-bottom:14px}
 .mk-flow h3{margin-block-end:var(--space-related)}.mk-flow p,.mk-guide-grid p{font-size:.95rem}
 .mk-tint{background:#f3f7f5;border-block:1px solid #e0ebe6}
-/* A long product tour should not lay out every workstation before the hero paints. */
+.mk-hero ~ :is(.mk-section,.mk-tint,.mk-wrap) {contain:layout style}
 @media screen {
-  .mk-hero ~ :is(.mk-section,.mk-tint,.mk-wrap) {
-    content-visibility:auto;
-    contain-intrinsic-block-size:auto 650px;
-  }
+  .mk-home-preview {content-visibility:auto;contain-intrinsic-block-size:auto var(--preview-height,650px)}
+  .mk-home-preview:has(.mk-flow) {--preview-height:340px}
+  .mk-home-preview:has(.sz-tour) {--preview-height:750px}
+  .mk-home-preview:has(.sz-lab) {--preview-height:1200px}
+}
+@media screen and (max-width:650px) {
+  .mk-home-preview:has(.mk-flow) {--preview-height:640px}
+  .mk-home-preview:has(.sz-tour) {--preview-height:900px}
+  .mk-home-preview:has(.mk-bento) {--preview-height:950px}
+  .mk-home-preview:has(.sz-lab) {--preview-height:1450px}
+  .mk-home-preview.mk-split {--preview-height:770px}
 }
 .mk-bento{display:grid;grid-template-columns:1.22fr 1fr;gap:16px}.mk-bento>a{position:relative;overflow:hidden;border-radius:20px;text-decoration:none;color:#fff;min-height:305px}
 .mk-photo-card img{width:100%;height:100%;position:absolute;object-fit:cover;inset:0}
@@ -106,6 +113,7 @@
 .mk-tier .mk-textlink {align-self:start;display:inline-flex;align-items:center;gap:6px}
 .mk-tier-business {--brand-accent-strong:#b8e9d8;background:var(--brand-primary);color:#fff;border-color:var(--brand-primary)}
 .mk-tier-business p {color:#e1efea}
+.mk-tier-business .mk-tier-price {background:var(--brand-primary);color:#fff}
 .mk-tier-business header small,.mk-tier-business .mk-textlink {color:#b8e9d8}
 .mk-tier-business dl>div {border-color:#496571}
 .mk-split{grid-template-columns:minmax(0,.72fr) minmax(0,1fr)}
