@@ -34,6 +34,7 @@ urlpatterns = [
     path('platform/<int:restaurant_id>/update/', views.platform_update_restaurant, name='platform_update_restaurant'),
     path('platform/<int:restaurant_id>/payments/', views.platform_record_payment, name='platform_record_payment'),
     path('app/<slug:slug>/', views.dashboard, name='dashboard'),
+    path('app/<slug:slug>/activation/', views.subscription_activation, name='subscription_activation'),
     path('app/<slug:slug>/menu/', views.manage_menu, name='manage_menu'),
     path('app/<slug:slug>/menu/import/', views.menu_import, name='menu_import'),
     path('app/<slug:slug>/tables/', views.manage_tables, name='manage_tables'),

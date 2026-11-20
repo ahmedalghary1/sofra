@@ -40,6 +40,7 @@ from .limits import check_activation_limit, check_creation_limit
 from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
+from .showcase_catalog import public_tier_records
 from .presentation import localized_url
 from .demo_menu import demo_order_total, sample_menu
 from .menu_photos import menu_photo
@@ -98,6 +99,8 @@ def send_owner_activation(request, user, token, *, resend=False):
     link = settings.PUBLIC_BASE_URL + path if settings.PUBLIC_BASE_URL else request.build_absolute_uri(path)
     subject = gettext('رابط تفعيل بريد مالك المطعم في Serveza') if resend else gettext('تفعيل بريد مالك المطعم في Serveza')
     text = gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=user.first_name, link=link)
+    text += '\n\n' + ('After verifying your email, request contact from customer service to choose a plan and arrange payment.'
+                      if english else 'بعد تأكيد بريدك، اطلب التواصل مع خدمة العملاء لاختيار باقتك وترتيب السداد.')
     html = render_to_string('emails/owner_activation.html', {'english': english, 'name': user.first_name, 'link': link})
     if send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html, fail_silently=False) != 1:
         raise ValidationError('تعذر إرسال رابط التفعيل الآن.')
@@ -117,8 +120,7 @@ def register(request):
                 restaurant = Restaurant.objects.create(name=restaurant_name, slug='rest-' + secrets.token_hex(5))
                 Branch.objects.create(restaurant=restaurant)
                 Membership.objects.create(user=user, restaurant=restaurant, role='owner')
-                plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={'max_tables': 10, 'max_items': 50, 'max_staff': 5})
-                Subscription.objects.create(restaurant=restaurant, plan=plan, ends_at=timezone.now()+timedelta(days=Subscription.TRIAL_DAYS))
+                Subscription.objects.create(restaurant=restaurant, status='pending')
                 raw_token = secrets.token_urlsafe(32)
                 OwnerEmailVerification.objects.create(user=user,
                     token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
@@ -132,7 +134,7 @@ def register(request):
             form.add_error(None, error_text(exc))
         else:
             return redirect('verification_pending')
-    return render(request, 'auth.html', {'mode': 'register', 'form': form, 'trial_days': Subscription.TRIAL_DAYS})
+    return render(request, 'auth.html', {'mode': 'register', 'form': form})
 
 
 @require_GET
@@ -247,11 +249,18 @@ def platform_dashboard(request):
         'branches', Prefetch('memberships', queryset=Membership.objects.filter(role='owner').select_related('user'),
                              to_attr='platform_owners')).annotate(
         branch_count=Count('branches', distinct=True), member_count=Count('memberships', distinct=True)).order_by('-created_at')
+    pending_only = request.GET.get('status') == 'pending'
+    if pending_only:
+        restaurants = restaurants.filter(subscription__status='pending').order_by(
+            F('subscription__activation_requested_at').desc(nulls_last=True), '-created_at')
     if query:
         restaurants = restaurants.filter(Q(name__icontains=query) | Q(slug__icontains=query))
     page = Paginator(restaurants, 25).get_page(request.GET.get('page'))
-    return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.all(), 'query': query,
-        'restaurant_total': Restaurant.objects.count(), 'active_total': Restaurant.objects.filter(active=True).count()})
+    return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.order_by('price_monthly', 'name'), 'query': query,
+        'activation_plans': public_tier_records().order_by('price_monthly', 'name'),
+        'pending_only': pending_only, 'pending_total': Subscription.objects.filter(status='pending').count(),
+        'restaurant_total': Restaurant.objects.count(),
+        'active_total': Restaurant.objects.filter(active=True).exclude(subscription__status='pending').count()})
 
 
 @require_http_methods(['GET', 'POST'])
@@ -272,10 +281,7 @@ def platform_create_restaurant(request):
                         username=data['owner_email'], email=data['owner_email'],
                         first_name=data['owner_name'], password=data['owner_password'])
                 plan = data['plan']
-                if plan is None:
-                    plan, _ = Plan.objects.get_or_create(name='تجربة', defaults={
-                        'max_tables': 10, 'max_items': 50, 'max_staff': 5, 'max_branches': 1})
-                if plan.max_branches < 1:
+                if plan and plan.max_branches < 1:
                     raise ValidationError('هذه الباقة لا تسمح بإنشاء الفرع الأول.')
                 restaurant = Restaurant.objects.create(
                     name=data['name'], description=data['description'],
@@ -283,11 +289,14 @@ def platform_create_restaurant(request):
                 branch = Branch.objects.create(
                     restaurant=restaurant, name=data['branch_name'], address=data['branch_address'])
                 Membership.objects.create(user=owner, restaurant=restaurant, role='owner')
-                Subscription.objects.create(restaurant=restaurant, plan=plan, status='trial',
-                                            ends_at=timezone.now()+timedelta(days=Subscription.TRIAL_DAYS))
+                if plan:
+                    Subscription.objects.create(restaurant=restaurant, plan=plan, status='active',
+                        ends_at=timezone.make_aware(datetime.combine(data['ends_at'], time.max)))
+                else:
+                    Subscription.objects.create(restaurant=restaurant, status='pending')
                 audit(restaurant, request.user, 'platform.restaurant.create',
-                      f'owner={owner.pk}; branch={branch.pk}; plan={plan.pk}')
-            messages.success(request, 'تم إنشاء المطعم وفرعه الأول وربط حساب المالك بالتجربة.')
+                      f'owner={owner.pk}; branch={branch.pk}; plan={plan.pk if plan else "pending"}')
+            messages.success(request, 'Restaurant created.' if request.LANGUAGE_CODE == 'en' else 'تم إنشاء المطعم وربط حساب المالك.')
             return redirect(f'{reverse("platform_dashboard")}#restaurant-{restaurant.pk}')
         except IntegrityError:
             form.add_error(None, 'تعذر إنشاء المطعم بسبب تعارض في البيانات. حدّث الصفحة ثم حاول مرة أخرى.')
@@ -360,7 +369,11 @@ def platform_update_restaurant(request, restaurant_id):
                       f'active={restaurant.active}; reason={reason}')
             elif action == 'subscription':
                 subscription = Subscription.objects.select_for_update().get(restaurant=restaurant)
-                plan = get_object_or_404(Plan, pk=request.POST.get('plan_id'))
+                plans = public_tier_records() if subscription.status == 'pending' else Plan.objects.all()
+                try:
+                    plan = plans.get(pk=request.POST.get('plan_id'))
+                except (Plan.DoesNotExist, ValueError, OverflowError):
+                    raise ValidationError('Choose an available plan.' if request.LANGUAGE_CODE == 'en' else 'اختر باقة متاحة لهذا المطعم.')
                 status = request.POST.get('status')
                 if status not in ('trial','active','expired'):
                     raise ValidationError('حالة الاشتراك غير صالحة.')
@@ -368,7 +381,11 @@ def platform_update_restaurant(request, restaurant_id):
                     end_date = datetime.fromisoformat(request.POST.get('ends_at','')).date()
                 except (ValueError, TypeError):
                     raise ValidationError('تاريخ الانتهاء غير صالح.')
-                old = f'{subscription.plan_id}/{subscription.status}/{subscription.ends_at.date()}'
+                if subscription.status == 'pending' and status != 'active':
+                    raise ValidationError('Choose an active subscription to open the workspace.' if request.LANGUAGE_CODE == 'en' else 'اختر اشتراكًا نشطًا لفتح لوحة المطعم.')
+                if status in ('active', 'trial') and end_date < timezone.localdate():
+                    raise ValidationError('Choose today or a future expiry date.' if request.LANGUAGE_CODE == 'en' else 'اختر تاريخ انتهاء اليوم أو بعده.')
+                old = f'{subscription.plan_id}/{subscription.status}/{subscription.ends_at.date() if subscription.ends_at else "-"}'
                 subscription.plan = plan
                 subscription.status = status
                 subscription.ends_at = timezone.make_aware(datetime.combine(end_date, time.max))
@@ -407,15 +424,41 @@ def platform_record_payment(request, restaurant_id):
     messages.success(request, 'سُجل التحصيل اليدوي. صلاحية الاشتراك لا تتغير تلقائيًا.')
     return redirect('platform_dashboard')
 
-def scope(request, slug, roles=None):
+def scope(request, slug, roles=None, *, allow_pending=False):
     if not request.user.is_authenticated: return None, None, redirect('login')
-    restaurant = get_object_or_404(Restaurant, slug=slug)
+    restaurant = get_object_or_404(Restaurant.objects.select_related('subscription'), slug=slug)
     membership = Membership.objects.filter(user=request.user, restaurant=restaurant, active=True).first()
     if not membership or (roles and membership.role not in roles):
         return None, None, render(request, '403.html', status=403)
+    subscription = getattr(restaurant, 'subscription', None)
+    if not allow_pending and subscription and subscription.status == 'pending':
+        return None, None, redirect('subscription_activation', slug=slug)
     if not restaurant.active and request.method not in ('GET','HEAD') and request.resolver_match.url_name != 'select_branch':
         return None, None, render(request, '403.html', status=403)
     return restaurant, membership, None
+
+
+@require_http_methods(['GET', 'HEAD', 'POST'])
+def subscription_activation(request, slug):
+    restaurant, membership, denied = scope(request, slug, allow_pending=True)
+    if denied:
+        return denied
+    subscription = getattr(restaurant, 'subscription', None)
+    if not subscription or subscription.status != 'pending':
+        return redirect('dashboard', slug=slug)
+    if request.method == 'POST':
+        if membership.role != 'owner':
+            return render(request, '403.html', status=403)
+        with transaction.atomic():
+            requested = Subscription.objects.filter(pk=subscription.pk, status='pending',
+                activation_requested_at__isnull=True).update(activation_requested_at=timezone.now())
+            if requested:
+                audit(restaurant, request.user, 'subscription.activation.request', 'Customer service callback requested')
+        return redirect('subscription_activation', slug=slug)
+    other_memberships = Membership.objects.filter(user=request.user, active=True).exclude(
+        restaurant=restaurant).select_related('restaurant').order_by('restaurant__name')
+    return render(request, 'subscription_activation.html', {'restaurant': restaurant,
+        'membership': membership, 'subscription': subscription, 'other_memberships': other_memberships})
 
 def branch_for(request, restaurant, membership):
     branches = Branch.objects.filter(restaurant=restaurant)
@@ -526,7 +569,7 @@ def manage_menu(request, slug):
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم محطة المطبخ.')
                 with transaction.atomic():
-                    subscription = Subscription.objects.select_for_update().select_related('plan').get(restaurant=restaurant)
+                    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').get(restaurant=restaurant)
                     if KitchenStation.objects.filter(branch=branch).count() >= subscription.plan.max_stations:
                         raise ValidationError('وصلت إلى حد محطات المطبخ في باقتك.')
                     station = KitchenStation.objects.create(branch=branch, name=name)
@@ -1394,7 +1437,10 @@ def restaurant_settings(request, slug):
                  usage=usage, over_limit=over_limit)
 
 def public_menu(request, token):
-    table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant'), public_token=token)
+    table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant__subscription'), public_token=token)
+    subscription = getattr(table.branch.restaurant, 'subscription', None)
+    if subscription and subscription.status == 'pending':
+        return render(request, 'table_closed.html', status=404)
     if not table.active or not table.branch.active or not table.branch.restaurant.active:
         return render(request, 'table_closed.html', status=404)
     categories = Category.objects.filter(branch=table.branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
@@ -1405,7 +1451,6 @@ def public_menu(request, token):
         category = item['category']
         item['category_name'] = menu_categories[category] = category_names[category]
         item['photo'] = menu_photo(item['name'], item['image'])
-    subscription = getattr(table.branch.restaurant, 'subscription', None)
     accepting = table.branch.accepting_orders and (subscription is None or subscription.valid())
     return render(request, 'public_menu.html', {
         'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,

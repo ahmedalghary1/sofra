@@ -1,0 +1,33 @@
+{% extends 'base.html' %}{% load showroom %}
+{% block title %}{% bi 'تفعيل اشتراك المطعم' 'Restaurant subscription activation' %}{% endblock %}
+{% block body %}
+<main class="reset-shell">
+  <nav class="reset-nav"><a href="{% url 'home' %}">{% include '_brand_logo.html' only %}</a>{% include '_ops_language.html' %}</nav>
+  <section class="panel reset-card" aria-labelledby="activation-title">
+    <span class="reset-emblem" aria-hidden="true">{% symbol 'store' %}</span>
+    <span class="eyebrow">{{ restaurant.name }}</span>
+    <h1 id="activation-title">{% bi 'اشتراك مطعمك بانتظار التفعيل' 'Your restaurant is awaiting activation' %}</h1>
+    {% if membership.role == 'owner' %}
+      {% if subscription.activation_requested_at %}
+        <p role="status">{% bi 'وصل طلبك إلى خدمة العملاء. سيتواصل الفريق معك على بريد حسابك لتحديد الباقة وترتيب السداد.' 'Customer service has received your request. The team will email you to agree on a plan and arrange payment.' %}</p>
+        <p><bdi>{{ request.user.email }}</bdi></p>
+        <a class="btn btn-primary btn-full" href="{% url 'subscription_activation' restaurant.slug %}">{% bi 'تحقق من حالة الاشتراك' 'Check subscription status' %}</a>
+      {% else %}
+        <p>{% bi 'تواصل مع خدمة العملاء لتحديد الباقة المناسبة وترتيب السداد. بعد تفعيل اشتراكك يمكنك فتح لوحة المطعم وإضافة فريقك.' 'Contact customer service to choose a plan and arrange payment. Once your subscription is activated, you can open the workspace and add your team.' %}</p>
+        <p>{% bi 'بريد التواصل' 'Contact email' %} · <bdi>{{ request.user.email }}</bdi></p>
+        <form method="post">{% csrf_token %}<button type="submit" class="btn btn-primary btn-full">{% bi 'اطلب التواصل مع خدمة العملاء' 'Request contact from customer service' %}</button></form>
+      {% endif %}
+      <p><a class="text-button" href="{% public_url 'pricing' %}">{% bi 'اعرض الباقات والأسعار' 'View plans and prices' %}</a></p>
+    {% else %}
+      <p>{% bi 'يتولى مالك المطعم تحديد الباقة مع خدمة العملاء. يمكنك الدخول بعد تفعيل الاشتراك.' 'The owner arranges activation with customer service. You can access the workspace once it is active.' %}</p>
+    {% endif %}
+    {% if other_memberships %}
+      <nav aria-label="{% bi 'مطاعمك الأخرى' 'Your other restaurants' %}">
+        <h2>{% bi 'مطاعمك الأخرى' 'Your other restaurants' %}</h2>
+        {% for member in other_memberships %}<p><a href="{% url 'dashboard' member.restaurant.slug %}">{{ member.restaurant.name }}</a></p>{% endfor %}
+      </nav>
+    {% endif %}
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="text-button">{% bi 'تسجيل الخروج' 'Log out' %}</button></form>
+  </section>
+</main>
+{% endblock %}

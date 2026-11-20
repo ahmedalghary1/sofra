@@ -93,12 +93,20 @@ class StaffInvitation(models.Model):
         return not self.accepted_at and not self.revoked_at and self.expires_at > timezone.now()
 
 class Subscription(models.Model):
-    TRIAL_DAYS = 14
     restaurant = models.OneToOneField(Restaurant, on_delete=models.CASCADE, related_name='subscription')
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT)
-    status = models.CharField(max_length=12, choices=[('trial','تجربة'),('active','نشط'),('expired','منتهي')], default='trial')
-    ends_at = models.DateTimeField()
-    def valid(self): return self.status in ('trial','active') and self.ends_at > timezone.now()
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, null=True, blank=True)
+    status = models.CharField(max_length=12, choices=[('pending','بانتظار التفعيل'),('trial','تجربة'),('active','نشط'),('expired','منتهي')], default='trial')
+    ends_at = models.DateTimeField(null=True, blank=True)
+    activation_requested_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(
+            condition=(models.Q(status='pending', plan__isnull=True, ends_at__isnull=True) |
+                       (~models.Q(status='pending') & models.Q(plan__isnull=False, ends_at__isnull=False))),
+            name='subscription_terms_match_pending_status')]
+
+    def valid(self):
+        return self.status in ('trial','active') and self.ends_at > timezone.now()
 
 class SubscriptionPayment(models.Model):
     METHODS = [('cash', 'نقدًا'), ('bank', 'تحويل بنكي'), ('other', 'وسيلة أخرى')]

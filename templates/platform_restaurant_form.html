@@ -5,7 +5,7 @@
   {% include '_platform_header.html' %}
   <main class="platform-main platform-form-page">
     <div class="page-head">
-      <div><span class="eyebrow">{% translate 'لوحة المشغل' %}</span><h1>{% translate 'إضافة مطعم' %}</h1><p>{% translate 'أنشئ المطعم وفرعه الأول واربطه بمالك وباقة تجريبية في خطوة واحدة.' %}</p></div>
+      <div><span class="eyebrow">{% translate 'لوحة المشغل' %}</span><h1>{% translate 'إضافة مطعم' %}</h1><p>{% bi 'أنشئ المطعم وفرعه الأول واربطه بحساب المالك.' 'Create the restaurant and its first branch and assign its owner.' %}</p></div>
       <a class="btn btn-outline" href="{% url 'platform_dashboard' %}">{% translate 'العودة للمطاعم' %}</a>
     </div>
     <form method="post" class="panel platform-create-form">
@@ -35,9 +35,10 @@
         </div>
       </section>
       <section>
-        <div class="platform-section-title"><span>4</span><div><h2>{% translate 'الباقة' %}</h2><p>{% translate 'يبدأ الاشتراك كتجربة لمدة 14 يومًا. لإضافة أكثر من فرع اختر باقة بحد مناسب، أو' %} <a href="/django-admin/core/plan/add/" target="_blank" rel="noopener">{% translate 'أنشئ باقة جديدة' %}</a>.</p></div></div>
+        <div class="platform-section-title"><span>4</span><div><h2>{% translate 'الباقة' %}</h2><p>{% bi 'اختر باقة وتاريخ انتهاء بعد مراجعة السداد لتفعيل المطعم فورًا، أو اترك الباقة فارغة لحين الاتفاق مع المالك.' 'After reviewing payment, select a plan and expiry date to activate the restaurant now. Leave the plan empty to await an agreement with the owner.' %} <a href="/django-admin/core/plan/add/" target="_blank" rel="noopener">{% translate 'أنشئ باقة جديدة' %}</a>.</p></div></div>
         <div class="platform-form-grid">
           <div class="platform-field"><label for="{{ form.plan.id_for_label }}">{% translate form.plan.label %}</label>{{ form.plan }}{{ form.plan.errors }}</div>
+          <div class="platform-field"><label for="{{ form.ends_at.id_for_label }}">{% bi 'تاريخ انتهاء الاشتراك' 'Subscription expiry' %}</label>{{ form.ends_at }}{{ form.ends_at.errors }}</div>
         </div>
       </section>
       <div class="platform-form-actions"><a href="{% url 'platform_dashboard' %}" class="btn btn-outline">{% translate 'إلغاء' %}</a><button class="btn btn-primary" type="submit">{% bi 'إنشاء المطعم والفرع' 'Create restaurant and branch' %} {% symbol 'arrow-right' %}</button></div>

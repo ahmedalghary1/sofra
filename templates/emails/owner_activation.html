@@ -3,9 +3,10 @@
 <body style="margin:0;background:#f4f7f5;color:#173b34;font:16px/1.7 Arial,sans-serif;padding:24px">
   <main style="max-width:520px;margin:auto;background:#fff;border:1px solid #dce6df;border-radius:16px;padding:28px">
     <strong lang="en">Serveza</strong>
-    <h1 style="font-size:24px;line-height:1.4">{% if english %}Activate your restaurant account{% else %}فعّل حساب مطعمك{% endif %}</h1>
+    <h1 style="font-size:24px;line-height:1.4">{% if english %}Verify your email address{% else %}أكّد بريدك الإلكتروني{% endif %}</h1>
     <p>{% if english %}Hello {{ name }}, your activation link is valid for 24 hours.{% else %}أهلًا {{ name }}، رابط تفعيل حسابك صالح لمدة 24 ساعة.{% endif %}</p>
-    <a href="{{ link }}" style="display:inline-block;padding:10px 24px;border-radius:8px;background:#195b4e;color:white;text-decoration:none;font-weight:bold">{% if english %}Activate my account{% else %}تفعيل حسابي{% endif %}</a>
+    <p>{% if english %}After verification, contact customer service to choose your subscription and arrange payment.{% else %}بعد تأكيد بريدك، تواصل مع خدمة العملاء لتحديد اشتراكك وترتيب السداد.{% endif %}</p>
+    <a href="{{ link }}" style="display:inline-block;padding:10px 24px;border-radius:8px;background:#195b4e;color:white;text-decoration:none;font-weight:bold">{% if english %}Verify my email{% else %}تأكيد بريدي الإلكتروني{% endif %}</a>
     <p>{% if english %}You can also copy this link into your browser.{% else %}يمكنك أيضًا نسخ الرابط وفتحه في المتصفح.{% endif %}</p>
     <a href="{{ link }}" dir="ltr" style="display:block;overflow-wrap:anywhere;word-break:break-all;color:#195b4e">{{ link }}</a>
   </main>

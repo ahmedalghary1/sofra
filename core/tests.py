@@ -93,7 +93,8 @@ class PlatformProvisioningTests(TestCase):
         return {
             'name': name, 'description': 'مطعم تجريبي', 'branch_name': 'الفرع الرئيسي',
             'branch_address': 'القاهرة', 'owner_email': email, 'owner_name': 'مالك المطعم',
-            'owner_password': 'StrongPass!123', 'plan': self.plan.pk, **changes,
+            'owner_password': 'StrongPass!123', 'plan': self.plan.pk,
+            'ends_at': (timezone.localdate() + timedelta(days=30)).isoformat(), **changes,
         }
 
     def create_restaurant(self, **changes):
@@ -113,8 +114,8 @@ class PlatformProvisioningTests(TestCase):
         self.assertEqual(first.branches.count(), 1)
         self.assertEqual(second.branches.count(), 1)
         self.assertEqual(first.subscription.plan, self.plan)
-        self.assertEqual(first.subscription.status, 'trial')
-        self.assertGreater(first.subscription.ends_at, timezone.now()+timedelta(days=13))
+        self.assertEqual(first.subscription.status, 'active')
+        self.assertEqual(timezone.localdate(first.subscription.ends_at), timezone.localdate() + timedelta(days=30))
         owner = User.objects.get(username='east-owner@example.com')
         self.assertTrue(owner.check_password('StrongPass!123'))
         self.assertEqual(Membership.objects.get(user=owner, restaurant=first).role, 'owner')
@@ -196,22 +197,23 @@ class PlatformProvisioningTests(TestCase):
         self.assertFalse(Restaurant.objects.exists())
         self.client.force_login(self.operator)
         for changes in ({'owner_password': 'short'}, {'owner_email': 'not-an-email'},
-                        {'plan': 999999}, {'branch_name': ''}):
+                        {'plan': 999999}, {'branch_name': ''}, {'ends_at': ''},
+                        {'ends_at': (timezone.localdate() - timedelta(days=1)).isoformat()}):
             with self.subTest(changes=changes):
                 response = self.client.post(endpoint, self.restaurant_data(**changes))
                 self.assertEqual(response.status_code, 200)
                 self.assertFalse(Restaurant.objects.exists())
                 self.assertFalse(User.objects.filter(username='east-owner@example.com').exists())
 
-    def test_operator_can_create_first_restaurant_without_preexisting_plan(self):
-        self.plan.delete()
+    def test_operator_can_leave_a_new_restaurant_pending(self):
         self.client.force_login(self.operator)
         response = self.client.post(reverse('platform_create_restaurant'),
-                                    self.restaurant_data(plan=''))
+                                    self.restaurant_data(plan='', ends_at=''))
         self.assertEqual(response.status_code, 302)
         restaurant = Restaurant.objects.get(name='مطعم الشرق')
-        self.assertEqual(restaurant.subscription.plan.name, 'تجربة')
-        self.assertEqual(restaurant.subscription.plan.max_branches, 1)
+        self.assertEqual(restaurant.subscription.status, 'pending')
+        self.assertIsNone(restaurant.subscription.plan_id)
+        self.assertIsNone(restaurant.subscription.ends_at)
         self.assertEqual(restaurant.branches.count(), 1)
 
     def test_operator_creation_form_keeps_csrf_protection(self):
@@ -671,7 +673,7 @@ class SafraTests(TestCase):
         self.assertContains(response, 'aria-describedby="id_password_error"')
         self.assertContains(response, 'id="id_password_error"')
         self.assertNotContains(response, 'value="12345678"')
-        self.assertContains(response, '14-day trial')
+        self.assertContains(response, 'contact customer service')
         self.assertFalse(User.objects.filter(username=values['email']).exists())
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', PUBLIC_BASE_URL='https://menu.example')
@@ -682,7 +684,8 @@ class SafraTests(TestCase):
         created = Restaurant.objects.get(name='بيتنا')
         self.assertTrue(Membership.objects.filter(user__username='new@example.com',restaurant=created,role='owner').exists())
         self.assertEqual(created.branches.count(), 1)
-        self.assertTrue(created.subscription.valid())
+        self.assertEqual(created.subscription.status, 'pending')
+        self.assertFalse(created.subscription.valid())
         new_owner = User.objects.get(username='new@example.com')
         self.assertFalse(new_owner.is_active)
         self.assertEqual(len(mail.outbox), 1)
@@ -690,7 +693,7 @@ class SafraTests(TestCase):
         html, content_type = mail.outbox[0].alternatives[0]
         self.assertEqual(content_type, 'text/html')
         self.assertIn('href="https://menu.example/verify/', html)
-        self.assertIn('تفعيل حسابي', html)
+        self.assertIn('تأكيد بريدي الإلكتروني', html)
         raw_token = re.search(r'/verify/([^/]+)/', mail.outbox[0].body).group(1)
         self.assertNotEqual(raw_token, new_owner.owner_email_verification.token_hash)
         self.assertFalse(self.client.login(username=new_owner.username, password='StrongPass!123'))
@@ -1285,8 +1288,9 @@ class SafraTests(TestCase):
         self.restaurant.refresh_from_db()
         self.assertFalse(self.restaurant.active)
         self.assertTrue(AuditLog.objects.filter(restaurant=self.restaurant,action='platform.restaurant.toggle',detail__contains='صيانة مجدولة').exists())
-        plan = Plan.objects.create(name='Growth',max_branches=3)
-        self.client.post(endpoint,{'action':'subscription','plan_id':plan.pk,'status':'active','ends_at':'2027-01-01','reason':'تجديد يدوي'})
+        plan = Plan.objects.get(name='Growth')
+        self.client.post(endpoint,{'action':'subscription','plan_id':plan.pk,'status':'active',
+            'ends_at': (timezone.localdate() + timedelta(days=30)).isoformat(), 'reason':'تجديد يدوي'})
         self.restaurant.subscription.refresh_from_db()
         self.assertEqual(self.restaurant.subscription.plan_id,plan.pk)
         self.assertEqual(self.restaurant.subscription.status,'active')

@@ -77,13 +77,16 @@ def _staff_example(total):
             'waiter': total - admins - kitchen - cashiers}
 
 
+def public_tier_records():
+    names = {alias.casefold() for _, aliases, _, _ in PUBLIC_TIERS for alias in aliases}
+    return Plan.objects.annotate(public_name=Lower('name')).filter(public_name__in=names)
+
+
 def public_plans(english=False, configured=True):
     """Expose only named public tiers. Never publish arbitrary negotiated plan records."""
-    names = {alias.casefold() for _, aliases, _, _ in PUBLIC_TIERS for alias in aliases}
     records = {}
     if configured:
-        rows = Plan.objects.annotate(public_name=Lower('name')).filter(public_name__in=names).order_by('pk')
-        for row in rows:
+        for row in public_tier_records().order_by('pk'):
             records.setdefault(row.name.casefold(), row)
     plans = []
     for name, aliases, proposed_price, proposed_limits in PUBLIC_TIERS:

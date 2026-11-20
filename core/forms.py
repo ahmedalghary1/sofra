@@ -3,7 +3,8 @@ import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.utils.translation import get_language, gettext_lazy as _
 
 from .models import Plan, SubscriptionPayment
 
@@ -63,13 +64,13 @@ class PlatformRestaurantForm(forms.Form):
     owner_password = forms.CharField(label='كلمة مرور المالك الجديد', required=False,
                                      widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
     plan = forms.ModelChoiceField(label='الباقة', queryset=Plan.objects.all(), required=False,
-                                  empty_label=_('تجربة افتراضية · 14 يومًا'))
+                                  empty_label='—')
+    ends_at = forms.DateField(required=False, widget=forms.DateInput(attrs={'type':'date'}))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['plan'].queryset = Plan.objects.order_by('name')
-        self.fields['plan'].label_from_instance = (
-            lambda plan: f'{plan.name} · حد الفروع {plan.max_branches}')
+        self.fields['plan'].queryset = Plan.objects.order_by('price_monthly', 'name')
+        self.fields['plan'].empty_label = 'Awaiting activation' if get_language() == 'en' else 'بانتظار التفعيل'
 
     def clean_owner_email(self):
         return self.cleaned_data['owner_email'].strip().lower()
@@ -77,6 +78,9 @@ class PlatformRestaurantForm(forms.Form):
     def clean(self):
         data = super().clean()
         email = data.get('owner_email')
+        if data.get('plan') and (not data.get('ends_at') or data['ends_at'] < timezone.localdate()):
+            self.add_error('ends_at', 'Choose today or a future expiry date.' if get_language() == 'en'
+                           else 'اختر تاريخ انتهاء اليوم أو بعده لتفعيل الباقة.')
         if not email:
             return data
         existing = User.objects.filter(username__iexact=email).first()

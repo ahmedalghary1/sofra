@@ -9,6 +9,10 @@ from .showcase_data import SOLUTIONS, TOPICS
 
 
 class ShowcaseCatalogTests(TestCase):
+    def setUp(self):
+        # These catalog cases exercise fallback and partially configured installations.
+        Plan.objects.filter(name__in=('Starter', 'Growth', 'Business')).delete()
+
     def test_proposed_pricing_seats_and_included_functions(self):
         for lang in ('ar', 'en'):
             page = self.client.get(reverse('pricing'), {'lang': lang})

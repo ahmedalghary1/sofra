@@ -282,6 +282,14 @@
 .reset-emblem .ui-icon {width:29px;height:29px}
 .reset-card .eyebrow {display:block}
 .reset-card p {color:#425852}
+.reset-card bdi {overflow-wrap:anywhere}
+.reset-card form+p,.reset-card a.btn+p {margin-block-start:1rem}
+.platform-request-links {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-block:16px}
+.platform-card .status-pending {background:#fff1d5;color:#73510c}
+.platform-card .platform-subscription-form {gap:12px;align-items:end}
+.platform-subscription-form label {display:grid;gap:5px;flex:1 1 155px;min-width:0;font-size:.9rem}
+.platform-subscription-form label :is(input,select) {min-width:0;width:100%}
+.platform-card .platform-details a {overflow-wrap:anywhere}
 .reset-card .form-error,.reset-card .form-error ul {color:#8c2c31}
 .reset-card .password-rules {padding:10px 14px;background:#f2f6f3;border-radius:9px;color:#3b554a;font-size:.86rem}
 .reset-card :is(.password-rules,.form-error) ul {padding-inline-start:1.2rem;margin:0}

@@ -12,7 +12,7 @@ from django.urls import path, reverse
 from django.views.decorators.http import require_http_methods, require_safe
 
 from .guidebook import FAQ, FLOW, GUIDES
-from .models import DemoRequest, Subscription
+from .models import DemoRequest
 from .presentation import localized_url
 from .showcase_catalog import PUBLIC_TIERS, public_plans
 from .showcase_data import SOLUTIONS, TOPICS
@@ -119,7 +119,6 @@ def public_page(request, name=None):
     if name in ("home", "how_it_works"):
         context["flow"] = [(s[0], s[1 + en], s[3 + en]) for s in FLOW]
     if name == "home":
-        context["trial_days"] = Subscription.TRIAL_DAYS
         context["plans"] = public_plans(en, configured=False)
         context["venue_tiles"] = [
             (s.slug, s.title[en], s.headline[en]) for s in SOLUTIONS
