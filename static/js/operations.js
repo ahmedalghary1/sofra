@@ -1,6 +1,42 @@
 (() => {
   const english = document.documentElement.lang.startsWith('en');
   const controlIcons = document.getElementById('control-icons').content;
+  const loginForm = document.querySelector('[data-login-form]');
+  if (loginForm) {
+    const error = document.querySelector('[data-login-error]');
+    const separateWindow = document.querySelector('[data-login-window]');
+    separateWindow.hidden = window.self === window.top;
+    let refreshing = false;
+    loginForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (refreshing) return;
+      refreshing = true;
+      error.hidden = true;
+      const button = loginForm.querySelector('button[type="submit"]');
+      button.disabled = true;
+      try {
+        // Another tab can rotate the CSRF cookie after this form was opened.
+        const response = await fetch(window.location.href, {
+          credentials: 'same-origin', mode: 'same-origin', cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error('Could not refresh the login form');
+        const freshPage = new DOMParser().parseFromString(await response.text(), 'text/html');
+        const token = freshPage.querySelector('[data-login-form] input[name="csrfmiddlewaretoken"]');
+        if (!token?.value) throw new Error('Missing form token');
+        loginForm.elements.csrfmiddlewaretoken.value = token.value;
+        HTMLFormElement.prototype.submit.call(loginForm);
+      } catch {
+        error.textContent = english
+          ? 'Could not refresh the sign-in form. Check your connection and try again. If this page is in a preview, open it in a separate window.'
+          : 'تعذّر تحديث نموذج الدخول. تحقق من الاتصال وأعد المحاولة. إذا كنت تستخدم المعاينة، افتح الصفحة في نافذة مستقلة.';
+        error.hidden = false;
+        separateWindow.hidden = false;
+        button.disabled = false;
+        refreshing = false;
+      }
+    });
+  }
   const sidebar = document.getElementById('sidebar');
   const toggle = document.getElementById('menuToggle');
   const overlay = document.getElementById('sidebarOverlay');

@@ -34,6 +34,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.views.decorators.gzip import gzip_page
+from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
@@ -187,6 +188,7 @@ def resend_owner_verification(request):
     messages.success(request, 'إذا كانت البيانات صحيحة، سيصلك رابط تفعيل جديد.')
     return redirect('verification_pending')
 
+@never_cache
 def login_view(request):
     login_next = request.POST.get('next') or request.GET.get('next', '')
     if request.method == 'POST':
