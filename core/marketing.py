@@ -1,9 +1,9 @@
 import uuid
 from typing import ClassVar
-from xml.etree import ElementTree
-
 from django import forms
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.sitemaps.views import sitemap
 from django.db import DatabaseError
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -13,9 +13,10 @@ from django.views.decorators.http import require_http_methods, require_safe
 
 from .guidebook import FAQ, FLOW, GUIDES
 from .models import DemoRequest
-from .presentation import localized_url
+from .presentation import localized_url, site_metadata
 from .showcase_catalog import PUBLIC_TIERS, public_plans
 from .showcase_data import SOLUTIONS, TOPICS
+from .sitemaps import PublicSitemap
 
 META = {
     "home": (
@@ -289,6 +290,7 @@ def server_error(request):
     body = render_to_string(
         "500.html",
         {
+            **site_metadata(request),
             "lang": lang,
             "english": lang == "en",
             "language_switch_url": "?lang=" + ("ar" if lang == "en" else "en"),
@@ -299,45 +301,12 @@ def server_error(request):
 
 @require_safe
 def robots(request):
-    public_map = request.build_absolute_uri(reverse("sitemap"))
+    public_map = settings.SITE_URL + reverse("sitemap")
     return HttpResponse(
         "User-agent: *\nDisallow: /app/\nDisallow: /platform/\nDisallow: /django-admin/\nDisallow: /t/\nDisallow: /track/\nDisallow: /invitation/\nDisallow: /verify/\nDisallow: /reset/\nSitemap: "
         + public_map
         + "\n",
         content_type="text/plain",
-    )
-
-
-@require_safe
-def sitemap(request):
-    names = [
-        "home",
-        "features",
-        "pricing",
-        "solutions",
-        "how_it_works",
-        "demo",
-        "about",
-        "resources",
-        "faq",
-        "contact",
-    ]
-    paths = [reverse(name) for name in names]
-    paths.extend(reverse("feature_detail", args=[t.slug]) for t in TOPICS)
-    paths.extend(reverse("solution_detail", args=[s.slug]) for s in SOLUTIONS)
-    paths.extend(reverse("resource_detail", args=[g.slug]) for g in GUIDES)
-    root = ElementTree.Element(
-        "urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-    )
-    for path_value in paths:
-        for suffix in ("", "?lang=en"):
-            node = ElementTree.SubElement(root, "url")
-            ElementTree.SubElement(node, "loc").text = request.build_absolute_uri(
-                path_value + suffix
-            )
-    return HttpResponse(
-        ElementTree.tostring(root, encoding="utf-8", xml_declaration=True),
-        content_type="application/xml",
     )
 
 
@@ -347,7 +316,7 @@ urlpatterns = [
     path("contact/", contact, name="contact"),
     path("resources/<slug:slug>/", resource_detail, name="resource_detail"),
     path("robots.txt", robots, name="robots"),
-    path("sitemap.xml", sitemap, name="sitemap"),
+    path("sitemap.xml", require_safe(sitemap), {"sitemaps": {"public": PublicSitemap}}, name="sitemap"),
 ] + [
     path(name.replace("_", "-") + "/", require_safe(public_page), name=name)
     for name in META

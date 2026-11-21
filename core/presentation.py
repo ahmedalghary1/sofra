@@ -1,11 +1,15 @@
 """Public navigation and language preferences shared with the restaurant workspace."""
 
+from urllib.parse import urlsplit
+
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.core.exceptions import DisallowedHost
+from django.http import HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import translation
 from django.utils.cache import patch_vary_headers
+from django.utils.encoding import escape_uri_path
 
 from .showcase_data import GROUPS, TOPICS
 
@@ -18,6 +22,24 @@ NAV = (
     ("demo", "الديمو", "Demo"),
     ("resources", "الأدلة", "Guides"),
 )
+
+def canonical_host_middleware(get_response):
+    def middleware(request):
+        if settings.CANONICAL_HOST_REDIRECT:
+            try:
+                host = request.get_host().lower()
+            except DisallowedHost:
+                if request.path_info == '/health/' and request.method in ('GET', 'HEAD'):
+                    # Keep host-independent probes available before CommonMiddleware validates Host.
+                    from .views import health
+
+                    return health(request)
+                host = ''
+            if request.path_info != '/health/' and host != urlsplit(settings.SITE_URL).netloc.lower():
+                return HttpResponsePermanentRedirect(settings.SITE_URL + request.get_full_path())
+        return get_response(request)
+
+    return middleware
 
 
 def language_middleware(get_response):
@@ -88,18 +110,25 @@ PUBLIC_PAGES = {name for name, _, _ in NAV} | {
     "faq",
     "offline",
     "maintenance",
+    "demo_menu",
 }
+
+def site_metadata(request):
+    canonical = settings.SITE_URL + escape_uri_path(request.path)
+    match = request.resolver_match
+    return {
+        "canonical_url": canonical,
+        "og_image": settings.SITE_URL + urlsplit(static("marketing/social.jpg")).path,
+        "arabic_url": canonical + "?lang=ar",
+        "english_url": canonical + "?lang=en",
+        "site_has_alternates": bool(match and match.url_name in PUBLIC_PAGES),
+    }
 
 
 def public_context(request):
     english = request.LANGUAGE_CODE == "en"
-    path = request.build_absolute_uri(request.path)
     idx = int(english)
     return {
-        "canonical_url": path + ("?lang=en" if english else ""),
-        "arabic_url": path + "?lang=ar",
-        "english_url": path + "?lang=en",
-        "og_image": request.build_absolute_uri(static("marketing/social.jpg")),
         "site_nav": [(name, en if english else ar) for name, ar, en in NAV],
         "feature_groups": [
             (labels[idx], [(t.slug, t.title[idx]) for t in TOPICS if t.group == key])

@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0F2A3D">
   <meta name="application-name" content="Serveza">
-  <meta name="robots" content="noindex, nofollow">
+  {% if not site_has_alternates %}<meta name="robots" content="noindex, nofollow">{% endif %}
+  {% include '_site_metadata.html' %}
+  {% if site_has_alternates %}<meta property="og:url" content="{{ canonical_url }}"><meta property="og:image" content="{{ og_image }}">{% endif %}
   <meta name="description" content="{% bi 'مساحة Serveza لإدارة طلبات الطاولات والمطبخ والخدمة.' 'Serveza workspace for table orders, the kitchen and floor service.' %}">
   <title>{% block title %}{% bi 'ضيافة ذكية.. وخدمة بلا انتظار' 'Smart Hospitality. Seamless Service.' %}{% endblock %} | Serveza</title>
   <link rel="icon" type="image/webp" sizes="32x32" href="{% static 'brand/serveza-favicon-32.webp' %}">

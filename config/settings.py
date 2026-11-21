@@ -10,21 +10,32 @@ DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 if not DEBUG and (SECRET_KEY in ('dev-only-change-this-key-before-deployment',
                                   'replace-with-a-long-random-production-secret') or len(SECRET_KEY) < 50):
     raise RuntimeError('Set a long random DJANGO_SECRET_KEY before running in production.')
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
-if not DEBUG and not os.getenv('DJANGO_ALLOWED_HOSTS'):
-    raise RuntimeError('Set DJANGO_ALLOWED_HOSTS before running in production.')
-# The public domain is proxied to a different PythonAnywhere host.
-CSRF_TRUSTED_ORIGINS = ['https://servezaflow.com']
-CSRF_TRUSTED_ORIGINS += [
-    origin.strip() for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
-    if origin.strip()
-]
-INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'core']
-MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
+SITE_URL = os.getenv('SITE_URL', 'https://servezaflow.com').strip().rstrip('/')
+site_origin = urlparse(SITE_URL)
+if (site_origin.scheme not in (('http', 'https') if DEBUG else ('https',))
+        or not site_origin.hostname or site_origin.username or site_origin.password
+        or site_origin.path or site_origin.params or site_origin.query or site_origin.fragment):
+    raise ValueError('SITE_URL must be a website origin. Production requires HTTPS.')
+site_hosts = [site_origin.hostname]
+site_origins = [SITE_URL]
+if '.' in site_origin.hostname and not site_origin.hostname.startswith('www.'):
+    site_hosts.append(f'www.{site_origin.hostname}')
+    site_origins.append(f'{site_origin.scheme}://www.{site_origin.netloc}')
+local_hosts = 'localhost,127.0.0.1,[::1],testserver' if DEBUG else ''
+ALLOWED_HOSTS = list(dict.fromkeys(site_hosts + [
+    host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', local_hosts).split(',') if host.strip()
+]))
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(site_origins + [
+    origin.strip() for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()
+]))
+CANONICAL_HOST_REDIRECT = not DEBUG
+INSTALLED_APPS = ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'django.contrib.sitemaps', 'core']
+MIDDLEWARE = ['core.presentation.canonical_host_middleware', 'django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [BASE_DIR / 'templates'], 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.debug', 'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]
 WSGI_APPLICATION = 'config.wsgi.application'
-MIDDLEWARE.insert(2, 'core.presentation.language_middleware')
+MIDDLEWARE.insert(3, 'core.presentation.language_middleware')
+TEMPLATES[0]['OPTIONS']['context_processors'].append('core.presentation.site_metadata')
 TEMPLATES[0]['OPTIONS']['context_processors'].append('core.presentation.presentation')
 ASGI_APPLICATION = 'config.asgi.application'
 db_url = os.getenv('DATABASE_URL', '').strip()
@@ -56,9 +67,11 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = not DEBUG and os.getenv('DJANGO_SECURE_SSL_REDIRECT', '1') == '1'
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_REDIRECT_EXEMPT = [r'^health/$']
+SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '300')) if not DEBUG else 0
 if os.getenv('DJANGO_TRUST_PROXY_TLS', '0') == '1':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = os.getenv('DJANGO_USE_X_FORWARDED_HOST', '0') == '1'
 PASSWORD_RESET_TIMEOUT = 3600
 EMAIL_HOST = os.getenv('DJANGO_EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.getenv('DJANGO_EMAIL_PORT', '587'))
@@ -71,8 +84,3 @@ mail_mode = os.getenv('DJANGO_EMAIL_BACKEND') or ('smtp' if EMAIL_HOST_USER or n
 if mail_mode not in ('smtp', 'console'):
     raise ValueError('DJANGO_EMAIL_BACKEND must be smtp or console.')
 EMAIL_BACKEND = f'django.core.mail.backends.{mail_mode}.EmailBackend'
-PUBLIC_BASE_URL = os.getenv('DJANGO_PUBLIC_BASE_URL', '').strip().rstrip('/')
-if PUBLIC_BASE_URL:
-    origin = urlparse(PUBLIC_BASE_URL)
-    if origin.scheme not in ('http', 'https') or not origin.hostname or origin.username or origin.password or origin.path or origin.query or origin.fragment:
-        raise ValueError('DJANGO_PUBLIC_BASE_URL must be a website origin, such as https://your-domain.example.')

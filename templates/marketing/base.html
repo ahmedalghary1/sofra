@@ -9,8 +9,8 @@
 <meta property="og:title" content="{{ page_title }}"><meta property="og:description" content="{{ page_description }}">
 <meta property="og:url" content="{{ canonical_url }}"><meta property="og:image" content="{{ og_image }}">
 <meta name="twitter:card" content="summary_large_image">
-{% if kind == 'maintenance' or kind == 'offline' or kind == 'terms' or kind == 'privacy' or kind == 'cookies' %}<meta name="robots" content="noindex, follow">{% endif %}
-<link rel="canonical" href="{{ canonical_url }}"><link rel="alternate" hreflang="ar" href="{{ arabic_url }}"><link rel="alternate" hreflang="en" href="{{ english_url }}">
+{% if kind == 'maintenance' or kind == 'offline' or kind == 'cookies' %}<meta name="robots" content="noindex, follow">{% endif %}
+{% include '_site_metadata.html' %}
 <link rel="icon" href="{% static 'brand/serveza-favicon-32.webp' %}"><link rel="apple-touch-icon" href="{% static 'brand/serveza-apple-touch.png' %}">
 <link rel="preload" href="{% if english %}{% static 'fonts/cairo/Cairo-Latin.woff2' %}{% else %}{% static 'fonts/cairo/Cairo-Menu.woff2' %}{% endif %}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{% static 'css/typography.css' %}"><link rel="stylesheet" href="{% static 'css/tokens.css' %}"><link rel="stylesheet" href="{% static 'css/marketing.css' %}">

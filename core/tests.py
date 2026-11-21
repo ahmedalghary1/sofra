@@ -846,7 +846,7 @@ class SafraTests(TestCase):
         self.assertContains(response, 'contact customer service')
         self.assertFalse(User.objects.filter(username=values['email']).exists())
 
-    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', PUBLIC_BASE_URL='https://menu.example')
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', SITE_URL='https://menu.example')
     def test_registration_creates_isolated_restaurant(self):
         response = self.client.post(reverse('register'), {'name':'ليلى','email':'new@example.com','restaurant':'بيتنا','password':'StrongPass!123'})
         self.assertEqual(response.status_code, 302)

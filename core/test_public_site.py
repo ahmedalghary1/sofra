@@ -4,6 +4,7 @@ from unittest.mock import patch
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.db import DatabaseError
@@ -12,6 +13,7 @@ from django.urls import reverse
 
 from .guidebook import GUIDES
 from .models import DemoRequest
+from .showcase_data import SOLUTIONS, TOPICS
 
 
 class Links(HTMLParser):
@@ -29,6 +31,71 @@ class Links(HTMLParser):
 
 
 class PublicSiteTests(TestCase):
+    @override_settings(SITE_URL="https://servezaflow.com", CANONICAL_HOST_REDIRECT=False,
+                       ALLOWED_HOSTS=["upstream.example"])
+    def test_canonical_and_social_urls_use_site_origin_in_both_languages(self):
+        client = Client(HTTP_HOST="upstream.example")
+        for path in ("/", "/features/", "/features/digital-menu/", "/solutions/", "/pricing/",
+                     "/about/", "/privacy/", "/terms/", "/demo/menu/"):
+            canonical = "https://servezaflow.com" + path
+            for language, direction in (("ar", "rtl"), ("en", "ltr")):
+                with self.subTest(path=path, language=language):
+                    page = client.get(path, {"lang": language, "q": "example"})
+                    self.assertContains(page, f'lang="{language}" dir="{direction}"')
+                    self.assertContains(page, f'<link rel="canonical" href="{canonical}">', count=1)
+                    self.assertContains(page, f'<meta property="og:url" content="{canonical}">')
+                    self.assertContains(page, '<meta property="og:image" content="https://servezaflow.com/static/marketing/social.jpg">')
+                    for lang, suffix in (("ar", "?lang=ar"), ("en", "?lang=en"), ("x-default", "")):
+                        self.assertContains(page, f'hreflang="{lang}" href="{canonical}{suffix}"')
+                    self.assertNotContains(page, 'name="robots" content="noindex')
+        login = client.get("/login/?lang=en")
+        self.assertContains(login, '<link rel="canonical" href="https://servezaflow.com/login/">')
+        self.assertContains(login, 'name="robots" content="noindex, nofollow"')
+        self.assertNotContains(login, 'rel="alternate"')
+
+    @override_settings(SITE_URL="https://servezaflow.com", CANONICAL_HOST_REDIRECT=False,
+                       ALLOWED_HOSTS=["upstream.example"])
+    def test_sitemap_and_robots_use_canonical_origin_and_public_paths_only(self):
+        client = Client(HTTP_HOST="upstream.example")
+        robots = client.get("/robots.txt").content.decode().splitlines()
+        self.assertEqual(robots, [
+            "User-agent: *", "Disallow: /app/", "Disallow: /platform/", "Disallow: /django-admin/",
+            "Disallow: /t/", "Disallow: /track/", "Disallow: /invitation/", "Disallow: /verify/",
+            "Disallow: /reset/", "Sitemap: https://servezaflow.com/sitemap.xml",
+        ])
+        sitemap = client.get("/sitemap.xml")
+        self.assertEqual(sitemap.status_code, 200)
+        root = ElementTree.fromstring(sitemap.content)
+        locations = [node.text for node in root.findall(".//{*}loc")]
+        paths = {"/", "/features/", "/solutions/", "/how-it-works/", "/pricing/", "/demo/",
+                 "/demo/menu/", "/resources/", "/faq/", "/contact/", "/about/", "/privacy/", "/terms/"}
+        for route, entries in (("feature_detail", TOPICS), ("solution_detail", SOLUTIONS), ("resource_detail", GUIDES)):
+            paths.update(reverse(route, args=[entry.slug]) for entry in entries)
+        self.assertCountEqual(locations, ["https://servezaflow.com" + path for path in paths])
+        excluded = tuple(line.removeprefix("Disallow: ") for line in robots[1:-1]) + ("/login/", "/register/")
+        for location in locations:
+            self.assertFalse(urlsplit(location).path.startswith(excluded))
+        self.assertTrue(root.findall(".//{*}lastmod"))
+
+    @override_settings(SITE_URL="https://servezaflow.com", CANONICAL_HOST_REDIRECT=True,
+                       ALLOWED_HOSTS=["servezaflow.com", "www.servezaflow.com", "upstream.example"],
+                       SECURE_SSL_REDIRECT=True)
+    def test_production_redirects_to_canonical_host_and_exempts_health(self):
+        for host in ("www.servezaflow.com", "upstream.example", "unlisted.example"):
+            with self.subTest(host=host):
+                for secure in (False, True):
+                    response = self.client.get("/features/?lang=en&q=a%2Bb", HTTP_HOST=host, secure=secure)
+                    self.assertEqual(response.status_code, 301)
+                    self.assertEqual(response.url, "https://servezaflow.com/features/?lang=en&q=a%2Bb")
+                health = self.client.get("/health/", HTTP_HOST=host)
+                self.assertEqual(health.status_code, 200)
+                self.assertEqual(health.json(), {"status": "ok"})
+        path = "/features/"
+        response = self.client.get(path, HTTP_HOST="servezaflow.com")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, settings.SITE_URL + path)
+        self.assertEqual(self.client.get(path, HTTP_HOST="servezaflow.com", secure=True).status_code, 200)
+
     def test_sitemap_and_public_navigation_destinations(self):
         sitemap = self.client.get(reverse("sitemap"))
         urls = ElementTree.fromstring(sitemap.content).findall(".//{*}loc")

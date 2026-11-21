@@ -99,7 +99,7 @@ def place_demo_order(request):
 def send_owner_activation(request, user, token, *, resend=False):
     english = request.LANGUAGE_CODE == 'en'
     path = localized_url('verify_owner_email', english, token)
-    link = settings.PUBLIC_BASE_URL + path if settings.PUBLIC_BASE_URL else request.build_absolute_uri(path)
+    link = settings.SITE_URL + path
     subject = gettext('رابط تفعيل بريد مالك المطعم في Serveza') if resend else gettext('تفعيل بريد مالك المطعم في Serveza')
     text = gettext('مرحبًا {name}،\nفعّل بريدك خلال 24 ساعة من الرابط التالي:\n{link}').format(name=user.first_name, link=link)
     text += '\n\n' + ('After verifying your email, request contact from customer service to choose a plan and arrange payment.'

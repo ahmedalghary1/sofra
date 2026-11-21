@@ -49,7 +49,7 @@ python manage.py test core
 
 ### بريد التفعيل عبر Gmail
 
-في ملف `.env` أدخل عنوان Gmail المرسل في `DJANGO_EMAIL_HOST_USER`، وكلمة مرور التطبيق في `DJANGO_EMAIL_HOST_PASSWORD`. عند مشاركة الموقع، ضع عنوانه العام مثل `https://your-domain.example` في `DJANGO_PUBLIC_BASE_URL` حتى يفتح رابط التفعيل على جهاز المستلم. أعد تشغيل Django بعد تعديل الملف.
+في ملف `.env` أدخل عنوان Gmail المرسل في `DJANGO_EMAIL_HOST_USER`، وكلمة مرور التطبيق في `DJANGO_EMAIL_HOST_PASSWORD`. يحدد `SITE_URL` عنوان الموقع العام، ويُستخدم أيضًا في روابط التفعيل. للتجربة على جهازك فقط اضبطه على `http://127.0.0.1:8000` مع `DJANGO_DEBUG=1`. أعد تشغيل Django بعد تعديل الملف.
 
 الإعداد المرفق يستخدم `smtp.gmail.com` على المنفذ 587 مع STARTTLS. يحصل المالك بعد التسجيل على رسالة بلغته تتضمن رابط تفعيل صالحًا لمدة 24 ساعة. يمكنه طلب رابط جديد من شاشة التحقق. لتجربة القالب محليًا عبر سجل الخادم، اضبط `DJANGO_EMAIL_BACKEND=console`. [إنشاء كلمة مرور تطبيق Google](https://support.google.com/mail/answer/185833?hl=ar)
 

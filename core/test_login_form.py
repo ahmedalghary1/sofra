@@ -67,16 +67,21 @@ class LoginFormTests(TestCase):
             }, HTTP_ORIGIN=origin)
             self.assertEqual(response.status_code, 403)
 
-    @override_settings(ALLOWED_HOSTS=['serveza.pythonanywhere.com'])
-    def test_public_domain_signs_in_through_pythonanywhere_proxy(self):
+    @override_settings(
+        SITE_URL='https://servezaflow.com', ALLOWED_HOSTS=['servezaflow.com'],
+        CANONICAL_HOST_REDIRECT=True, SECURE_SSL_REDIRECT=True,
+        SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'), USE_X_FORWARDED_HOST=True,
+    )
+    def test_public_domain_signs_in_through_trusted_proxy(self):
         user = User.objects.create_superuser('proxy@example.com', 'proxy@example.com', 'Altitude!73840')
-        client = Client(enforce_csrf_checks=True, HTTP_HOST='serveza.pythonanywhere.com')
+        client = Client(enforce_csrf_checks=True, HTTP_HOST='upstream.example',
+                        HTTP_X_FORWARDED_HOST='servezaflow.com', HTTP_X_FORWARDED_PROTO='https')
         url = reverse('login')
-        client.get(url, secure=True)
+        self.assertEqual(client.get(url).status_code, 200)
         response = client.post(url, {
             'email': user.email, 'password': 'Altitude!73840',
             'csrfmiddlewaretoken': client.cookies[settings.CSRF_COOKIE_NAME].value,
-        }, secure=True, HTTP_ORIGIN='https://servezaflow.com',
+        }, HTTP_ORIGIN='https://servezaflow.com',
             HTTP_REFERER='https://servezaflow.com/login/?lang=en')
         self.assertRedirects(response, reverse('platform_dashboard'), fetch_redirect_response=False)
         self.assertEqual(int(client.session['_auth_user_id']), user.pk)
