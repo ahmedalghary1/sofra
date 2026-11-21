@@ -18,11 +18,13 @@
   <link rel="stylesheet" href="{% static 'css/style.css' %}?v=type-scale">
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{% static 'css/operations.css' %}">
+  <link rel="stylesheet" href="{% static 'css/whatsapp.css' %}">
   <script src="{% static 'js/operations.js' %}?v=login-submit-2" defer></script>
 </head>
 <body class="{% block bodyclass %}{% endblock %}">
   <template id="control-icons">{% symbol 'x' %}{% symbol 'eye' %}{% symbol 'eye-off' %}{% symbol 'plus' %}{% symbol 'minus' %}</template>
   {% block notices %}{% include '_notices.html' %}{% endblock %}
   {% block body %}{% endblock %}
+  {% include '_whatsapp_button.html' %}
 </body>
 </html>

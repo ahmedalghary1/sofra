@@ -14,6 +14,7 @@
 <link rel="icon" href="{% static 'brand/serveza-favicon-32.webp' %}"><link rel="apple-touch-icon" href="{% static 'brand/serveza-apple-touch.png' %}">
 <link rel="preload" href="{% if english %}{% static 'fonts/cairo/Cairo-Latin.woff2' %}{% else %}{% static 'fonts/cairo/Cairo-Menu.woff2' %}{% endif %}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{% static 'css/typography.css' %}"><link rel="stylesheet" href="{% static 'css/tokens.css' %}"><link rel="stylesheet" href="{% static 'css/marketing.css' %}">
+<link rel="stylesheet" href="{% static 'css/whatsapp.css' %}">
 {% if kind == 'home' or kind == 'demo' %}<link rel="stylesheet" href="{% static 'css/showcase.css' %}"><script src="{% static 'js/showcase.js' %}" defer></script>{% endif %}
 {% block extra_css %}{% endblock %}<script src="{% static 'js/marketing.js' %}" defer></script>{% block extra_js %}{% endblock %}
 {% if kind == 'home' %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Serveza","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":["ar","en"]}</script>{% endif %}
@@ -39,4 +40,6 @@
 <div><h2>{% bi 'الحلول' 'Solutions' %}</h2><a href="{% public_url 'solution_detail' 'cafes' %}">{% bi 'الكافيهات' 'Cafés' %}</a><a href="{% public_url 'solution_detail' 'restaurants' %}">{% bi 'المطاعم' 'Restaurants' %}</a><a href="{% public_url 'solution_detail' 'chains' %}">{% bi 'الفروع' 'Groups' %}</a></div>
 <div><h2>{% bi 'المساعدة' 'Help' %}</h2><a href="{% public_url 'resources' %}">{% bi 'أدلة التشغيل' 'Field guides' %}</a><a href="{% public_url 'faq' %}">{% bi 'الأسئلة الشائعة' 'FAQ' %}</a><a href="{% public_url 'contact' %}">{% bi 'تواصل معنا' 'Contact' %}</a><a href="{% public_url 'about' %}">{% bi 'عن Serveza' 'About Serveza' %}</a></div>
 <div><h2>{% bi 'معلومات الموقع' 'Site information' %}</h2><a href="{% public_url 'privacy' %}">{% bi 'الخصوصية' 'Privacy' %}</a><a href="{% public_url 'terms' %}">{% bi 'الاستخدام' 'Terms' %}</a><a href="{% public_url 'cookies' %}">{% bi 'ملفات الارتباط' 'Cookies' %}</a></div></div>
-<div class="mk-colophon"><bdi>© {% now "Y" %} Serveza</bdi><a href="#page-top" class="mk-back-top">{% symbol 'chevron' %} {% bi 'العودة إلى أعلى الصفحة' 'Back to top' %}</a><a href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></div></div></footer></body></html>
+<div class="mk-colophon"><bdi>© {% now "Y" %} Serveza</bdi><a href="#page-top" class="mk-back-top">{% symbol 'chevron' %} {% bi 'العودة إلى أعلى الصفحة' 'Back to top' %}</a><a href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></div></div></footer>
+{% include '_whatsapp_button.html' %}
+</body></html>

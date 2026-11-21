@@ -31,6 +31,16 @@ class Links(HTMLParser):
 
 
 class PublicSiteTests(TestCase):
+    def test_whatsapp_button_on_public_guest_and_admin_shells(self):
+        for path in ("/", "/contact/", "/pricing/", "/login/", "/demo/menu/", "/django-admin/login/"):
+            for language, label in (("ar", "تواصل مع Serveza على واتساب"),
+                                    ("en", "Chat with Serveza on WhatsApp")):
+                with self.subTest(path=path, language=language):
+                    page = self.client.get(path, {"lang": language}, follow=True)
+                    self.assertContains(page, 'href="https://wa.me/201156972307"', count=1)
+                    self.assertContains(page, f'aria-label="{label}"')
+                    self.assertContains(page, 'rel="noopener noreferrer"')
+
     @override_settings(SITE_URL="https://servezaflow.com", CANONICAL_HOST_REDIRECT=False,
                        ALLOWED_HOSTS=["upstream.example"])
     def test_canonical_and_social_urls_use_site_origin_in_both_languages(self):

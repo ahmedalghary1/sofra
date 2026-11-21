@@ -1,0 +1,36 @@
+a.whatsapp-button {
+  --whatsapp-offset: 1rem;
+  position: fixed;
+  inset-block-end: calc(var(--whatsapp-offset) + env(safe-area-inset-bottom, 0px));
+  inset-inline-end: calc(1rem + max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)));
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: 3.25rem;
+  block-size: 3.25rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #137b42;
+  color: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 24%);
+  text-decoration: none;
+}
+
+.whatsapp-button:is(:hover, :focus-visible) {
+  background: #0e6033;
+  color: #fff;
+}
+
+.whatsapp-button:focus-visible {
+  outline: 3px solid #102d40;
+  outline-offset: 3px;
+}
+
+body:has(#cartBar:not([hidden])) .whatsapp-button {
+  --whatsapp-offset: 6rem;
+}
+
+@media print {
+  a.whatsapp-button { display: none; }
+}

@@ -7,6 +7,8 @@
 {% block responsive %}{{ block.super }}
 <link rel="stylesheet" href="{% static 'css/typography.css' %}?v=type-scale">
 <link rel="stylesheet" href="{% static 'css/admin-brand.css' %}?v=type-scale">
+<link rel="stylesheet" href="{% static 'css/whatsapp.css' %}">
 {% endblock %}
+{% block footer %}{{ block.super }}{% include '_whatsapp_button.html' %}{% endblock %}
 {% block userlinks %}{% include '_ops_language.html' %} / {{ block.super }}{% endblock %}
 {% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}" class="admin-brand">{% include '_brand_logo.html' only %}<span>{% translate 'إدارة المنصة' %}</span></a></div>{% endblock %}
