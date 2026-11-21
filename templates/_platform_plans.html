@@ -8,7 +8,7 @@
       <div><dt>{% bi 'الفروع' 'Branches' %}</dt><dd>{{ plan.max_branches }}</dd></div>
       <div><dt>{% bi 'الطاولات لكل فرع' 'Tables per branch' %}</dt><dd>{{ plan.max_tables }}</dd></div>
       <div><dt>{% bi 'الأصناف لكل فرع' 'Items per branch' %}</dt><dd>{{ plan.max_items }}</dd></div>
-      <div><dt>{% bi 'أعضاء الفريق' 'Team members' %}</dt><dd>{{ plan.max_staff }}</dd></div>
+      <div><dt>{% bi 'إجمالي حسابات الفريق، شاملة المالك' 'Total team accounts, including the owner' %}</dt><dd>{{ plan.max_staff }}</dd></div>
       <div><dt>{% bi 'محطات المطبخ' 'Kitchen stations' %}</dt><dd>{{ plan.max_stations }}</dd></div>
     </dl>
     <a class="btn btn-outline btn-sm" href="{% url 'platform_plan_edit' plan.pk %}">{% bi 'تعديل السعر والحدود' 'Edit price and limits' %}</a>

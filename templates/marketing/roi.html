@@ -1,14 +1,14 @@
 {% load showroom %}
 <section class="sz-section sz-estimator" id="roi" data-roi aria-labelledby="sz-roi-title">
   <div class="sz-estimate-copy"><span class="sz-kicker">{% bi 'تقدير شهري' 'Monthly estimate' %}</span><h2 id="sz-roi-title">{% bi 'احسبها بأرقام مطعمك.' 'Run the numbers for your venue.' %}</h2><p>{% bi 'غيّر افتراضاتك وشوف تأثير إضافة اختيارية على الإيراد والمساهمة بعد الاشتراك. النتيجة توضيحية ومبيعاتك الفعلية قد تختلف.' 'Adjust the assumptions to estimate add-on revenue and contribution after subscription. Actual sales may differ from this illustration.' %}</p>
-    <div class="sz-calculated" aria-live="polite"><div><small>{% bi 'إيراد إضافي تقديري' 'Estimated additional revenue' %}</small><b data-revenue>8,400 {% bi 'ج.م' 'EGP' %}</b></div><div><small>{% bi 'صافي المساهمة بعد الاشتراك' 'Net contribution after subscription' %}</small><b data-contribution>2,760 {% bi 'ج.م' 'EGP' %}</b></div></div>
+    <div class="sz-calculated" aria-live="polite"><div><small>{% bi 'إيراد إضافي تقديري' 'Estimated additional revenue' %}</small><b data-revenue>—</b></div><div><small>{% bi 'صافي المساهمة بعد الاشتراك' 'Net contribution after subscription' %}</small><b data-contribution>—</b></div></div>
   </div><div class="sz-roi-fields">
     <label class="sz-field">{% bi 'عدد الفواتير شهريًا' 'Monthly bills' %}<input type="number" data-input="bills" value="1000" min="0" max="10000000" step="1" required></label>
     <label class="sz-field">{% bi 'نسبة الطلبات الرقمية (%)' 'Digital orders (%)' %}<input type="number" data-input="digital" value="60" min="0" max="100" step="any" required></label>
     <label class="sz-field">{% bi 'قبول الإضافة (%)' 'Offer acceptance (%)' %}<input type="number" data-input="acceptance" value="20" min="0" max="100" step="any" required></label>
     <label class="sz-field">{% bi 'قيمة الإضافة (ج.م)' 'Add-on value (EGP)' %}<input type="number" data-input="value" value="70" min="0" max="1000000" step="any" required></label>
     <label class="sz-field">{% bi 'هامش المساهمة (%)' 'Contribution margin (%)' %}<input type="number" data-input="margin" value="40" min="0" max="100" step="any" required></label>
-    <label class="sz-field">{% bi 'اشتراك افتراضي (ج.م)' 'Assumed subscription (EGP)' %}<input type="number" data-input="subscription" value="600" min="0" max="1000000" step="any" required></label>
+    <label class="sz-field">{% bi 'اشتراك افتراضي (ج.م)' 'Assumed subscription (EGP)' %}<input type="number" data-input="subscription" value="{{ starter_price }}" min="0" max="1000000" step="any" required></label>
     <p class="sz-field-error" role="status" data-validation></p>
   </div>
 </section>

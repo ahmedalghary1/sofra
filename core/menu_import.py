@@ -117,8 +117,9 @@ def commit_menu_import(batch, actor):
         raise ValidationError('هذا الفرع لا يقبل استيرادًا حاليًا.')
     subscription = check_creation_limit(restaurant, 'item', branch)
     current_count = MenuItem.objects.filter(category__branch=branch).count()
-    if current_count + len(batch.rows) > subscription.plan.max_items:
-        raise ValidationError(gettext('الملف يتجاوز حد الأصناف في الباقة ({limit}).').format(limit=subscription.plan.max_items))
+    limit = subscription.limit('max_items', branch)
+    if current_count + len(batch.rows) > limit:
+        raise ValidationError(gettext('الملف يتجاوز حد الأصناف في الباقة ({limit}).').format(limit=limit))
     categories = {category.name: category for category in Category.objects.filter(branch=branch)}
     items = []
     for row in batch.rows:

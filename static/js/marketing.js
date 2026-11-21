@@ -50,37 +50,4 @@
       form.removeAttribute('aria-busy');
     });
   });
-  const teaser = document.querySelector('[data-plan-prices]');
-  if (teaser && 'IntersectionObserver' in window) {
-    const observer = new IntersectionObserver(async ([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-      try {
-        const response = await fetch(teaser.dataset.planPrices);
-        if (!response.ok) return;
-        const {configured} = await response.json();
-        for (const plan of configured) {
-          const card = teaser.querySelector('[data-tier="' + CSS.escape(plan.slug) + '"]');
-          if (!card) continue;
-          card.querySelector('[data-tier-label]').textContent = teaser.dataset.configuredLabel;
-          card.querySelector('[data-tier-price]').textContent = plan.price;
-          card.querySelector('[data-tier-focus]').textContent = plan.focus;
-          for (const value of card.querySelectorAll('[data-tier-limit]')) {
-            value.textContent = plan.limits[value.dataset.tierLimit];
-          }
-          for (const value of card.querySelectorAll('[data-tier-role]')) {
-            value.textContent = plan.staff[value.dataset.tierRole];
-          }
-          card.querySelector('.mk-tier-features').replaceChildren(...plan.highlights.slice(0, 2).map(text => {
-            const item = document.createElement('li');
-            item.textContent = text;
-            return item;
-          }));
-        }
-      } catch {
-        // The cards retain their labelled proposed terms if the request fails.
-      }
-    }, {rootMargin: '250px'});
-    observer.observe(teaser);
-  }
 })();

@@ -2,8 +2,10 @@ import secrets
 import uuid
 from typing import ClassVar
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import get_language
 
 def token(): return secrets.token_urlsafe(24)
 
@@ -33,6 +35,15 @@ class Plan(models.Model):
     max_staff = models.PositiveIntegerField(default=5)
     max_branches = models.PositiveIntegerField(default=1)
     max_stations = models.PositiveIntegerField(default=1)
+    staff_example = models.JSONField(default=dict, blank=True, editable=False)
+
+    def clean(self):
+        super().clean()
+        if self.max_stations and self.max_staff is not None and self.max_staff < 2:
+            raise ValidationError({'max_staff': 'Kitchen stations require seats for the owner and at least one kitchen account.'
+                                   if get_language() == 'en' else
+                                   'تحتاج محطات المطبخ إلى حساب للمالك وحساب واحد للمطبخ على الأقل.'})
+
     def __str__(self): return self.name
 
 class Restaurant(models.Model):
@@ -100,6 +111,7 @@ class Subscription(models.Model):
     status = models.CharField(max_length=12, choices=[('pending','بانتظار التفعيل'),('trial','تجربة'),('active','نشط'),('expired','منتهي')], default='trial')
     ends_at = models.DateTimeField(null=True, blank=True)
     activation_requested_at = models.DateTimeField(null=True, blank=True)
+    grandfathered_limits = models.JSONField(default=dict, blank=True, editable=False)
 
     class Meta:
         constraints = [models.CheckConstraint(
@@ -109,6 +121,12 @@ class Subscription(models.Model):
 
     def valid(self):
         return self.status in ('trial','active') and self.ends_at > timezone.now()
+
+    def limit(self, field, branch=None):
+        allowances = self.grandfathered_limits
+        if branch is not None:
+            allowances = allowances.get('branches', {}).get(str(branch.pk), {})
+        return max(getattr(self.plan, field), allowances.get(field, 0))
 
 class SubscriptionPayment(models.Model):
     METHODS = [('cash', 'نقدًا'), ('bank', 'تحويل بنكي'), ('other', 'وسيلة أخرى')]

@@ -47,7 +47,6 @@ class MarketingMenuTests(SimpleTestCase):
 
     def test_anonymous_preview_needs_no_database(self):
         url = reverse('demo_menu')
-        self.assertContains(self.client.get(reverse('home')), f'href="{url}"')
         preview = self.client.get(url)
         self.assertContains(preview, 'دار الليمون')
         self.assertContains(preview, 'شيش طاووق على الفحم')

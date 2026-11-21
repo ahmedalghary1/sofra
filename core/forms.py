@@ -21,7 +21,8 @@ class PlatformPlanForm(forms.ModelForm):
         labels = {
             'name': ('اسم الباقة', 'Plan name'), 'price_monthly': ('السعر الشهري بالجنيه', 'Monthly price in EGP'),
             'max_branches': ('الفروع', 'Branches'), 'max_tables': ('الطاولات لكل فرع', 'Tables per branch'),
-            'max_items': ('الأصناف لكل فرع', 'Items per branch'), 'max_staff': ('أعضاء الفريق', 'Team members'),
+            'max_items': ('الأصناف لكل فرع', 'Items per branch'),
+            'max_staff': ('إجمالي حسابات الفريق، شاملة المالك', 'Total team accounts, including the owner'),
             'max_stations': ('محطات المطبخ', 'Kitchen stations'), 'reason': ('سبب التغيير', 'Reason for change'),
         }
         for key, label in labels.items():

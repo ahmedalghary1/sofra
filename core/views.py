@@ -302,6 +302,11 @@ def platform_dashboard(request):
     if section != 'plans':
         records = members if section == 'people' else restaurants
         page = Paginator(records, 25).get_page(request.GET.get('page'))
+        if section != 'people':
+            for venue in page:
+                subscription = getattr(venue, 'subscription', None)
+                if subscription and subscription.plan_id:
+                    venue.branch_limit = subscription.limit('max_branches')
     return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.order_by('price_monthly', 'name'), 'query': query,
         'plan_usage': Restaurant.objects.filter(active).values('subscription__plan__name').annotate(
             venues=Count('pk')).order_by('-venues', 'subscription__plan__name'),
@@ -503,6 +508,8 @@ def platform_update_restaurant(request, restaurant_id):
                     old = f'{subscription.plan_id}/{subscription.status}/{subscription.ends_at.date() if subscription.ends_at else "-"}'
                 else:
                     subscription = Subscription(restaurant=restaurant)
+                if subscription.plan_id != plan.pk:
+                    subscription.grandfathered_limits = {}
                 subscription.plan = plan
                 subscription.status = status
                 subscription.ends_at = timezone.make_aware(datetime.combine(end_date, time.max))
@@ -688,9 +695,7 @@ def manage_menu(request, slug):
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم محطة المطبخ.')
                 with transaction.atomic():
-                    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').get(restaurant=restaurant)
-                    if KitchenStation.objects.filter(branch=branch).count() >= subscription.plan.max_stations:
-                        raise ValidationError('وصلت إلى حد محطات المطبخ في باقتك.')
+                    check_creation_limit(restaurant, 'station', branch)
                     station = KitchenStation.objects.create(branch=branch, name=name)
                 audit(restaurant, request.user, 'station.create', str(station.pk))
             elif action == 'station_assign':
@@ -841,7 +846,7 @@ def manage_menu(request, slug):
     categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'menu_manage', categories=categories,
                  stations=KitchenStation.objects.filter(branch=branch, active=True),
-                 item_count=MenuItem.objects.filter(category__branch=branch).count(), limit=restaurant.subscription.plan.max_items)
+                 item_count=MenuItem.objects.filter(category__branch=branch).count(), limit=restaurant.subscription.limit('max_items', branch))
 
 def menu_import(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
@@ -855,7 +860,7 @@ def menu_import(request, slug):
         writer.writerow(['category', 'name', 'price', 'description'])
         writer.writerow(['الأطباق الرئيسية', 'طبق تجريبي', '120.00', 'وصف اختياري'])
         return response
-    remaining = max(0, restaurant.subscription.plan.max_items - MenuItem.objects.filter(category__branch=branch).count())
+    remaining = max(0, restaurant.subscription.limit('max_items', branch) - MenuItem.objects.filter(category__branch=branch).count())
     errors, rows, batch = [], [], None
     if request.method == 'POST':
         try:
@@ -937,7 +942,7 @@ def manage_tables(request, slug):
             messages.success(request, 'تم حفظ التغيير بنجاح.')
         except (ValidationError, IntegrityError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_tables', slug=slug)
-    return shell(request, restaurant, membership, 'tables', tables=branch.tables.all(), limit=restaurant.subscription.plan.max_tables)
+    return shell(request, restaurant, membership, 'tables', tables=branch.tables.all(), limit=restaurant.subscription.limit('max_tables', branch))
 
 def table_qr(request, slug, table_id):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
@@ -1350,7 +1355,7 @@ def staff(request, slug):
                         revoked_at__isnull=True, expires_at__gt=timezone.now())
                     if pending.filter(email=email).exists():
                         raise ValidationError('توجد دعوة نشطة لهذا البريد بالفعل.')
-                    if restaurant.memberships.count() + pending.count() >= subscription.plan.max_staff:
+                    if restaurant.memberships.count() + pending.count() >= subscription.limit('max_staff'):
                         raise ValidationError('الدعوات الحالية تملأ المقاعد المتاحة في الباقة.')
                     if StaffInvitation.objects.filter(restaurant=restaurant,
                             created_at__gte=timezone.now()-timedelta(hours=1)).count() >= 20:
@@ -1448,7 +1453,7 @@ def staff(request, slug):
         members=restaurant.memberships.select_related('user').prefetch_related('branches'),
         invitations=restaurant.invitations.filter(accepted_at__isnull=True, revoked_at__isnull=True,
             expires_at__gt=timezone.now()).select_related('branch'),
-        limit=restaurant.subscription.plan.max_staff)
+        limit=restaurant.subscription.limit('max_staff'))
 
 def accept_invitation_view(request, token):
     invitation = invitation_for_token(token)
@@ -1513,7 +1518,7 @@ def manage_branches(request, slug):
             messages.error(request, error_text(exc))
         return redirect('manage_branches', slug=slug)
     return shell(request, restaurant, membership, 'branches',
-        branches=restaurant.branches.all(), limit=restaurant.subscription.plan.max_branches)
+        branches=restaurant.branches.all(), limit=restaurant.subscription.limit('max_branches'))
 
 @require_POST
 def select_branch(request, slug):
@@ -1570,11 +1575,15 @@ def restaurant_settings(request, slug):
         'staff': restaurant.memberships.count(),
         'stations': KitchenStation.objects.filter(branch=branch).count(),
     }
-    over_limit = (usage['branches'] > subscription.plan.max_branches or
-                  usage['tables'] > subscription.plan.max_tables or
-                  usage['items'] > subscription.plan.max_items or
-                  usage['staff'] > subscription.plan.max_staff or
-                  usage['stations'] > subscription.plan.max_stations)
+    limits = {
+        'branches': subscription.limit('max_branches'),
+        'tables': subscription.limit('max_tables', branch),
+        'items': subscription.limit('max_items', branch),
+        'staff': subscription.limit('max_staff'),
+        'stations': subscription.limit('max_stations', branch),
+    }
+    grandfathered = any(limit > getattr(subscription.plan, f'max_{key}') for key, limit in limits.items())
+    over_limit = any(usage[key] > limit for key, limit in limits.items())
     plan_preview = None
     if (membership.role == 'owner' and request.method == 'GET'
             and request.GET.get('preview_plan', '').isascii()
@@ -1587,7 +1596,7 @@ def restaurant_settings(request, slug):
                  subscription_payments=SubscriptionPayment.objects.filter(restaurant=restaurant)[:20],
                  available_plans=Plan.objects.order_by('name') if membership.role == 'owner' else None,
                  plan_preview=plan_preview,
-                 usage=usage, over_limit=over_limit)
+                 usage=usage, limits=limits, grandfathered=grandfathered, over_limit=over_limit)
 
 def public_menu(request, token):
     table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant__subscription'), public_token=token)

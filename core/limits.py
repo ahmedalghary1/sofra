@@ -6,7 +6,7 @@ The subscription row lock serializes competing creations on PostgreSQL.
 """
 from django.core.exceptions import ValidationError
 
-from .models import MenuItem, Subscription
+from .models import KitchenStation, MenuItem, Subscription
 
 
 def check_creation_limit(restaurant, resource, branch=None):
@@ -15,23 +15,29 @@ def check_creation_limit(restaurant, resource, branch=None):
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. لا يمكن إضافة موارد جديدة.')
     if resource == 'branch':
         count = restaurant.branches.count()
-        limit = subscription.plan.max_branches
+        limit = subscription.limit('max_branches')
         label = 'الفروع'
     elif resource == 'table':
         if branch is None or branch.restaurant_id != restaurant.pk:
             raise ValidationError('الفرع غير صالح.')
         count = branch.tables.count()
-        limit = subscription.plan.max_tables
+        limit = subscription.limit('max_tables', branch)
         label = 'الطاولات'
     elif resource == 'item':
         if branch is None or branch.restaurant_id != restaurant.pk:
             raise ValidationError('الفرع غير صالح.')
         count = MenuItem.objects.filter(category__branch=branch).count()
-        limit = subscription.plan.max_items
+        limit = subscription.limit('max_items', branch)
         label = 'الأصناف'
+    elif resource == 'station':
+        if branch is None or branch.restaurant_id != restaurant.pk:
+            raise ValidationError('الفرع غير صالح.')
+        count = KitchenStation.objects.filter(branch=branch).count()
+        limit = subscription.limit('max_stations', branch)
+        label = 'محطات المطبخ'
     elif resource == 'staff':
         count = restaurant.memberships.count()
-        limit = subscription.plan.max_staff
+        limit = subscription.limit('max_staff')
         label = 'أعضاء الفريق'
     else:
         raise ValueError(f'Unknown resource: {resource}')
@@ -44,14 +50,14 @@ def check_activation_limit(restaurant, resource, branch=None):
     if not subscription or not subscription.valid():
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. لا يمكن تفعيل موارد جديدة.')
     if resource == 'branch':
-        count, limit, label = restaurant.branches.filter(active=True).count(), subscription.plan.max_branches, 'الفروع'
+        count, limit, label = restaurant.branches.filter(active=True).count(), subscription.limit('max_branches'), 'الفروع'
     elif resource == 'table' and branch and branch.restaurant_id == restaurant.pk:
-        count, limit, label = branch.tables.filter(active=True).count(), subscription.plan.max_tables, 'الطاولات'
+        count, limit, label = branch.tables.filter(active=True).count(), subscription.limit('max_tables', branch), 'الطاولات'
     elif resource == 'item' and branch and branch.restaurant_id == restaurant.pk:
         count = MenuItem.objects.filter(category__branch=branch, available=True).count()
-        limit, label = subscription.plan.max_items, 'الأصناف'
+        limit, label = subscription.limit('max_items', branch), 'الأصناف'
     elif resource == 'staff':
-        count, limit, label = restaurant.memberships.filter(active=True).count(), subscription.plan.max_staff, 'أعضاء الفريق'
+        count, limit, label = restaurant.memberships.filter(active=True).count(), subscription.limit('max_staff'), 'أعضاء الفريق'
     else:
         raise ValidationError('المورد أو الفرع غير صالح.')
     if count >= limit:

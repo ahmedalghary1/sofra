@@ -7,8 +7,8 @@
 <div class="cat-plans">{% for plan in plans %}{% include 'marketing/catalog/_plan_card.html' %}{% endfor %}</div>
 <section class="cat-section"><div class="cat-section-title"><h2 id="compare-title">{% bi 'مقارنة الباقات' 'Plan comparison' %}</h2><p>{% bi 'قارن إجمالي الفريق للمطعم كله، ثم سعة كل فرع. محطة KDS هي نقطة تحضير مثل الشواية أو المشروبات، ويظهر أمام كل أداة مدى توافرها في الباقة.' 'Compare seats across the whole venue and capacity per branch. A KDS station is a prep area such as the grill or drinks counter. Check each tool below to see which plans cover it.' %}</p></div>
 <div class="cat-table-scroll" role="region" tabindex="0" aria-labelledby="compare-title"><table class="cat-compare">
-<thead><tr><th scope="col">{% bi 'السعة والوظائف' 'Capacity and capabilities' %}</th>{% for plan in plans %}<th scope="col"><span lang="en">{{ plan.name }}</span><small>{% if plan.configured %}{% bi 'مسجل' 'Configured' %}{% else %}{% bi 'مقترح' 'Proposed' %}{% endif %}</small></th>{% endfor %}</tr></thead>
-<tbody>{% for label,values in rows %}<tr><th scope="row">{{ label }}</th>{% for value in values %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
+<thead><tr><th scope="col">{% bi 'السعة والوظائف' 'Capacity and capabilities' %}</th>{% for plan in plans %}<th scope="col"><span lang="en">{{ plan.name }}</span></th>{% endfor %}</tr></thead>
+<tbody>{% for key,label,values in rows %}<tr data-comparison="{{ key }}"><th scope="row">{{ label }}</th>{% for value in values %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
 </tbody><tbody><tr class="cat-role-divider"><th scope="rowgroup" colspan="4">{% bi 'مثال لتوزيع الحسابات داخل إجمالي كل باقة' 'Example allocation within each plan’s seat total' %}</th></tr>
 {% for label,values in staff_rows %}<tr><th scope="row">{{ label }}</th>{% for value in values %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
 </tbody><tbody>

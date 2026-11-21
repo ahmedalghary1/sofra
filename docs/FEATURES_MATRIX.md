@@ -15,7 +15,7 @@ When no matching tier exists, the page labels the figures as proposed. The redes
 
 Branch capacity and staff count apply per restaurant. Table, menu item and kitchen station limits apply per branch. The catalog can filter to configured public tiers or to currently available common tools. Multiple branches require capacity above one and kitchen station setup requires positive station capacity. There is no commercial module-per-tier feature flag, annual contract or checkout API. Demo illustrations and ROI assumptions do not add live product entitlements.
 
-The proposed Business tier has 3 branches and 60 team accounts, with 120 tables, 1,500 menu items and 8 kitchen stations per branch. The pricing cards show an example allocation of the shared staff allowance across waiters, administration (including the owner), kitchen and cashier roles. Each tier lists the available capabilities that fit its capacity. The home page links directly to each tier and updates its proposed figures when a matching configured tier is available.
+The home and pricing pages render the monthly price and limits directly from the public Plan records. The comparison includes an example allocation across waiters, administration (including the owner), kitchen and cashier roles. Each tier lists the available capabilities that fit its capacity. Owners can review their effective limits in restaurant settings.
 
 ## Catalog evidence
 

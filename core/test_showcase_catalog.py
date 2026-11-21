@@ -1,40 +1,59 @@
 from decimal import Decimal
+import re
 
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import Plan
-from .showcase_catalog import public_plans
+from .showcase_catalog import LIMITS
 from .showcase_data import SOLUTIONS, TOPICS
 
 
 class ShowcaseCatalogTests(TestCase):
-    def setUp(self):
-        # These catalog cases exercise fallback and partially configured installations.
-        Plan.objects.filter(name__in=('Starter', 'Growth', 'Business')).delete()
-
-    def test_proposed_pricing_seats_and_included_functions(self):
+    def test_public_pages_render_the_same_prices_limits_and_staff_examples(self):
+        expected = {
+            'starter': ('600', (1, 20, 100, 4, 1), (1, 2, 1, 0)),
+            'growth': ('1300', (1, 60, 300, 12, 3), (2, 5, 3, 2)),
+            'business': ('2500', (3, 120, 800, 40, 6), (5, 20, 10, 5)),
+        }
         for lang in ('ar', 'en'):
             page = self.client.get(reverse('pricing'), {'lang': lang})
-            starter, growth, business = page.context['plans']
-            self.assertEqual([p['price'] for p in (starter, growth, business)], ['600', '1300', '2500'])
-            self.assertEqual([p['limits']['max_staff'] for p in (starter, growth, business)], [5, 20, 60])
-            self.assertEqual(business['limits']['max_branches'], 3)
-            self.assertEqual(business['limits']['max_stations'], 8)
-            for plan in (starter, growth, business):
-                self.assertEqual(sum(plan['staff'].values()), plan['limits']['max_staff'])
-                self.assertContains(page, f'id="plan-{plan["slug"]}"')
-            details = {text for group in business['included'] for text in group['items']}
-            expected = {entry[2 + (lang == 'en')] for topic in TOPICS for entry in topic.capabilities
-                        if entry[1] == 'available'}
-            self.assertEqual(details, expected)
-            self.assertNotContains(page, 'By agreement' if lang == 'en' else 'حسب الاتفاق')
             home = self.client.get(reverse('home'), {'lang': lang})
-            for plan in (starter, growth, business):
-                self.assertContains(home, f'#plan-{plan["slug"]}')
+            pages = [(home, 'data-tier="{}"'), (page, 'id="plan-{}"')]
+            for slug, (price, limits, staff) in expected.items():
+                for response, attribute in pages:
+                    source = response.content.decode()
+                    card = re.search(r'<article [^>]*' + attribute.format(slug) + r'[^>]*>(.*?)</article>',
+                                     source, re.S).group(1)
+                    self.assertIn(f'data-tier-price>{price}</bdi>', card)
+                    self.assertIn('Monthly price' if lang == 'en' else 'السعر الشهري', card)
+                    for key, count in zip(LIMITS, limits):
+                        self.assertIn(f'data-tier-limit="{key}">{count}<', card)
+                    for role, count in zip(('admin', 'waiter', 'kitchen', 'cashier'), staff):
+                        self.assertIn(f'data-tier-role="{role}">{count}<', card)
+                self.assertEqual(sum(staff), limits[3])
+                self.assertGreaterEqual(staff[2], limits[0])
+                self.assertLessEqual(limits[4], staff[2])
+                contact = self.client.get(reverse('contact'), {'plan': slug, 'lang': lang})
+                for key, count in zip(LIMITS, limits):
+                    self.assertContains(contact, f'data-tier-limit="{key}">{count}<')
+                self.assertContains(contact, f'<bdi>{price}</bdi>')
+                self.assertContains(home, '#plan-' + slug)
+            for key, values in [('price', ['600', '1300', '2500']),
+                                *((key, [tier[1][i] for tier in expected.values()]) for i, key in enumerate(LIMITS))]:
+                row = re.search(rf'<tr data-comparison="{key}">(.*?)</tr>', page.content.decode(), re.S).group(1)
+                self.assertEqual(re.findall(r'<td>(.*?)</td>', row), list(map(str, values)))
+            self.assertContains(home, 'data-input="subscription" value="600"')
+            business = page.context['plans'][2]
+            details = {text for group in business['included'] for text in group['items']}
+            available = {entry[2 + (lang == 'en')] for topic in TOPICS for entry in topic.capabilities
+                         if entry[1] == 'available'}
+            self.assertEqual(details, available)
+            self.assertNotContains(page, 'By agreement' if lang == 'en' else 'حسب الاتفاق')
 
-    def test_named_configuration_overrides_seats_and_preserves_the_proposal(self):
-        plan = Plan.objects.create(name='Business', price_monthly='3100.50', max_branches=1, max_stations=0)
+    def test_configured_changes_appear_on_all_public_surfaces(self):
+        plan = Plan.objects.get(name='Business')
+        Plan.objects.filter(pk=plan.pk).update(price_monthly='3100.50', max_branches=1, max_stations=0)
         for seats in (0, 1, 2, 11):
             plan.max_staff = seats
             plan.save(update_fields=['max_staff'])
@@ -43,10 +62,14 @@ class ShowcaseCatalogTests(TestCase):
             self.assertEqual(sum(business['staff'].values()), seats)
             self.assertTrue(all(count >= 0 for count in business['staff'].values()))
             self.assertEqual(business['price'], '3100.5')
-            self.assertContains(page, '2500')
+            self.assertNotContains(page, '2500')
             self.assertNotIn('multi-branch', [g['slug'] for g in business['included']])
             teaser = self.client.get(reverse('plan_teaser')).json()['configured']
-            self.assertEqual([(t['slug'], t['limits']['max_staff']) for t in teaser], [('business', seats)])
+            self.assertEqual(teaser[2]['limits']['max_staff'], seats)
+        Plan.objects.filter(name='Starter').update(price_monthly='610.75')
+        home = self.client.get(reverse('home'))
+        self.assertContains(home, 'data-input="subscription" value="610.75"')
+        self.assertContains(home, 'data-tier-price>610.75<')
 
     def test_all_categories_and_solutions_resolve_in_both_languages(self):
         for language in ('ar', 'en'):
@@ -78,21 +101,18 @@ class ShowcaseCatalogTests(TestCase):
 
     def test_only_recognized_configured_tiers_are_public(self):
         Plan.objects.create(name='Private venue agreement', price_monthly=Decimal('100.88'))
-        Plan.objects.create(name='Growth', price_monthly=Decimal('1025.25'), max_branches=2, max_tables=43)
+        Plan.objects.filter(name='Growth').update(price_monthly=Decimal('1025.25'), max_branches=2, max_tables=43)
         response = self.client.get(reverse('pricing'), {'lang': 'en'})
         self.assertContains(response, '1025.25')
-        self.assertContains(response, 'Configured tier')
-        self.assertContains(response, 'Proposed pricing')
+        self.assertContains(response, 'Monthly price')
         self.assertNotContains(response, 'Private venue agreement')
         self.assertNotContains(response, '100.88')
         self.assertEqual(response.context['plans'][1]['limits']['max_tables'], 43)
-        self.assertEqual(Plan.objects.count(), 2)
-        with self.assertNumQueries(0):
-            self.assertEqual(public_plans(configured=False)[1]['price'], '1300')
+        self.assertEqual(Plan.objects.count(), 4)
 
     def test_plan_filters_select_available_capabilities_within_capacity(self):
-        Plan.objects.create(name='Starter', max_branches=1, max_stations=0)
-        Plan.objects.create(name='Growth', max_branches=2, max_stations=3)
+        Plan.objects.filter(name='Starter').update(max_stations=0)
+        Plan.objects.filter(name='Growth').update(max_branches=2)
         for tier, slug, count in [
             ('starter', 'multi-branch', 0), ('growth', 'multi-branch', 1),
             ('starter', 'kitchen-display', 0), ('growth', 'kitchen-display', 1),

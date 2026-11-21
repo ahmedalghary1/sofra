@@ -16,7 +16,7 @@ from core.models import Branch, Membership, Plan, Restaurant, Subscription
 
 class SubscriptionActivationUITests(StaticLiveServerTestCase):
     def test_activation_and_changed_screens_in_both_languages_and_sizes(self):
-        plan, _ = Plan.objects.get_or_create(name='Growth', defaults={'max_staff': 20})
+        plan, _ = Plan.objects.get_or_create(name='Growth')
         operator = User.objects.create_superuser('activation-operator', 'operator@example.com')
         operator_client = Client()
         operator_client.force_login(operator)

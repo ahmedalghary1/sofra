@@ -1,7 +1,5 @@
 """Read-only feature discovery, venue solutions and public plan comparisons."""
 
-from decimal import Decimal
-
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import render
@@ -12,15 +10,15 @@ from .models import Plan
 from .showcase_data import FAQS, GROUPS, ROLES, SOLUTIONS, STATES, TOPICS
 
 PUBLIC_TIERS = (
-    ('Starter', ('Starter', 'ستارتر', 'البداية'), 600, (1, 20, 150, 5, 1)),
-    ('Growth', ('Growth', 'النمو'), 1300, (1, 60, 500, 20, 4)),
-    ('Business', ('Business', 'الأعمال'), 2500, (3, 120, 1500, 60, 8)),
+    ('Starter', ('Starter', 'ستارتر', 'البداية')),
+    ('Growth', ('Growth', 'النمو')),
+    ('Business', ('Business', 'الأعمال')),
 )
 LIMITS = {
     'max_branches': ('فروع لكل مطعم', 'Branches per venue'),
     'max_tables': ('طاولات لكل فرع', 'Tables per branch'),
     'max_items': ('أصناف لكل فرع', 'Menu items per branch'),
-    'max_staff': ('إجمالي حسابات الفريق للمطعم', 'Total team accounts per venue'),
+    'max_staff': ('إجمالي حسابات الفريق، شاملة المالك', 'Total team accounts, including the owner'),
     'max_stations': ('محطات تحضير KDS لكل فرع', 'KDS prep stations per branch'),
 }
 STAFF_ROLES = {
@@ -67,38 +65,43 @@ TOPIC_BY_SLUG = {topic.slug: topic for topic in TOPICS}
 SOLUTION_BY_SLUG = {solution.slug: solution for solution in SOLUTIONS}
 
 
-def _staff_example(total):
-    """Illustrate the shared membership allowance, reserving a floor seat when possible."""
-    admins = (total + 9) // 10
-    back_of_house = max(0, total - admins - 1)
-    kitchen = min((total + 4) // 5, back_of_house)
-    cashiers = min((total + 9) // 10, back_of_house - kitchen)
+def _staff_example(plan):
+    """Use the saved example while it fits the plan, including after operator edits."""
+    example = plan.staff_example
+    total = plan.max_staff
+    if (example.keys() == STAFF_ROLES.keys()
+            and all(type(count) is int and count >= 0 for count in example.values())
+            and sum(example.values()) == total
+            and (not plan.max_stations or example['kitchen'] >= plan.max_branches)):
+        return example
+    kitchen = min(max(plan.max_branches, (total + 4) // 5), max(0, total - 1)) if plan.max_stations else 0
+    admins = min((total + 9) // 10, total - kitchen)
+    back_of_house = max(0, total - admins - kitchen - 1)
+    cashiers = min((total + 9) // 10, back_of_house)
     return {'admin': admins, 'kitchen': kitchen, 'cashier': cashiers,
             'waiter': total - admins - kitchen - cashiers}
 
 
 def public_tier_records():
-    names = {alias.casefold() for _, aliases, _, _ in PUBLIC_TIERS for alias in aliases}
+    names = {alias.casefold() for _, aliases in PUBLIC_TIERS for alias in aliases}
     return Plan.objects.annotate(public_name=Lower('name')).filter(public_name__in=names)
 
 
-def public_plans(english=False, configured=True):
+def public_plans(english=False):
     """Expose only named public tiers. Never publish arbitrary negotiated plan records."""
     records = {}
-    if configured:
-        for row in public_tier_records().order_by('pk'):
-            records.setdefault(row.name.casefold(), row)
+    for row in public_tier_records().order_by('pk'):
+        records.setdefault(row.name.casefold(), row)
     plans = []
-    for name, aliases, proposed_price, proposed_limits in PUBLIC_TIERS:
+    for name, aliases in PUBLIC_TIERS:
         row = next((records[alias.casefold()] for alias in aliases if alias.casefold() in records), None)
-        price = row.price_monthly if row else Decimal(proposed_price)
-        limits = {key: getattr(row, key) for key in LIMITS} if row else dict(zip(LIMITS, proposed_limits))
-        # Keep cents when configured. Avoid scientific notation for integer prices.
-        price_text = format(price, '.2f').rstrip('0').rstrip('.')
+        if row is None:
+            continue
+        limits = {key: getattr(row, key) for key in LIMITS}
+        price_text = format(row.price_monthly, '.2f').rstrip('0').rstrip('.')
         plan = {
-            'name': name, 'slug': name.lower(), 'price': price_text, 'configured': row is not None,
-            'proposed_price': proposed_price, 'price_differs': price != proposed_price,
-            'limits': limits, 'rows': [(label[english], limits[key]) for key, label in LIMITS.items()],
+            'name': name, 'slug': name.lower(), 'price': price_text, 'limits': limits,
+            'rows': [(key, label[english], limits[key]) for key, label in LIMITS.items()],
         }
         focus = PLAN_FOCUS[name]
         if name == 'Business' and limits['max_branches'] <= 1:
@@ -106,12 +109,16 @@ def public_plans(english=False, configured=True):
         if name == 'Growth' and limits['max_stations'] <= 1:
             focus = ('تابع طلبات الصالة والتحصيل في الوردية.', 'Track floor orders and collections throughout the shift.')
         plan['focus'] = focus[english].format(**limits)
-        plan['staff'] = _staff_example(limits['max_staff'])
-        plan['staff_rows'] = [(label[english], plan['staff'][role]) for role, label in STAFF_ROLES.items()]
+        plan['staff'] = _staff_example(row)
+        plan['staff_rows'] = [(role, label[english], plan['staff'][role]) for role, label in STAFF_ROLES.items()]
         plan['highlights'] = [(ar, en)[english] for slug, ar, en in HIGHLIGHTS[name]
                               if _fits_plan(TOPIC_BY_SLUG[slug], plan)]
         plans.append(plan)
     return plans
+
+
+def starter_price(plans):
+    return next((plan['price'] for plan in plans if plan['slug'] == 'starter'), '')
 
 
 def _language(request):
@@ -164,7 +171,7 @@ def features(request):
     en = _language(request)
     query = request.GET.get('q', '').strip()[:150]
     filters = {key: request.GET.get(key, '')[:60] for key in ('category', 'role', 'state', 'plan')}
-    plans = [p for p in public_plans(en) if p['configured']]
+    plans = public_plans(en)
     selected = next((p for p in plans if p['slug'] == filters['plan']), None)
     entries = []
     for topic in TOPICS:
@@ -207,17 +214,19 @@ def feature_detail(request, slug):
     en = _language(request)
     entry = _topic(topic, en)
     related = sorted((t for t in TOPICS if t != topic), key=lambda t: t.group != topic.group)[:3]
+    plans = public_plans(en)
     return _page(request, 'feature', entry['title'], entry['summary'], entry=entry,
                  faq_question=FAQS[slug][0][en], faq_answer=FAQS[slug][1][en],
                  related=[_topic(t, en) for t in related],
-                 fit=[p for p in public_plans(en) if p['configured'] and _fits_plan(topic, p)])
+                 fit=[p for p in plans if _fits_plan(topic, p)], starter_price=starter_price(plans))
 
 
 @require_safe
 def pricing(request):
     en = _language(request)
     plans = public_plans(en)
-    rows = [(label[en], [p['limits'][key] for p in plans]) for key, label in LIMITS.items()]
+    rows = [('price', ('السعر الشهري (ج.م)', 'Monthly price (EGP)')[en], [p['price'] for p in plans])]
+    rows.extend((key, label[en], [p['limits'][key] for p in plans]) for key, label in LIMITS.items())
     for plan in plans:
         plan['included'] = []
     tools = []

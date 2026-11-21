@@ -19,7 +19,7 @@
 <section class="mk-section mk-wrap mk-integration"><div><span class="mk-eyeline"><span></span>{% bi 'التكاملات' 'Integrations' %}</span><h2>{% bi 'يشتغل جنب الكاشير الحالي.' 'Alongside your current till.' %}</h2><p>{% bi 'استورد المنيو من ملف وصدّر الطلبات للمراجعة. تكاملات الدفع والربط المباشر مع نقاط البيع موضحة في دليل المنتج.' 'Bring in a menu file and export orders for reconciliation. Check the catalog for the status of payment and POS connections.' %}</p><a class="mk-textlink" href="{% public_url 'feature_detail' 'integrations' %}">{% bi 'راجع التكاملات' 'Check integrations' %}</a></div></section>
 <section class="mk-section mk-wrap mk-plans-home" aria-labelledby="home-plans-title">
   <div class="mk-story-head"><span class="mk-eyeline"><span></span>{% bi 'الباقات الشهرية' 'Monthly plans' %}</span><h2 id="home-plans-title">{% bi 'اختَر باقتك بحجم فريقك.' 'Pick a plan for your team.' %}</h2><a class="mk-textlink" href="{% public_url 'pricing' %}">{% bi 'قارن جميع المميزات' 'Compare all features' %}</a></div>
-  <div data-plan-prices="{% public_url 'plan_teaser' %}" data-configured-label="{% bi 'باقة مسجلة' 'Configured tier' %}">{% include 'marketing/_plan_teasers.html' %}</div>
+  {% include 'marketing/_plan_teasers.html' %}
 </section>
 <section class="mk-section mk-wrap mk-split mk-home-preview"><div><span class="mk-eyeline"><span></span>{% bi 'قبل البداية' 'Before you start' %}</span><h2>{% bi 'أسئلة أصحاب الأماكن.' 'Questions from the floor.' %}</h2></div>{% include 'marketing/faq.html' %}</section>
 {% include 'marketing/cta.html' %}{% endblock %}

@@ -6,19 +6,16 @@
       <span class="cat-plan-icon">{% if plan.slug == 'business' %}{% symbol 'layers' %}{% elif plan.slug == 'growth' %}{% symbol 'chart-no-axes-column' %}{% else %}{% symbol 'store' %}{% endif %}</span>
     </div>
     <p class="cat-focus">{{ plan.focus }}</p>
-    <p class="cat-price"><bdi>{{ plan.price }}</bdi> <small>{% bi 'ج.م / شهر' 'EGP / month' %}</small></p>
-    <p class="cat-kicker">{% if plan.configured %}{% bi 'باقة مسجلة' 'Configured tier' %}{% else %}{% bi 'تسعير مقترح' 'Proposed pricing' %}{% endif %}</p>
-    {% if plan.price_differs %}<small>{% bi 'السعر المقترح' 'Proposed price' %} · {{ plan.proposed_price }} {% bi 'ج.م / شهر' 'EGP / month' %}</small>{% endif %}
+    <p class="cat-price"><bdi data-tier-price>{{ plan.price }}</bdi> <small>{% bi 'ج.م / شهر' 'EGP / month' %}</small></p>
+    <p class="cat-kicker">{% bi 'السعر الشهري' 'Monthly price' %}</p>
   </header>
   <dl class="cat-capacity">
-    <div><dt>{% bi 'حسابات الفريق' 'Team accounts' %}</dt><dd>{{ plan.limits.max_staff }}</dd></div>
-    <div><dt>{% bi 'الفروع' 'Branches' %}</dt><dd>{{ plan.limits.max_branches }}</dd></div>
-    <div><dt>{% bi 'طاولات / فرع' 'Tables / branch' %}</dt><dd>{{ plan.limits.max_tables }}</dd></div>
-    <div><dt>{% bi 'أصناف / فرع' 'Menu items / branch' %}</dt><dd>{{ plan.limits.max_items }}</dd></div>
+    {% for key,label,count in plan.rows %}{% if key != 'max_stations' %}<div><dt>{{ label }}</dt><dd data-tier-limit="{{ key }}">{{ count }}</dd></div>{% endif %}{% endfor %}
   </dl>
-  <p class="cat-stations">{% symbol 'chef-hat' %} {% bi 'محطات شاشة المطبخ KDS لكل فرع' 'KDS prep stations per branch' %} <b>{{ plan.limits.max_stations }}</b></p>
+  <p class="cat-stations">{% symbol 'chef-hat' %} {% bi 'محطات شاشة المطبخ KDS لكل فرع' 'KDS prep stations per branch' %} <b data-tier-limit="max_stations">{{ plan.limits.max_stations }}</b></p>
   <h3>{% bi 'توزيع مقترح للحسابات' 'Suggested team setup' %}</h3>
-  <dl class="cat-staff">{% for label,count in plan.staff_rows %}<div><dt>{{ label }}</dt><dd>{{ count }}</dd></div>{% endfor %}</dl>
+  <dl class="cat-staff">{% for role,label,count in plan.staff_rows %}<div><dt>{{ label }}</dt><dd data-tier-role="{{ role }}">{{ count }}</dd></div>{% endfor %}</dl>
+  {% if plan.limits.max_stations %}<p>{% bi 'يستطيع حساب المطبخ متابعة أكثر من محطة داخل الفرع المخصص له.' 'A kitchen account can monitor multiple stations in its assigned branch.' %}</p>{% endif %}
   <h3>{% bi 'أبرز ما يمكنك تشغيله' 'What you can run' %}</h3>
   <ul class="cat-plan-benefits">{% for text in plan.highlights %}<li>{% symbol 'check' %}<span>{{ text }}</span></li>{% endfor %}</ul>
   <a class="cat-button" href="{% url 'contact' %}?plan={{ plan.slug }}{% if english %}&amp;lang=en{% endif %}">{% bi 'استفسر عن' 'Ask about' %} {{ plan.name }}</a>

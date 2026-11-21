@@ -14,7 +14,7 @@ from django.views.decorators.http import require_http_methods, require_safe
 from .guidebook import FAQ, FLOW, GUIDES
 from .models import DemoRequest
 from .presentation import localized_url, site_metadata
-from .showcase_catalog import PUBLIC_TIERS, public_plans
+from .showcase_catalog import public_plans, starter_price
 from .showcase_data import SOLUTIONS, TOPICS
 from .sitemaps import PublicSitemap
 
@@ -120,7 +120,12 @@ def public_page(request, name=None):
     if name in ("home", "how_it_works"):
         context["flow"] = [(s[0], s[1 + en], s[3 + en]) for s in FLOW]
     if name == "home":
-        context["plans"] = public_plans(en, configured=False)
+        try:
+            plans = public_plans(en)
+        except DatabaseError:
+            plans = []
+        context["plans"] = plans
+        context["starter_price"] = starter_price(plans)
         context["venue_tiles"] = [
             (s.slug, s.title[en], s.headline[en]) for s in SOLUTIONS
         ]
@@ -204,10 +209,13 @@ class ContactForm(forms.ModelForm):
 def contact(request):
     en = request.LANGUAGE_CODE == "en"
     initial = {"key": uuid.uuid4()}
-    for name, _, _, _ in PUBLIC_TIERS:
-        if request.GET.get("plan") == name.lower():
+    selected_plan = None
+    slug = request.GET.get("plan")
+    if slug:
+        selected_plan = next((plan for plan in public_plans(en) if plan["slug"] == slug), None)
+        if selected_plan:
+            name = selected_plan["name"]
             initial["message"] = f"I’d like to ask about {name}." if en else f"أرغب في الاستفسار عن باقة {name}."
-            break
     form = ContactForm(
         request.POST if request.method == "POST" else None,
         english=en,
@@ -248,7 +256,7 @@ def contact(request):
     return render(
         request,
         "marketing/contact.html",
-        {**page_data(request, "contact"), "form": form},
+        {**page_data(request, "contact"), "form": form, "selected_plan": selected_plan},
         status=status,
     )
 
@@ -257,18 +265,12 @@ def contact(request):
 def plan_teaser(request):
     en = request.LANGUAGE_CODE == "en"
     rows = []
-    configured = []
+    tiers = []
     for plan in public_plans(en):
-        label = (
-            ("configured" if en else "مسجّل")
-            if plan["configured"]
-            else ("proposed" if en else "مقترح")
-        )
         currency = "EGP / month" if en else "ج.م / شهر"
-        rows.append(f"{plan['name']} · {plan['price']} {currency} ({label})")
-        if plan["configured"]:
-            configured.append({key: plan[key] for key in ("slug", "price", "focus", "limits", "staff", "highlights")})
-    return JsonResponse({"rows": rows, "configured": configured})
+        rows.append(f"{plan['name']} · {plan['price']} {currency}")
+        tiers.append({key: plan[key] for key in ("slug", "price", "focus", "limits", "staff", "highlights")})
+    return JsonResponse({"rows": rows, "configured": tiers})
 
 
 @require_safe

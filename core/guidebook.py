@@ -186,8 +186,8 @@ FAQ = [
     (
         "إزاي أختار باقة؟",
         "How do I choose a plan?",
-        "قارن حدود الفروع والطاولات والأصناف والفريق في صفحة الباقات. الأسعار المقترحة موضحة بعلامة مستقلة.",
-        "Compare branch, table, item and staff limits on the pricing page. Proposed figures carry a separate label.",
+        "تعرض صفحة الباقات السعر الشهري وحدود الفروع والطاولات والأصناف وإجمالي حسابات الفريق، شاملة المالك.",
+        "The pricing page lists each monthly price and the limits for branches, tables, items and total team accounts, including the owner.",
     ),
     (
         "أبدأ الإعداد منين؟",
