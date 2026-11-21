@@ -1,0 +1,16 @@
+{% load showroom i18n %}
+<div class="console-section"><h2>{% bi 'باقات الاشتراك' 'Subscription plans' %}</h2><a class="btn btn-dark btn-sm" href="{% url 'platform_plan_create' %}">{% symbol 'plus' %} {% bi 'إضافة باقة' 'Add plan' %}</a></div>
+<div class="console-plans">{% for plan in plans %}
+  <article class="panel console-plan">
+    <h3>{{ plan.name }}</h3>
+    <p><strong>{{ plan.price_monthly|floatformat:"-2" }}</strong> {% bi 'ج.م / شهر' 'EGP / month' %}</p>
+    <dl>
+      <div><dt>{% bi 'الفروع' 'Branches' %}</dt><dd>{{ plan.max_branches }}</dd></div>
+      <div><dt>{% bi 'الطاولات لكل فرع' 'Tables per branch' %}</dt><dd>{{ plan.max_tables }}</dd></div>
+      <div><dt>{% bi 'الأصناف لكل فرع' 'Items per branch' %}</dt><dd>{{ plan.max_items }}</dd></div>
+      <div><dt>{% bi 'أعضاء الفريق' 'Team members' %}</dt><dd>{{ plan.max_staff }}</dd></div>
+      <div><dt>{% bi 'محطات المطبخ' 'Kitchen stations' %}</dt><dd>{{ plan.max_stations }}</dd></div>
+    </dl>
+    <a class="btn btn-outline btn-sm" href="{% url 'platform_plan_edit' plan.pk %}">{% bi 'تعديل السعر والحدود' 'Edit price and limits' %}</a>
+  </article>
+{% empty %}<p>{% bi 'لا توجد باقات بعد.' 'No plans yet.' %}</p>{% endfor %}</div>

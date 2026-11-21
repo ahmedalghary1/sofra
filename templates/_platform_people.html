@@ -1,0 +1,24 @@
+{% load showroom i18n %}
+<div class="console-section"><h2>{% bi 'عضويات الفرق' 'Team memberships' %}</h2>
+  <a class="btn btn-outline btn-sm" href="{% url 'admin:auth_user_changelist' %}">{% bi 'إدارة حسابات الدخول' 'Manage login accounts' %}</a>
+</div>
+<div class="platform-list">
+{% for member in restaurants %}
+  <article class="panel console-member">
+    <header class="console-section"><div><h3><bdi>{{ member.user.get_full_name|default:member.user.username }}</bdi></h3>
+      <small><bdi>{{ member.user.email }}</bdi> · {{ member.restaurant.name }}</small></div>
+      <span class="status {% if member.active %}status-ready{% else %}status-cancelled{% endif %}">{% translate member.get_role_display %} · {% if member.active %}{% translate 'نشط' %}{% else %}{% bi 'موقوف' 'Paused' %}{% endif %}</span>
+    </header>
+    {% if member.role != 'owner' and not member.user.is_superuser %}
+    <details><summary>{% bi 'تعديل صلاحيات العضو' 'Edit member access' %}</summary>
+      <form class="console-fields" method="post" action="{% url 'platform_member_update' member.restaurant_id member.pk %}">{% csrf_token %}
+        <label>{% bi 'الدور' 'Role' %}<select name="role">{% for value,label in roles %}<option value="{{ value }}" {% if value == member.role %}selected{% endif %}>{% translate label %}</option>{% endfor %}</select></label>
+        <label>{% bi 'حالة العضوية' 'Membership status' %}<select name="state"><option value="active" {% if member.active %}selected{% endif %}>{% translate 'نشط' %}</option><option value="paused" {% if not member.active %}selected{% endif %}>{% bi 'موقوف' 'Paused' %}</option></select></label>
+        <label>{% bi 'الفرع' 'Branch' %}<select name="branch"><option value="">{% bi 'الاحتفاظ بالفروع الحالية' 'Keep current branches' %}{% for b in member.branches.all %} · {{ b.name }}{% endfor %}</option>{% for b in member.restaurant.branches.all %}{% if b.active %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endif %}{% endfor %}</select></label>
+        <label>{% translate 'سبب التغيير' %}<input name="reason" maxlength="120" required></label>
+        <button class="btn btn-dark btn-sm">{% bi 'حفظ الصلاحيات' 'Save access' %}</button>
+      </form>
+    </details>{% endif %}
+  </article>
+{% empty %}<div class="panel empty-state"><h3>{% bi 'لا توجد عضويات مطابقة' 'No matching memberships' %}</h3></div>{% endfor %}
+</div>

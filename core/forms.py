@@ -9,6 +9,32 @@ from django.utils.translation import get_language, gettext_lazy as _
 from .models import Plan, SubscriptionPayment
 
 
+class PlatformPlanForm(forms.ModelForm):
+    reason = forms.CharField(max_length=120)
+
+    class Meta:
+        model = Plan
+        fields = ('name', 'price_monthly', 'max_branches', 'max_tables', 'max_items', 'max_staff', 'max_stations')
+
+    def __init__(self, *args, english=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        labels = {
+            'name': ('اسم الباقة', 'Plan name'), 'price_monthly': ('السعر الشهري بالجنيه', 'Monthly price in EGP'),
+            'max_branches': ('الفروع', 'Branches'), 'max_tables': ('الطاولات لكل فرع', 'Tables per branch'),
+            'max_items': ('الأصناف لكل فرع', 'Items per branch'), 'max_staff': ('أعضاء الفريق', 'Team members'),
+            'max_stations': ('محطات المطبخ', 'Kitchen stations'), 'reason': ('سبب التغيير', 'Reason for change'),
+        }
+        for key, label in labels.items():
+            self.fields[key].label = label[english]
+        self.fields['name'].disabled = bool(self.instance.pk)
+
+    def clean_price_monthly(self):
+        price = self.cleaned_data['price_monthly']
+        if price < 0:
+            raise forms.ValidationError(_('يجب ألا يقل السعر عن صفر.') if get_language() != 'en' else 'Enter a non-negative price.')
+        return price
+
+
 class OwnerRegistrationForm(forms.Form):
     name = forms.CharField(label=_('اسمك'), max_length=150,
                            widget=forms.TextInput(attrs={'autocomplete': 'name', 'placeholder': _('الاسم الكامل')}))

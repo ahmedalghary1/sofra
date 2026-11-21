@@ -35,7 +35,7 @@
         </div>
       </section>
       <section>
-        <div class="platform-section-title"><span>4</span><div><h2>{% translate 'الباقة' %}</h2><p>{% bi 'اختر باقة وتاريخ انتهاء بعد مراجعة السداد لتفعيل المطعم فورًا، أو اترك الباقة فارغة لحين الاتفاق مع المالك.' 'After reviewing payment, select a plan and expiry date to activate the restaurant now. Leave the plan empty to await an agreement with the owner.' %} <a href="/django-admin/core/plan/add/" target="_blank" rel="noopener">{% translate 'أنشئ باقة جديدة' %}</a>.</p></div></div>
+        <div class="platform-section-title"><span>4</span><div><h2>{% translate 'الباقة' %}</h2><p>{% bi 'اختر باقة وتاريخ انتهاء بعد مراجعة السداد لتفعيل المطعم فورًا، أو اترك الباقة فارغة لحين الاتفاق مع المالك.' 'After reviewing payment, select a plan and expiry date to activate the restaurant now. Leave the plan empty to await an agreement with the owner.' %} <a href="{% url 'platform_plan_create' %}" target="_blank" rel="noopener">{% translate 'أنشئ باقة جديدة' %}</a>.</p></div></div>
         <div class="platform-form-grid">
           <div class="platform-field"><label for="{{ form.plan.id_for_label }}">{% translate form.plan.label %}</label>{{ form.plan }}{{ form.plan.errors }}</div>
           <div class="platform-field"><label for="{{ form.ends_at.id_for_label }}">{% bi 'تاريخ انتهاء الاشتراك' 'Subscription expiry' %}</label>{{ form.ends_at }}{{ form.ends_at.errors }}</div>

@@ -11,6 +11,7 @@ from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
+from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.views import PasswordResetView
 from django.contrib.auth.models import User
@@ -38,7 +39,7 @@ from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
-from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
+from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
 from .showcase_catalog import public_tier_records
@@ -257,18 +258,94 @@ def platform_dashboard(request):
         'branches', Prefetch('memberships', queryset=Membership.objects.filter(role='owner').select_related('user'),
                              to_attr='platform_owners')).annotate(
         branch_count=Count('branches', distinct=True), member_count=Count('memberships', distinct=True)).order_by('-created_at')
-    pending_only = request.GET.get('status') == 'pending'
+    section = request.GET.get('status', 'all')
+    if section not in ('pending', 'active', 'people', 'plans'):
+        section = 'all'
+    now = timezone.now()
+    active = Q(active=True, subscription__status__in=('active', 'trial'), subscription__ends_at__gt=now)
+    pending_only = section == 'pending'
     if pending_only:
         restaurants = restaurants.filter(subscription__status='pending').order_by(
             F('subscription__activation_requested_at').desc(nulls_last=True), '-created_at')
     if query:
         restaurants = restaurants.filter(Q(name__icontains=query) | Q(slug__icontains=query))
-    page = Paginator(restaurants, 25).get_page(request.GET.get('page'))
+    if section == 'active':
+        restaurants = restaurants.filter(active)
+    members = Membership.objects.select_related('user', 'restaurant').prefetch_related(
+        'branches', 'restaurant__branches').order_by('restaurant__name', 'user__username', 'pk')
+    if query:
+        members = members.filter(Q(user__email__icontains=query) | Q(user__username__icontains=query) |
+                                 Q(restaurant__name__icontains=query))
+    page = None
+    if section != 'plans':
+        records = members if section == 'people' else restaurants
+        page = Paginator(records, 25).get_page(request.GET.get('page'))
     return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.order_by('price_monthly', 'name'), 'query': query,
+        'section': section, 'roles': StaffInvitation.ROLES, 'member_total': Membership.objects.count(),
         'activation_plans': public_tier_records().order_by('price_monthly', 'name'),
         'pending_only': pending_only, 'pending_total': Subscription.objects.filter(status='pending').count(),
         'restaurant_total': Restaurant.objects.count(),
-        'active_total': Restaurant.objects.filter(active=True).exclude(subscription__status='pending').count()})
+        'active_total': Restaurant.objects.filter(active).count()})
+
+
+@require_POST
+def platform_member_update(request, restaurant_id, member_id):
+    denied = platform_scope(request)
+    if denied:
+        return denied
+    role = request.POST.get('role')
+    state = request.POST.get('state')
+    reason = request.POST.get('reason', '').strip()[:120]
+    branch_id = request.POST.get('branch')
+    try:
+        with transaction.atomic():
+            member = get_object_or_404(Membership.objects.select_for_update(), pk=member_id, restaurant_id=restaurant_id)
+            if member.role == 'owner' or member.user.is_superuser:
+                return render(request, '403.html', status=403)
+            if role not in dict(StaffInvitation.ROLES) or state not in ('active', 'paused') or not reason:
+                raise ValidationError('Review the role, status and reason.' if request.LANGUAGE_CODE == 'en' else 'راجع الدور والحالة وسبب التعديل.')
+            enabled = state == 'active'
+            if enabled and not member.active:
+                ensure_active_subscription(member.restaurant)
+                check_activation_limit(member.restaurant, 'staff')
+            if branch_id:
+                if not branch_id.isascii() or not branch_id.isdigit() or len(branch_id) > 18:
+                    raise Http404
+                branch = get_object_or_404(Branch, restaurant_id=restaurant_id, pk=branch_id, active=True)
+                member.branches.set([branch])
+            elif enabled and role != 'manager' and not member.branches.filter(restaurant_id=restaurant_id, active=True).exists():
+                raise ValidationError('Choose an active branch.' if request.LANGUAGE_CODE == 'en' else 'اختر فرعًا نشطًا للموظف.')
+            member.role, member.active = role, enabled
+            member.save(update_fields=['role', 'active'])
+            audit(member.restaurant, request.user, 'platform.member.update',
+                  f'member={member.pk}; role={role}; active={enabled}; branch={branch_id or "keep"}; reason={reason}')
+        messages.success(request, 'Access updated.' if request.LANGUAGE_CODE == 'en' else 'تم تحديث صلاحيات العضو.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+    return redirect(reverse('platform_dashboard') + '?status=people')
+
+
+@require_http_methods(['GET', 'POST'])
+def platform_plan_form(request, plan_id=None):
+    denied = platform_scope(request)
+    if denied:
+        return denied
+    english = request.LANGUAGE_CODE == 'en'
+    with transaction.atomic():
+        plan = get_object_or_404(Plan.objects.select_for_update(), pk=plan_id) if plan_id else None
+        form = PlatformPlanForm(request.POST if request.method == 'POST' else None, instance=plan, english=english)
+        if request.method == 'POST' and form.is_valid():
+            try:
+                with transaction.atomic():
+                    plan = form.save()
+            except IntegrityError:
+                form.add_error('name', 'Plan name already exists.' if english else 'اسم الباقة مستخدم بالفعل.')
+            else:
+                LogEntry.objects.log_actions(user_id=request.user.pk, queryset=[plan],
+                    action_flag=CHANGE if plan_id else ADDITION, change_message=form.cleaned_data['reason'])
+                messages.success(request, 'Plan saved.' if english else 'تم حفظ الباقة.')
+                return redirect(reverse('platform_dashboard') + '?status=plans')
+    return render(request, 'platform_plan_form.html', {'form': form, 'plan': plan})
 
 
 @require_http_methods(['GET', 'POST'])

@@ -1,0 +1,33 @@
+.operator-console .console-hero {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.5rem;
+  padding:clamp(1.5rem,4vw,3.25rem); border-radius:1.5rem; color:white;
+  background:linear-gradient(110deg,#183f49,#102b3e 65%);
+}
+.console-kicker {display:inline-flex; align-items:center; gap:.5rem; color:#ace1ce; font-weight:700}
+.console-hero h1 {color:white; font-size:clamp(1.8rem,4vw,3rem); margin:.55rem 0}
+.console-hero p {color:#deebed; margin:0}
+.console-metrics,.console-plans {display:grid; gap:1rem; margin:1.25rem 0}
+.console-metrics {grid-template-columns:repeat(4,minmax(0,1fr))}
+.console-metrics a,.console-plan,.console-member {padding:1.25rem; overflow-wrap:anywhere}
+.console-metrics a {display:grid; gap:.4rem; background:white; border:1px solid #d7e2df; border-radius:1rem; color:#234449; text-decoration:none}
+.console-metrics a:hover,.console-metrics a:focus-visible {border-color:#337263}
+.console-metrics strong,.console-plan p strong {font-size:2rem; line-height:1.25; font-variant-numeric:tabular-nums}
+.console-tabs {display:flex; flex-wrap:wrap; gap:.35rem; padding:.45rem; border-radius:1rem; background:#e4ecea; margin:1.4rem 0}
+.console-tabs a {color:#204449; text-decoration:none; padding:.55rem 1rem; border-radius:.7rem; font-weight:650}
+.console-tabs a[aria-current],.console-tabs a:hover {background:#fff; box-shadow:0 1px 4px #16383b22}
+.console-section {display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin:1rem 0}
+.console-section h2,.console-section h3,.console-plan h3 {margin:0}
+.console-member .console-section {margin:0}
+.console-member details {border-top:1px solid #d7e2df; margin-top:1rem; padding-top:.8rem}
+.console-member summary {cursor:pointer; font-weight:650}
+.console-fields,.console-fields label {display:grid; gap:.5rem}
+.console-fields {grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr)); align-items:end; margin-top:1rem}
+.console-fields select,.console-fields input {min-width:0; width:100%}
+.console-plans {grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))}
+.console-plan dl div {display:flex; justify-content:space-between; gap:1rem; padding:.5rem 0; border-top:1px solid #d7e2df}
+.console-plan dd {margin:0;font-weight:700}
+@media(max-width:700px) {
+  .console-metrics {grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+  .console-metrics a {padding:1rem}
+  .console-tabs a {padding:.5rem .65rem}
+}

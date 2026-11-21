@@ -26,8 +26,11 @@ class SubscriptionActivationUITests(StaticLiveServerTestCase):
                 owner = User.objects.create_user(username=f'owner-{width}-{language}',
                                                  email=f'owner-{width}-{language}@example.com')
                 venue = Restaurant.objects.create(name='مطعم الياسمين', slug=f'venue-{width}-{language}')
-                Branch.objects.create(restaurant=venue)
+                branch = Branch.objects.create(restaurant=venue)
                 Membership.objects.create(user=owner, restaurant=venue, role='owner')
+                teammate = User.objects.create_user(username=f'floor-{width}-{language}')
+                member = Membership.objects.create(user=teammate, restaurant=venue, role='waiter')
+                member.branches.add(branch)
                 Subscription.objects.create(restaurant=venue, status='pending')
                 client = Client()
                 client.force_login(owner)
@@ -66,6 +69,23 @@ class SubscriptionActivationUITests(StaticLiveServerTestCase):
                 operator_page = admin.new_page()
                 operator_page.goto(self.live_server_url + reverse('platform_create_restaurant') + '?lang=' + language)
                 self.check_layout(operator_page, language, shots / f'create-{width}-{language}.png')
+                for section in ('all', 'active', 'people', 'plans'):
+                    response = operator_page.goto(self.live_server_url + reverse('platform_dashboard') +
+                                                  f'?status={section}&lang={language}')
+                    self.assertEqual(response.status, 200)
+                    if section == 'people':
+                        operator_page.locator('form.console-fields').first.locator('..').locator('summary').click()
+                        access = operator_page.locator('form.console-fields').first
+                        access.locator('[name="role"]').select_option('cashier')
+                        access.locator('[name="reason"]').fill('Shift assignment')
+                        self.check_layout(operator_page, language, shots / f'access-{width}-{language}.png')
+                        access.get_by_role('button').click()
+                        expect(operator_page.locator('.toast.success')).to_be_visible()
+                    self.check_layout(operator_page, language, shots / f'{section}-{width}-{language}.png')
+                for name, args in [('platform_plan_create', []), ('platform_plan_edit', [plan.pk])]:
+                    response = operator_page.goto(self.live_server_url + reverse(name, args=args) + '?lang=' + language)
+                    self.assertEqual(response.status, 200)
+                    self.check_layout(operator_page, language, shots / f'{name}-{width}-{language}.png')
                 operator_page.goto(self.live_server_url + reverse('platform_dashboard') +
                                    f'?status=pending&q={venue.slug}&lang={language}')
                 self.check_layout(operator_page, language, shots / f'platform-{width}-{language}.png')
