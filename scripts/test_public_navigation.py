@@ -46,7 +46,7 @@ def main():
             expect(page.locator(".mk-guide-grid > p")).to_be_visible()
             page.locator(".mk-lang").click()
             expect(page.locator("html")).to_have_attribute(
-                "lang", "ar" if english else "en"
+                "lang", "ar-EG" if english else "en"
             )
             expect(page.locator("#guide-search")).to_have_value("no-matching-guide")
             page.evaluate("navigator.serviceWorker.ready")

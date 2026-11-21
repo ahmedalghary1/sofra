@@ -168,8 +168,8 @@ FAQ = [
     (
         "هل الضيف محتاج تطبيق أو حساب؟",
         "Does a guest need an app or an account?",
-        "يكفي مسح QR الطاولة بكاميرا الموبايل وفتح المنيو في المتصفح.",
-        "Guests scan the table code and open the menu in their browser.",
+        "الضيف يفتح المنيو من غير تطبيق أو حساب. يمسح رمز QR الموجود على الطاولة ويفتح المنيو في متصفح هاتفه.",
+        "Guests can open the menu without an app or an account. They scan the table code and open the menu in their browser.",
     ),
     (
         "إيه اللي يحصل لو الإنترنت فصل؟",
@@ -190,10 +190,10 @@ FAQ = [
         "The pricing page lists each monthly price and the limits for branches, tables, items and total team accounts, including the owner.",
     ),
     (
-        "أبدأ الإعداد منين؟",
-        "Where do I start setup?",
-        "أنشئ حساب مالك وفعّل بريدك. أضف الأصناف والطاولات للفرع وتأكد من الكود قبل الطباعة.",
-        "Create an owner account, verify your email, add branch menu items and tables, and test the code before printing.",
+        "إزاي أعمل منيو QR لكافيه؟",
+        "How do I set up a QR menu for my café?",
+        "ابدأ بإضافة الأصناف والأسعار والطاولات في لوحة الفرع. أنشئ حساب المالك وأكّد البريد ورتّب تفعيل الاشتراك أولًا، ثم نزّل رمز كل طاولة واختبره من هاتف قبل الطباعة.",
+        "Add menu items, prices and tables in the branch workspace. First create an owner account, verify your email and arrange subscription activation. Download each table code and test it on a phone before printing.",
     ),
     (
         "هل يمكن تغيير لغة الواجهة؟",
@@ -216,8 +216,8 @@ FAQ = [
     (
         "هل فيه دفع إلكتروني؟",
         "Can guests pay online?",
-        "المتاح هو تسجيل التحصيل اليدوي. صفحة الحساب لا تخصم أموالًا من بطاقات الضيوف.",
-        "Authorized staff can record manual collections. Online card processing is outside the current product.",
+        "الدفع الإلكتروني غير متاح حاليًا. يستطيع الموظف المخوّل تسجيل تحصيل المبلغ يدويًا في Serveza.",
+        "Online payment is currently unavailable. Authorized staff can record manual collections in Serveza.",
     ),
     (
         "إزاي أوصل لفريق Serveza؟",

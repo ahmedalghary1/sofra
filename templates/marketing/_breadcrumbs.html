@@ -1,0 +1,8 @@
+{% load showroom %}
+{% if breadcrumbs %}
+<nav class="site-breadcrumb" aria-label="{% bi 'مسار التصفح' 'Breadcrumb' %}">
+  <ol>{% for label,url in breadcrumbs %}
+    <li>{% if forloop.last %}<span aria-current="page">{{ label }}</span>{% else %}<a href="{{ url }}">{{ label }}</a>{% endif %}</li>
+  {% endfor %}</ol>
+</nav>
+{% endif %}

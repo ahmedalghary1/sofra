@@ -1,10 +1,25 @@
+import json
+
 from django import template
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from core.presentation import localized_url
+from core.seo import WHATSAPP
 
 register = template.Library()
+
+@register.simple_tag
+def whats_app_url():
+    return WHATSAPP
+
+@register.simple_tag
+def json_ld(data):
+    encoded = json.dumps(data, ensure_ascii=False).translate({
+        ord("<"): r"\u003C", ord(">"): r"\u003E", ord("&"): r"\u0026",
+    })
+    return mark_safe('<script type="application/ld+json">' + encoded + '</script>')
 
 
 @register.simple_tag(takes_context=True)

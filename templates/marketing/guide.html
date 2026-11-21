@@ -1,1 +1,14 @@
-{% extends 'marketing/base.html' %}{% load showroom %}{% block content %}<article class="mk-section mk-reading"><a class="mk-textlink" href="{% public_url 'resources' %}">{% bi 'أدلة التشغيل' 'Field guides' %}</a><div class="mk-intro"><span class="mk-eyeline"><span></span>{{ guide.category }}</span><h1>{{ guide.title }}</h1><p>{{ guide.lead }}</p></div><ol class="mk-checklist">{% for step in guide.steps %}<li>{{ step }}</li>{% endfor %}</ol><a class="mk-btn mk-secondary" href="{% public_url 'feature_detail' guide.feature %}">{% bi 'افتح دليل الميزة' 'View the feature guide' %}</a></article>{% endblock %}
+{% extends 'marketing/base.html' %}{% load showroom %}
+{% block content %}
+<article class="mk-section mk-reading">
+  <div class="mk-intro">
+    <span class="mk-eyeline"><span></span>{{ guide.category }}</span>
+    <h1>{{ guide.title }}</h1>
+    <p>{{ guide.lead }}</p>
+    <small>{% bi 'آخر تحديث' 'Last updated' %} · <time datetime="{{ guide_modified|date:'Y-m-d' }}">{{ guide_modified|date:'j F Y' }}</time></small>
+  </div>
+  <h2>{% bi 'خطوات التنفيذ' 'Steps' %}</h2>
+  <ol class="mk-checklist">{% for step in guide.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+  <a class="mk-btn mk-secondary" href="{% public_url 'feature_detail' guide.feature %}">{% bi 'عرض ميزة Serveza المرتبطة بالدليل' 'See the Serveza feature covered in this guide' %}</a>
+</article>
+{% endblock %}

@@ -1,6 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load static i18n %}
 {% block extrastyle %}{{ block.super }}
+<meta name="robots" content="noindex, nofollow">
 {% include '_site_metadata.html' %}
 <link rel="icon" type="image/webp" href="{% static 'brand/serveza-favicon-32.webp' %}">
 {% endblock %}

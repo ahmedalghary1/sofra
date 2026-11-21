@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% load static showroom %}
-{% block title %}{% bi 'منيو دار الليمون التجريبية' 'Dar El Limoun sample menu' %}{% endblock %}
+{% block title %}{{ seo_title }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}">{% endblock %}
 {% block bodyclass %}catalog-body{% endblock %}
 {% block body %}
@@ -10,11 +10,12 @@
       <a class="sample-language" href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></nav>
   </header>
   <main class="catalog-main" id="menu">
+    {% include 'marketing/_breadcrumbs.html' %}
     <section class="sample-cover" aria-labelledby="restaurant-name">
       <div><p>{% bi 'منيو تجريبية · طلبات للعرض فقط' 'Sample menu · Demo orders only' %}</p>
         <h1 id="restaurant-name">{% bi 'دار الليمون' 'Dar El Limoun' %}</h1>
         <span>{% bi 'مطبخ مصري على الفحم' 'Egyptian charcoal kitchen' %}</span></div>
-      <img src="{% static 'demo/tawook-menu.webp' %}" width="320" height="213" alt="">
+      <img src="{% static 'demo/tawook-menu.webp' %}" width="320" height="213" alt="{% bi 'شيش طاووق في منيو دار الليمون التجريبية' 'Grilled chicken in Dar El Limoun’s demo menu' %}">
     </section>
     {% include '_menu_catalog.html' %}
   </main>

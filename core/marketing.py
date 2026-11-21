@@ -14,22 +14,23 @@ from django.views.decorators.http import require_http_methods, require_safe
 from .guidebook import FAQ, FLOW, GUIDES
 from .models import DemoRequest
 from .presentation import localized_url, site_metadata
-from .showcase_catalog import public_plans, starter_price
+from .seo import AVAILABLE, MARKET, PRODUCT, UNAVAILABLE, WHATSAPP, monthly_price_text, public_metadata
+from .showcase_catalog import LIMITS, public_plans, starter_price
 from .showcase_data import SOLUTIONS, TOPICS
 from .sitemaps import PublicSitemap
 
 META = {
     "home": (
-        "خدمة الطاولة من المنيو للمطبخ",
-        "Table service from menu to kitchen",
-        "منصة طلبات الطاولات للكافيهات والمطاعم في مصر. جرّب المنيو وشاشة المطبخ من متصفحك.",
-        "Discover QR ordering, kitchen tickets and floor service for cafés and restaurants in Egypt.",
+        "نظام طلبات الطاولات للمطاعم في مصر",
+        "Restaurant table ordering in Egypt",
+        "نظام طلبات الطاولات للمطاعم والكافيهات في مصر. استقبل طلبات الهاتف على شاشة المطبخ وتابع استدعاءات الويتر والحساب في Serveza.",
+        "Run table ordering in your Egyptian café or restaurant. Send mobile orders to the kitchen display and follow floor service and bill requests.",
     ),
     "how_it_works": (
         "كيف تعمل Serveza",
         "How Serveza works",
-        "تابع رحلة طاولة كاملة من الإعداد للتحصيل.",
-        "Follow one table from venue setup to collection.",
+        "شوف خطوات تشغيل نظام طلبات الطاولات من إعداد المنيو ورمز الطاولة، لحد وصول الطلب للمطبخ وتسجيل التحصيل.",
+        "Follow the table service workflow from setting up menus and codes to kitchen preparation, service and manual collection.",
     ),
     "demo": (
         "جرّب وردية تفاعلية",
@@ -99,6 +100,21 @@ def page_data(request, name):
     meta = META[name]
     return {"page_title": meta[en], "page_description": meta[2 + en], "kind": name}
 
+def faq_content(en, plans):
+    price = starter_price(plans)
+    rows = [(entry[en], entry[2 + en]) for entry in FAQ]
+    if price:
+        rows.insert(0, (("كام سعر منيو QR للمطاعم في مصر؟", "How much does a QR menu cost in Egypt?")[en],
+                        monthly_price_text(price, en) + " " +
+                        ("تشمل الباقات منيو QR ونظام طلبات الطاولات. قارن حدود الفريق والفروع والمحطات في صفحة الباقات.",
+                         "Plans include a QR menu and table ordering. Compare team, branch and station limits on the pricing page.")[en]))
+    rows.extend([
+        (("إيه الفرق بين منيو QR ونظام طلبات الطاولات؟", "How do QR menus differ from table ordering?")[en],
+         ("منيو QR يعرض الأصناف والأسعار. نظام طلبات الطاولات يرسل سلة الضيف للمطعم مع رقم الطاولة وحالة الطلب.",
+          "A QR menu displays items and prices. A table ordering system sends the guest’s basket to the venue with the table number and a status to track.")[en]),
+    ])
+    return rows
+
 
 def guide_data(guide, en):
     return {
@@ -115,15 +131,17 @@ def public_page(request, name=None):
     name = name or request.resolver_match.url_name
     en = request.LANGUAGE_CODE == "en"
     context = page_data(request, name)
-    if name in ("home", "faq"):
-        context["faq_rows"] = [(f[en], f[2 + en]) for f in FAQ]
-    if name in ("home", "how_it_works"):
-        context["flow"] = [(s[0], s[1 + en], s[3 + en]) for s in FLOW]
-    if name == "home":
+    if name in ("home", "faq", "about"):
         try:
             plans = public_plans(en)
         except DatabaseError:
             plans = []
+        context["monthly_price_text"] = monthly_price_text(starter_price(plans), en)
+        if name in ("home", "faq"):
+            context["faq_rows"] = faq_content(en, plans)
+    if name in ("home", "how_it_works"):
+        context["flow"] = [(s[0], s[1 + en], s[3 + en]) for s in FLOW]
+    if name == "home":
         context["plans"] = plans
         context["starter_price"] = starter_price(plans)
         context["venue_tiles"] = [
@@ -161,7 +179,7 @@ def public_page(request, name=None):
         "how_it_works": "how",
     }.get(name, "notice")
     path = "home.html" if name == "home" else f"marketing/{template}.html"
-    return render(request, path, context)
+    return render(request, path, public_metadata(request, context))
 
 
 @require_safe
@@ -173,11 +191,11 @@ def resource_detail(request, slug):
     return render(
         request,
         "marketing/guide.html",
-        {
+        public_metadata(request, {
             "guide": guide_data(guide, en),
             "page_title": guide.title[en],
             "page_description": guide.lead[en],
-        },
+        }),
     )
 
 
@@ -256,7 +274,7 @@ def contact(request):
     return render(
         request,
         "marketing/contact.html",
-        {**page_data(request, "contact"), "form": form, "selected_plan": selected_plan},
+        public_metadata(request, {**page_data(request, "contact"), "form": form, "selected_plan": selected_plan}),
         status=status,
     )
 
@@ -303,13 +321,58 @@ def server_error(request):
 
 @require_safe
 def robots(request):
-    public_map = settings.SITE_URL + reverse("sitemap")
-    return HttpResponse(
-        "User-agent: *\nDisallow: /app/\nDisallow: /platform/\nDisallow: /django-admin/\nDisallow: /t/\nDisallow: /track/\nDisallow: /invitation/\nDisallow: /verify/\nDisallow: /reset/\nSitemap: "
-        + public_map
-        + "\n",
-        content_type="text/plain",
+    agents = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot",
+              "PerplexityBot", "Google-Extended", "Applebot-Extended"]
+    if settings.SERVEZA_ALLOW_CCBOT:
+        agents.append("CCBot")
+    private = ("/app/", "/platform/", "/django-admin/", "/t/", "/track/", "/invitation/",
+               "/verify/", "/reset/", "/login/", "/register/", "/password-reset/")
+    rules = "\n".join(f"Disallow: {route}" for route in private)
+    group = "\n".join(f"User-agent: {agent}" for agent in agents)
+    content = f"User-agent: *\n{rules}\n\n{group}\n{rules}\nAllow: /\n"
+    if not settings.SERVEZA_ALLOW_CCBOT:
+        content += "\nUser-agent: CCBot\nDisallow: /\n"
+    return HttpResponse(content + f"\nSitemap: {settings.SITE_URL}{reverse('sitemap')}\n",
+                        content_type="text/plain; charset=utf-8")
+
+
+@require_safe
+def llms(request):
+    plans = public_plans(True)
+    origin = settings.SITE_URL
+    en = request.LANGUAGE_CODE == "en"
+    lines = ["# Serveza", "", "> " + PRODUCT[en], "",
+             f"- {('السوق', 'Market')[en]}: {MARKET[en]}",
+             f"- WhatsApp: {WHATSAPP}"]
+    if settings.SERVEZA_PUBLIC_EMAIL:
+        lines.append(f"- {('البريد العام', 'Public email')[en]}: {settings.SERVEZA_PUBLIC_EMAIL}")
+    if settings.SERVEZA_LEGAL_NAME:
+        lines.append(f"- {('الاسم القانوني', 'Legal name')[en]}: {settings.SERVEZA_LEGAL_NAME}")
+    lines.extend(f"- {('الحساب الرسمي', 'Official profile')[en]}: {url}" for url in settings.SERVEZA_SOCIAL_URLS)
+    lines.extend(["", ("## الباقات الشهرية", "## Monthly plans")[en]])
+    if starting_price := monthly_price_text(starter_price(plans), en):
+        lines.extend(["", starting_price, ""])
+    for plan in plans:
+        currency = "EGP/month" if en else "ج.م/شهر"
+        label = "Price" if en else "السعر"
+        limits = "; ".join(f"{names[en]}: {plan['limits'][key]}" for key, names in LIMITS.items())
+        lines.append(f"- {plan['name']}: {label} {plan['price']} {currency}; {limits}.")
+    for heading, features in ((("المتاح", "Available"), AVAILABLE), (("غير متاح حاليًا", "Not currently available"), UNAVAILABLE)):
+        lines.extend(["", "## " + heading[en], *(f"- {feature[en]}" for feature in features)])
+    paths = (
+        ("home", (), "الرئيسية", "Home", "نظام طلبات الطاولات", "Table ordering platform"),
+        ("feature_detail", ("digital-menu",), "منيو QR", "QR menu", "المنيو الرقمي للمطاعم", "Digital menus for restaurants"),
+        ("feature_detail", ("kitchen-display",), "شاشة المطبخ", "Kitchen display", "تنظيم تذاكر التحضير", "Kitchen tickets and stations"),
+        ("pricing", (), "الباقات", "Pricing", "الأسعار الشهرية والحدود", "Monthly pricing and limits"),
+        ("resources", (), "أدلة التشغيل", "Field guides", "خطوات الإعداد وإدارة الوردية", "Setup and service guides"),
+        ("faq", (), "الأسئلة الشائعة", "FAQ", "إجابات عن التشغيل والدفع", "Service and payment answers"),
+        ("about", (), "عن Serveza", "About Serveza", "المنصة والسوق المصري", "Platform and Egyptian market"),
+        ("contact", (), "تواصل", "Contact", "التواصل مع فريق Serveza", "Contact the Serveza team"),
     )
+    lines.extend(["", ("## صفحات مهمة", "## Key pages")[en]])
+    lines.extend(f"- [{(ar, english)[en]}]({origin}{localized_url(name, en, *args)}): {(desc_ar, desc_en)[en]}"
+                 for name, args, ar, english, desc_ar, desc_en in paths)
+    return HttpResponse("\n".join(lines) + "\n", content_type="text/plain; charset=utf-8")
 
 
 urlpatterns = [
@@ -318,7 +381,9 @@ urlpatterns = [
     path("contact/", contact, name="contact"),
     path("resources/<slug:slug>/", resource_detail, name="resource_detail"),
     path("robots.txt", robots, name="robots"),
-    path("sitemap.xml", require_safe(sitemap), {"sitemaps": {"public": PublicSitemap}}, name="sitemap"),
+    path("sitemap.xml", require_safe(sitemap), {"sitemaps": {"public": PublicSitemap},
+                                               "template_name": "marketing/sitemap.xml"}, name="sitemap"),
+    path("llms.txt", llms, name="llms"),
 ] + [
     path(name.replace("_", "-") + "/", require_safe(public_page), name=name)
     for name in META

@@ -1,1 +1,16 @@
-{% extends 'marketing/base.html' %}{% load showroom static %}{% block content %}<section class="mk-section mk-wrap"><span class="mk-eyeline"><span></span>{% bi 'عن Serveza' 'About Serveza' %}</span><div class="mk-editorial"><div><h1>{% bi 'الضيافة تبدأ عند الطاولة.' 'Hospitality starts at the table.' %}</h1><p>{% bi 'اتصممت Serveza للكافيهات والمطاعم في مصر، حيث ممكن طلب قهوة وطلب حساب ووصول طاولة جديدة يحصلوا في نفس اللحظة.' 'Serveza is designed for Egyptian cafés and restaurants, where a coffee order, a bill request and a new table can all arrive at once.' %}</p><p>{% bi 'فكرتنا بسيطة. الضيف يشوف اختياراته، والمطبخ يستلم تفاصيل واضحة، وفريق الصالة يعرف مين محتاج خدمة. صاحب المكان يرجع لسجل الطلبات عشان يفهم الوردية.' 'Guests see their choices, the kitchen receives clear tickets, and the floor knows who needs service. Owners can look back at the order record to understand the shift.' %}</p><a class="mk-btn mk-primary" href="{% public_url 'contact' %}">{% bi 'تواصل مع الفريق' 'Contact the team' %}</a></div><img src="{% static 'marketing/cafe.webp' %}" width="1200" height="800" alt="{% bi 'قهوة في ضوء شباك المقهى' 'Coffee in café window light' %}"></div></section>{% endblock %}
+{% extends 'marketing/base.html' %}{% load showroom static %}
+{% block content %}
+<section class="mk-section mk-wrap">
+  <div class="mk-editorial">
+    <div>
+      <h1>{{ page_title }}</h1>
+      <p>{{ product_description }} {% bi 'يساعد فريق المطعم على استقبال الطلبات وتنظيم شغل المطبخ والصالة في الوردية. يقدر المكان يستخدم Serveza بجانب الكاشير الحالي، ويتابع حساب كل طاولة ويُسجّل التحصيل يدويًا.' 'It helps restaurant teams receive orders and coordinate the kitchen and floor during service. Venues can keep their current till while tracking table bills and recording collections manually.' %}</p>
+      {% if monthly_price_text %}<p>{{ monthly_price_text }}</p>{% endif %}
+      <a class="mk-btn mk-primary" href="{% public_url 'pricing' %}">{% bi 'قارن أسعار الباقات الشهرية' 'Compare monthly plan prices' %}</a>
+    </div>
+    <img src="{% static 'marketing/cafe.webp' %}" width="1200" height="800"
+         alt="{% bi 'فنجان قهوة بجوار نافذة المقهى' 'A cup of coffee beside a café window' %}" decoding="async">
+  </div>
+  {% include 'marketing/_business_contact.html' %}
+</section>
+{% endblock %}

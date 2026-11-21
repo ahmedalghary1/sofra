@@ -6,12 +6,13 @@ from django.conf import settings
 from django.core.exceptions import DisallowedHost
 from django.http import HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.templatetags.static import static
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.utils import translation
 from django.utils.cache import patch_vary_headers
 from django.utils.encoding import escape_uri_path
 
 from .showcase_data import GROUPS, TOPICS
+from .seo import DETAIL_PARENTS, PUBLIC_EDITIONS, language_urls
 
 NAV = (
     ("home", "الرئيسية", "Home"),
@@ -46,6 +47,14 @@ def language_middleware(get_response):
     def middleware(request):
         explicit = request.GET.get("lang")
         saved = request.COOKIES.get("serveza_language")
+        if explicit not in ("ar", "en") and saved == "en":
+            # The Arabic canonical must serve Arabic even after an English visit.
+            try:
+                route_name = resolve(request.path_info).url_name
+            except Resolver404:
+                route_name = None
+            if route_name in PUBLIC_EDITIONS or route_name in DETAIL_PARENTS:
+                saved = None
         language = (
             explicit if explicit in ("ar", "en") else ("en" if saved == "en" else "ar")
         )
@@ -63,7 +72,7 @@ def language_middleware(get_response):
                 response = get_response(request)
         response.headers.setdefault("Content-Language", language)
         patch_vary_headers(response, ("Cookie",))
-        if explicit == language and saved != language:
+        if explicit == language and request.COOKIES.get("serveza_language") != language:
             response.set_cookie(
                 "serveza_language",
                 language,
@@ -114,14 +123,17 @@ PUBLIC_PAGES = {name for name, _, _ in NAV} | {
 }
 
 def site_metadata(request):
-    canonical = settings.SITE_URL + escape_uri_path(request.path)
+    urls = language_urls(escape_uri_path(request.path))
     match = request.resolver_match
+    alternates = bool(match and match.url_name in PUBLIC_PAGES)
+    english = getattr(request, "LANGUAGE_CODE", "ar") == "en"
     return {
-        "canonical_url": canonical,
+        "canonical_url": urls["en" if alternates and english else "ar"],
         "og_image": settings.SITE_URL + urlsplit(static("marketing/social.jpg")).path,
-        "arabic_url": canonical + "?lang=ar",
-        "english_url": canonical + "?lang=en",
-        "site_has_alternates": bool(match and match.url_name in PUBLIC_PAGES),
+        "arabic_url": urls["ar"],
+        "english_url": urls["en"],
+        "default_url": urls["x-default"],
+        "site_has_alternates": alternates,
     }
 
 

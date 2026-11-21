@@ -1,5 +1,5 @@
 {% load static showroom i18n %}<!doctype html>
-<html lang="{{ lang|default:'ar' }}" dir="{% if english %}ltr{% else %}rtl{% endif %}">
+<html lang="{% if seo_graph and not english %}ar-EG{% else %}{{ lang|default:'ar' }}{% endif %}" dir="{% if english %}ltr{% else %}rtl{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
   {% if not site_has_alternates %}<meta name="robots" content="noindex, nofollow">{% endif %}
   {% include '_site_metadata.html' %}
   {% if site_has_alternates %}<meta property="og:url" content="{{ canonical_url }}"><meta property="og:image" content="{{ og_image }}">{% endif %}
-  <meta name="description" content="{% bi 'مساحة Serveza لإدارة طلبات الطاولات والمطبخ والخدمة.' 'Serveza workspace for table orders, the kitchen and floor service.' %}">
+  <meta name="description" content="{% if seo_description %}{{ seo_description }}{% else %}{% bi 'مساحة Serveza لإدارة طلبات الطاولات والمطبخ والخدمة.' 'Serveza workspace for table orders, the kitchen and floor service.' %}{% endif %}">
+  {% if seo_graph %}{% json_ld seo_graph %}{% endif %}
   <title>{% block title %}{% bi 'ضيافة ذكية.. وخدمة بلا انتظار' 'Smart Hospitality. Seamless Service.' %}{% endblock %} | Serveza</title>
   <link rel="icon" type="image/webp" sizes="32x32" href="{% static 'brand/serveza-favicon-32.webp' %}">
   <link rel="icon" type="image/webp" sizes="192x192" href="{% static 'brand/serveza-icon-192.webp' %}">

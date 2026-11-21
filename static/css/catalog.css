@@ -17,8 +17,6 @@
 .cat-intro h1 + p {margin-block:20px 28px;max-width:62ch;font-size:clamp(1.02rem,1.3vw,1.2rem)}
 .cat-hero,.cat-detail {display:grid;grid-template-columns:1.08fr 1fr;align-items:center;gap:clamp(20px,5vw,88px)}
 .catalog .cat-kicker {margin-block-end:12px;color:var(--brand-accent-strong);font-size:.875rem;font-weight:750}
-.cat-breadcrumb {display:flex;align-items:center;gap:.65em;padding-block-start:24px;font-size:.93rem}
-.cat-breadcrumb + .cat-intro {padding-block-start:32px}
 .catalog .cat-button {display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:9px 22px;border:1px solid var(--brand-primary);border-radius:var(--radius-control);background:var(--brand-primary);color:white;text-decoration:none;font-weight:700;cursor:pointer}
 .catalog .cat-button:hover {background:var(--dark-surface);text-decoration:none}
 .cat-art,.cat-result-art {display:grid;place-items:center;border-radius:var(--radius-panel);background:var(--mint);padding:clamp(20px,4vw,60px);min-width:0}

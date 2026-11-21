@@ -15,6 +15,10 @@
   pointer-events:none;
 }
 [dir="rtl"] :is(.ui-icon-arrow-right,.ui-icon-arrow-left) {transform:scaleX(-1)}
+.site-breadcrumb {width:min(calc(100% - 32px), 1160px);margin:12px auto;font-size:.875rem}
+.site-breadcrumb ol {display:flex;flex-wrap:wrap;gap:.35rem;list-style:none;margin:0;padding:0}
+.site-breadcrumb li + li::before {content:"/";margin-inline-end:.35rem;color:#53666a}
+.site-breadcrumb a {text-decoration:underline}
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after {scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }

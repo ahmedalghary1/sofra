@@ -7,6 +7,7 @@ from django.urls import path
 from django.views.decorators.http import require_safe
 
 from .models import Plan
+from .seo import TOPIC_SEARCH, monthly_price_text, public_metadata
 from .showcase_data import FAQS, GROUPS, ROLES, SOLUTIONS, STATES, TOPICS
 
 PUBLIC_TIERS = (
@@ -127,10 +128,10 @@ def _language(request):
 
 def _page(request, template, title, description, **context):
     en = _language(request)
-    return render(request, f'marketing/catalog/{template}.html', {
+    return render(request, f'marketing/catalog/{template}.html', public_metadata(request, {
         'lang': 'en' if en else 'ar', 'english': en, 'page_title': title, 'page_description': description,
         **context,
-    })
+    }))
 
 
 def _topic(topic, en):
@@ -215,8 +216,12 @@ def feature_detail(request, slug):
     entry = _topic(topic, en)
     related = sorted((t for t in TOPICS if t != topic), key=lambda t: t.group != topic.group)[:3]
     plans = public_plans(en)
-    return _page(request, 'feature', entry['title'], entry['summary'], entry=entry,
-                 faq_question=FAQS[slug][0][en], faq_answer=FAQS[slug][1][en],
+    title, answer = TOPIC_SEARCH.get(slug, (topic.title, None))
+    if answer:
+        entry['direct_answer'] = answer[en]
+    description = entry['direct_answer'] if answer else entry['summary']
+    return _page(request, 'feature', title[en], description, entry=entry, breadcrumb_title=entry['title'],
+                 faq_rows=[(FAQS[slug][0][en], FAQS[slug][1][en])],
                  related=[_topic(t, en) for t in related],
                  fit=[p for p in plans if _fits_plan(topic, p)], starter_price=starter_price(plans))
 
@@ -241,16 +246,35 @@ def pricing(request):
                 plan['included'].append(group)
         tools.append((group, availability))
     staff_rows = [(label[en], [p['staff'][key] for p in plans]) for key, label in STAFF_ROLES.items()]
-    return _page(request, 'pricing', ('الباقات والأسعار', 'Plans and pricing')[en],
-                 ('قارن حدود الطاولات والفريق والمحطات لكل باقة.', 'Compare table, team and station capacity across plans.')[en],
-                 plans=plans, rows=rows, staff_rows=staff_rows, tools=tools)
+    price = starter_price(plans)
+    description = (
+        monthly_price_text(price, en) + ' ' +
+        ('قارن أسعار نظام طلبات الطاولات وحدود الفروع والطاولات والفريق ومحطات KDS.',
+         'Compare table ordering prices and the limits for branches, tables, staff and kitchen stations.')[en]
+        if price else ('قارن حدود الطاولات والفريق والمحطات لكل باقة.', 'Compare table, team and station capacity across plans.')[en]
+    )
+    faq_rows = [
+        (('إزاي أعرف حدود اشتراكي الفعلي؟', 'Where can I check my actual limits?')[en],
+         ('حدود باقتك واستخدام الفروع موجودان في إعدادات المطعم. يقدر المالك يعاين أثر تغيير الباقة قبل التواصل مع فريق Serveza.',
+          'Open restaurant settings to check plan limits and branch usage. Owners can preview a plan change before contacting Serveza.')[en]),
+        (('هل يمكن الدفع من الصفحة؟', 'Can I pay on this page?')[en],
+         ('الدفع الإلكتروني غير متاح حاليًا. يتواصل فريق Serveza معك لاختيار الباقة وتسجيل التحصيل يدويًا.',
+          'Online payment is currently unavailable. The Serveza team helps you choose a plan and records collections manually.')[en]),
+        (('هل المميزات المخططة ضمن الاشتراك؟', 'Does a subscription include roadmap features?')[en],
+         ('تقدر تشغّل الوظائف الموسومة بالمتاحة في دليل المميزات. الوظائف المخططة تنتظر التنفيذ.',
+          'You can use capabilities marked available in the feature guide. Planned capabilities are awaiting implementation.')[en]),
+    ]
+    return _page(request, 'pricing', ('سعر نظام منيو QR وطلبات الطاولات في مصر', 'QR menu and table ordering prices in Egypt')[en],
+                 description, plans=plans, rows=rows, staff_rows=staff_rows, tools=tools, faq_rows=faq_rows,
+                 starter_price=price)
 
 
 @require_safe
 def solutions(request):
     en = _language(request)
-    return _page(request, 'solutions', ('حلول المطاعم والكافيهات', 'Hospitality solutions')[en],
-                 ('استكشف سير العمل حسب المكان والدور.', 'Explore service workflows by venue and role.')[en],
+    return _page(request, 'solutions', ('برنامج إدارة خدمة المطاعم والكافيهات', 'Restaurant service management in Egypt')[en],
+                 ('نظّم خدمة الصالة والمطبخ بالـ QR في مطعم أو كافيه أو مجموعة فروع. استكشف سيناريو يناسب فريقك وطريقة عملك.',
+                  'Manage floor service and kitchen orders in your Egyptian café, restaurant or group. Explore workflows by venue and role.')[en],
                  solutions=[_solution(s, en) for s in SOLUTIONS])
 
 

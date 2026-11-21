@@ -1,6 +1,5 @@
 {% extends "marketing/catalog/base.html" %}{% load showroom %}
 {% block catalog %}
-<nav class="cat-breadcrumb" aria-label="{% bi 'مسار التصفح' 'Breadcrumb' %}"><a href="{% public_url 'solutions' %}">{% bi 'الحلول' 'Solutions' %}</a><span aria-hidden="true">/</span>{{ solution.title }}</nav>
 <header class="cat-intro cat-detail"><div><p class="cat-kicker">{{ solution.title }}</p><h1>{{ solution.headline }}</h1><p>{{ solution.story }}</p><a class="cat-button" href="{% public_url 'demo' %}">{% bi 'جرّب مسار الطلب' 'Try the order flow' %}</a></div><div class="cat-art">{% include "marketing/catalog/preview.html" with entry=solution.topics.0 %}</div></header>
 <section class="cat-section"><div class="cat-section-title"><h2>{% bi 'مشهد من وردية تجريبية' 'A sample shift' %}</h2></div><ol class="cat-steps">{% for step in solution.scenario %}<li>{{ step }}</li>{% endfor %}</ol></section>
 <section class="cat-section"><h2>{% bi 'أدوات للوردية' 'Tools for this shift' %}</h2><div class="cat-tools">{% for entry in solution.topics %}<article><h3><a href="{% public_url 'feature_detail' entry.slug %}">{{ entry.title }}</a></h3><p>{{ entry.summary }}</p></article>{% endfor %}</div></section>

@@ -1,12 +1,13 @@
 {% load static showroom %}<!doctype html>
-<html lang="{{ lang }}" dir="{% if english %}ltr{% else %}rtl{% endif %}">
+<html lang="{% if english %}en{% else %}ar-EG{% endif %}" dir="{% if english %}ltr{% else %}rtl{% endif %}">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0f2a3d">
-<title>{% block title %}{{ page_title }}{% endblock %} | Serveza</title>
-<meta name="description" content="{{ page_description }}">
+<title>{% block title %}{{ seo_title|default:page_title }}{% endblock %} | Serveza</title>
+<meta name="description" content="{{ seo_description|default:page_description }}">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Serveza">
-<meta property="og:title" content="{{ page_title }}"><meta property="og:description" content="{{ page_description }}">
+<meta property="og:locale" content="{% if english %}en_EG{% else %}ar_EG{% endif %}">
+<meta property="og:title" content="{{ seo_title|default:page_title }}"><meta property="og:description" content="{{ seo_description|default:page_description }}">
 <meta property="og:url" content="{{ canonical_url }}"><meta property="og:image" content="{{ og_image }}">
 <meta name="twitter:card" content="summary_large_image">
 {% if kind == 'maintenance' or kind == 'offline' or kind == 'cookies' %}<meta name="robots" content="noindex, follow">{% endif %}
@@ -17,7 +18,7 @@
 <link rel="stylesheet" href="{% static 'css/whatsapp.css' %}">
 {% if kind == 'home' or kind == 'demo' %}<link rel="stylesheet" href="{% static 'css/showcase.css' %}"><script src="{% static 'js/showcase.js' %}" defer></script>{% endif %}
 {% block extra_css %}{% endblock %}<script src="{% static 'js/marketing.js' %}" defer></script>{% block extra_js %}{% endblock %}
-{% if kind == 'home' %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Serveza","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":["ar","en"]}</script>{% endif %}
+{% if seo_graph %}{% json_ld seo_graph %}{% endif %}
 </head>
 <body class="mk" id="page-top">
 <a href="#main" class="mk-skip">{% bi 'انتقل إلى المحتوى' 'Skip to content' %}</a>
@@ -34,7 +35,7 @@
 <dialog class="mk-drawer" id="mk-mobile-nav" aria-labelledby="mk-nav-title"><div class="mk-drawer-head"><b id="mk-nav-title">{% bi 'القائمة' 'Navigation' %}</b><button type="button" data-nav-close aria-label="{% bi 'إغلاق القائمة' 'Close navigation' %}">{% symbol 'close' %}</button></div>
 <nav>{% for name,label in site_nav %}<a href="{% public_url name %}" {% if name == request.resolver_match.url_name %}aria-current="page"{% endif %}>{% public_nav_icon name %}{{ label }}</a>{% if name == 'features' %}<details><summary>{% bi 'أقسام المنتج' 'Product categories' %}</summary>{% for group,topics in feature_groups %}<b>{{ group }}</b>{% for slug,title in topics %}<a href="{% public_url 'feature_detail' slug %}">{{ title }}</a>{% endfor %}{% endfor %}</details>{% endif %}{% endfor %}<a href="{% public_url 'login' %}">{% bi 'تسجيل الدخول' 'Log in' %}</a><a href="{% public_url 'contact' %}" class="mk-btn mk-primary">{% bi 'احجز عرضًا' 'Book a demo' %}</a></nav></dialog>
 <noscript><nav class="mk-nojs">{% for name,label in site_nav %}<a href="{% public_url name %}">{{ label }}</a>{% endfor %}</nav></noscript>
-<main id="main" tabindex="-1">{% if messages %}<div class="mk-wrap">{% for m in messages %}<p role="status" class="mk-alert">{{ m }}</p>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main>
+<main id="main" tabindex="-1">{% include 'marketing/_breadcrumbs.html' %}{% if messages %}<div class="mk-wrap">{% for m in messages %}<p role="status" class="mk-alert">{{ m }}</p>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main>
 <footer class="mk-footer"><div class="mk-wrap"><div class="mk-footer-grid"><div class="mk-footer-brand"><a class="mk-brand" href="{% public_url 'home' %}">{% include '_brand_logo.html' with sizes='(max-width: 650px) 122px, 160px' only %}</a><p lang="en" dir="ltr">Smart Hospitality.<br>Seamless Service.</p></div>
 <div><h2>{% bi 'المنتج' 'Product' %}</h2><a href="{% public_url 'features' %}">{% bi 'كل المميزات' 'All features' %}</a><a href="{% public_url 'how_it_works' %}">{% bi 'كيف تعمل' 'How it works' %}</a><a href="{% public_url 'pricing' %}">{% bi 'الباقات' 'Pricing' %}</a><a href="{% public_url 'demo' %}">{% bi 'الديمو التفاعلي' 'Interactive demo' %}</a></div>
 <div><h2>{% bi 'الحلول' 'Solutions' %}</h2><a href="{% public_url 'solution_detail' 'cafes' %}">{% bi 'الكافيهات' 'Cafés' %}</a><a href="{% public_url 'solution_detail' 'restaurants' %}">{% bi 'المطاعم' 'Restaurants' %}</a><a href="{% public_url 'solution_detail' 'chains' %}">{% bi 'الفروع' 'Groups' %}</a></div>

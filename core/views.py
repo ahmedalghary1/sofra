@@ -76,11 +76,17 @@ def home(request):
 
 @require_http_methods(['GET', 'HEAD'])
 def demo_menu(request):
-    sections, items = sample_menu(english=request.LANGUAGE_CODE == 'en')
-    return render(request, 'demo_menu.html', {
+    from .seo import public_metadata
+
+    en = request.LANGUAGE_CODE == 'en'
+    sections, items = sample_menu(english=en)
+    return render(request, 'demo_menu.html', public_metadata(request, {
+        'page_title': ('تجربة منيو QR لدار الليمون', 'Dar El Limoun QR menu demo')[en],
+        'page_description': ('جرّب منيو دار الليمون من المتصفح وشوف إزاي يراجع الضيف السلة والمبلغ قبل إرسال طلب تجريبي.',
+                             'Open Dar El Limoun’s demo menu and see how guests review a basket and total before placing a sample order.')[en],
         'menu_categories': [(key, name) for key, name, _ in sections], 'items_json': items,
         'demo_menu': True,
-    })
+    }))
 
 
 @require_POST

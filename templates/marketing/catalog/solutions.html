@@ -1,6 +1,6 @@
 {% extends "marketing/catalog/base.html" %}{% load showroom %}
 {% block catalog %}
-<header class="cat-intro cat-heading"><p class="cat-kicker">{% bi 'حلول المطاعم' 'Venue solutions' %}</p><h1>{% bi 'الخدمة من وجهة نظر فريقك' 'Service from your team’s point of view' %}</h1><p>{% bi 'اختَر نوع المكان أو دورك في الوردية وشوف رحلة طلب تناسب يومك.' 'Explore an order workflow for your venue or the role you play on shift.' %}</p></header>
+<header class="cat-intro cat-heading"><p class="cat-kicker">{% bi 'حلول المطاعم' 'Venue solutions' %}</p><h1>{% bi 'إدارة خدمة المطاعم والكافيهات في مصر' 'Manage restaurant and café service in Egypt' %}</h1><p>{{ product_description }} {{ page_description }}</p></header>
 <div class="cat-solution-grid">{% for solution in solutions %}<article class="cat-solution-card">
   <div class="cat-solution-copy"><p class="cat-kicker">{{ solution.title }}</p><h2><a href="{% public_url 'solution_detail' solution.slug %}">{{ solution.headline }}</a></h2><p>{{ solution.story }}</p></div>
   {% include "marketing/catalog/preview.html" with entry=solution.topics.0 %}

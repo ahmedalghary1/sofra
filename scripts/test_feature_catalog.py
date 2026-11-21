@@ -55,7 +55,7 @@ def main():
                 page.set_viewport_size({'width': width, 'height': 900})
                 for url in pages + feature_urls + solution_urls:
                     response = page.goto(url)
-                    expect(page.locator('html')).to_have_attribute('lang', language)
+                    expect(page.locator('html')).to_have_attribute('lang', 'ar-EG' if language == 'ar' else 'en')
                     assert response.ok, url
                     page.evaluate('document.fonts.ready')
                     assert page.locator('main h1').count() == 1, url
