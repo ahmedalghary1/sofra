@@ -16,7 +16,7 @@ class LoginUITests(StaticLiveServerTestCase):
     def test_login_recovers_stale_forms_for_owner_and_operator(self):
         password = 'Altitude!73840'
         owner = User.objects.create_user('owner@example.com', 'owner@example.com', password)
-        operator = User.objects.create_superuser('operator@example.com', 'operator@example.com', password)
+        operator = User.objects.create_superuser('SiteAdmin', 'operator@example.com', password)
         venue = Restaurant.objects.create(name='مطعم الياسمين', slug='login-venue')
         Branch.objects.create(restaurant=venue)
         Membership.objects.create(user=owner, restaurant=venue, role='owner')
@@ -40,7 +40,8 @@ class LoginUITests(StaticLiveServerTestCase):
                 page.evaluate('document.fonts.ready')
                 self.assertLessEqual(page.evaluate('document.documentElement.scrollWidth'), width)
                 page.screenshot(path=str(shots / f'login-{width}-{language}.png'), full_page=True)
-                page.locator('input[name="email"]').fill(user.email)
+                identifier = user.username if user == operator else user.email
+                page.locator('input[name="email"]').fill(identifier)
                 page.locator('input[name="password"]').fill(password)
                 # Simulate a cookie rotated by sign-in in another tab.
                 context.add_cookies([{'name': settings.CSRF_COOKIE_NAME, 'value': 'a' * 32,
@@ -48,7 +49,7 @@ class LoginUITests(StaticLiveServerTestCase):
                 page.route('**/login/**', lambda route: route.abort())
                 page.locator('[data-login-form] button[type="submit"]').click()
                 expect(page.locator('[data-login-error]')).to_be_visible()
-                expect(page.locator('input[name="email"]')).to_have_value(user.email)
+                expect(page.locator('input[name="email"]')).to_have_value(identifier)
                 expect(page.locator('[data-login-form] button[type="submit"]')).to_be_enabled()
                 page.screenshot(path=str(shots / f'retry-{width}-{language}.png'), full_page=True)
                 page.unroute('**/login/**')

@@ -5,10 +5,27 @@ from django.urls import reverse
 
 
 class LoginFormTests(TestCase):
+    def test_django_admin_credentials_open_platform_directly_even_without_email(self):
+        user = User.objects.create_superuser('SiteAdmin', '', 'Altitude!73840')
+        credentials = {'username': user.username, 'password': 'Altitude!73840', 'next': reverse('admin:index')}
+        self.assertRedirects(self.client.post(reverse('admin:login'), credentials), reverse('admin:index'))
+        self.client.logout()
+        response = self.client.post(reverse('login'), {
+            'email': user.username, 'password': credentials['password'], 'next': reverse('admin:index'),
+        })
+        self.assertRedirects(response, reverse('platform_dashboard'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_staff_flag_alone_does_not_grant_platform_access(self):
+        user = User.objects.create_user('BackOffice', password='Altitude!73840', is_staff=True)
+        response = self.client.post(reverse('login'), {'email': user.username, 'password': 'Altitude!73840'})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
     def test_superuser_can_sign_in_with_email_separate_from_username(self):
         user = User.objects.create_superuser('SiteAdmin', 'Operator@example.com', 'Altitude!73840')
         response = self.client.post(reverse('login'), {'email': 'OPERATOR@example.com', 'password': 'Altitude!73840'})
-        self.assertRedirects(response, reverse('home'), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse('platform_dashboard'), fetch_redirect_response=False)
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
 
     def test_shared_email_does_not_select_a_superuser(self):
@@ -31,7 +48,7 @@ class LoginFormTests(TestCase):
         self.assertNotIn('_auth_user_id', client.session)
         client.get(url)
         payload['csrfmiddlewaretoken'] = client.cookies[settings.CSRF_COOKIE_NAME].value
-        self.assertRedirects(client.post(url, payload), reverse('home'), fetch_redirect_response=False)
+        self.assertRedirects(client.post(url, payload), reverse('platform_dashboard'), fetch_redirect_response=False)
         self.assertEqual(int(client.session['_auth_user_id']), user.pk)
 
     def test_valid_token_still_requires_trusted_origin(self):
@@ -55,5 +72,5 @@ class LoginFormTests(TestCase):
             'csrfmiddlewaretoken': client.cookies[settings.CSRF_COOKIE_NAME].value,
         }, secure=True, HTTP_ORIGIN='https://servezaflow.com',
             HTTP_REFERER='https://servezaflow.com/login/?lang=en')
-        self.assertRedirects(response, reverse('home'), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse('platform_dashboard'), fetch_redirect_response=False)
         self.assertEqual(int(client.session['_auth_user_id']), user.pk)

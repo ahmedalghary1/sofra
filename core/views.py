@@ -190,22 +190,27 @@ def resend_owner_verification(request):
     messages.success(request, 'إذا كانت البيانات صحيحة، سيصلك رابط تفعيل جديد.')
     return redirect('verification_pending')
 
+def login_username(identifier):
+    username = User.normalize_username(identifier.strip())
+    if '@' not in username or User.objects.filter(username=username).exists():
+        return username
+    normalized = username.lower()
+    if username != normalized and User.objects.filter(username=normalized).exists():
+        return normalized
+    matches = list(User.objects.filter(email__iexact=username).values_list('username', flat=True)[:2])
+    return matches[0] if len(matches) == 1 else username
+
+
 @never_cache
 def login_view(request):
     login_next = request.POST.get('next') or request.GET.get('next', '')
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip().lower()
-        key = hashlib.sha256(f"{request.META.get('REMOTE_ADDR','')}:{email}".encode()).hexdigest()
+        username = login_username(request.POST.get('email', ''))
+        key = hashlib.sha256(f"{request.META.get('REMOTE_ADDR','')}:{username.lower()}".encode()).hexdigest()
         attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(minutes=15))
         if attempts.count() >= 8:
             messages.error(request, 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.')
             return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next}, status=429)
-        username = email
-        if email and not User.objects.filter(username=email).exists():
-            # createsuperuser can store a username separate from the login email.
-            usernames = list(User.objects.filter(email__iexact=email).values_list('username', flat=True)[:2])
-            if len(usernames) == 1:
-                username = usernames[0]
         user = authenticate(request, username=username, password=request.POST.get('password', ''))
         target = request.POST.get('next', '')
         safe_target = target and url_has_allowed_host_and_scheme(
@@ -223,11 +228,13 @@ def login_view(request):
         if user and (user.is_superuser or user.memberships.filter(active=True).exists() or invitation_login):
             LoginAttempt.objects.filter(key=key).delete()
             login(request, user)
+            if user.is_superuser:
+                return redirect('platform_dashboard')
             if safe_target:
                 return redirect(target)
             return redirect('home')
         LoginAttempt.objects.create(key=key)
-        messages.error(request, 'البريد أو كلمة المرور غير صحيحة.')
+        messages.error(request, 'Invalid sign-in details.' if request.LANGUAGE_CODE == 'en' else 'بيانات تسجيل الدخول غير صحيحة.')
     return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next})
 
 class LimitedPasswordResetView(PasswordResetView):
