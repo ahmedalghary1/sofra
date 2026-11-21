@@ -5,6 +5,19 @@ from django.urls import reverse
 
 
 class LoginFormTests(TestCase):
+    def test_superuser_can_sign_in_with_email_separate_from_username(self):
+        user = User.objects.create_superuser('SiteAdmin', 'Operator@example.com', 'Altitude!73840')
+        response = self.client.post(reverse('login'), {'email': 'OPERATOR@example.com', 'password': 'Altitude!73840'})
+        self.assertRedirects(response, reverse('home'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_shared_email_does_not_select_a_superuser(self):
+        User.objects.create_superuser('SiteAdmin', 'shared@example.com', 'Altitude!73840')
+        User.objects.create_user('second', 'Shared@example.com', 'Another!82020')
+        response = self.client.post(reverse('login'), {'email': 'shared@example.com', 'password': 'Altitude!73840'})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
     def test_expired_form_rejects_then_fresh_form_signs_in(self):
         user = User.objects.create_superuser('login@example.com', 'login@example.com', 'Altitude!73840')
         client = Client(enforce_csrf_checks=True)

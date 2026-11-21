@@ -198,7 +198,13 @@ def login_view(request):
         if attempts.count() >= 8:
             messages.error(request, 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.')
             return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next}, status=429)
-        user = authenticate(request, username=email, password=request.POST.get('password', ''))
+        username = email
+        if email and not User.objects.filter(username=email).exists():
+            # createsuperuser can store a username separate from the login email.
+            usernames = list(User.objects.filter(email__iexact=email).values_list('username', flat=True)[:2])
+            if len(usernames) == 1:
+                username = usernames[0]
+        user = authenticate(request, username=username, password=request.POST.get('password', ''))
         target = request.POST.get('next', '')
         safe_target = target and url_has_allowed_host_and_scheme(
             target, allowed_hosts={request.get_host()}, require_https=request.is_secure())
