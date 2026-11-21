@@ -20,7 +20,7 @@ class LoginUITests(StaticLiveServerTestCase):
         venue = Restaurant.objects.create(name='مطعم الياسمين', slug='login-venue')
         Branch.objects.create(restaurant=venue)
         Membership.objects.create(user=owner, restaurant=venue, role='owner')
-        Subscription.objects.create(restaurant=venue, plan=Plan.objects.get(name='Starter'),
+        Subscription.objects.create(restaurant=venue, plan=Plan.objects.get_or_create(name='Starter')[0],
                                     status='active', ends_at=timezone.now() + timedelta(days=30))
         shots = Path(settings.BASE_DIR) / 'tmp' / 'login-ui'
         shots.mkdir(parents=True, exist_ok=True)

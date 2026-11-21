@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import uuid
+from urllib.parse import urlparse
 from decimal import Decimal
 from openpyxl import Workbook
 from datetime import timedelta
@@ -24,8 +25,8 @@ from django.test import SimpleTestCase, TestCase
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderLinePrepHistory, OrderRevision, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
-from .services import advance_call, advance_order, advance_order_line, create_order, create_service_call, edit_order
+from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLinePrepHistory, OrderRevision, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
+from .services import advance_call, advance_order, advance_order_line, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 
 
 class MarketingMenuTests(SimpleTestCase):
@@ -331,11 +332,180 @@ class SafraTests(TestCase):
         self.item = MenuItem.objects.create(category=self.category, name='طبق', price=Decimal('100.00'))
         self.table = DiningTable.objects.create(branch=self.branch, name='طاولة 1')
         self.other_restaurant = Restaurant.objects.create(name='مطعم آخر', slug='other-test')
+        Subscription.objects.create(restaurant=self.other_restaurant, plan=plan,
+                                    ends_at=timezone.now()+timedelta(days=14))
         self.other_branch = Branch.objects.create(restaurant=self.other_restaurant)
         Membership.objects.create(user=self.other, restaurant=self.other_restaurant, role='owner')
 
     def payload(self, options=None):
         return {'idempotency_key': str(uuid.uuid4()), 'lines': [{'item_id': self.item.pk, 'quantity': 2, 'options': options or []}]}
+
+    def test_cancel_and_collect_are_mutually_exclusive_and_legacy_collection_reconciles(self):
+        collected = create_order(self.table, self.payload())
+        record_manual_payment(collected, self.owner)
+        with self.assertRaises(ValidationError):
+            advance_order(collected, self.owner, 'cancelled', 'Wrong order')
+        collected.refresh_from_db()
+        self.assertEqual((collected.status, collected.payment_status), ('new', 'paid'))
+        self.assertEqual(collected.history.count(), 1)
+        cancelled = create_order(self.table, self.payload())
+        advance_order(cancelled, self.owner, 'cancelled', 'Wrong order')
+        with self.assertRaises(ValidationError):
+            record_manual_payment(cancelled, self.owner)
+        cancelled.refresh_from_db()
+        self.assertEqual((cancelled.status, cancelled.payment_status), ('cancelled', 'unpaid'))
+        self.assertIsNone(cancelled.paid_at)
+
+        Order.objects.filter(pk=collected.pk).update(status='cancelled')
+        outstanding = create_order(self.table, self.payload())
+        self.client.force_login(self.owner)
+        summary = reverse('table_summary', args=[self.restaurant.slug, self.table.pk])
+        reports = reverse('reports', args=[self.restaurant.slug])
+        for lang, label in [('ar', 'تحصيل مسجّل لطلبات ملغاة'), ('en', 'Recorded collection on cancelled orders')]:
+            page = self.client.get(summary, {'lang': lang})
+            self.assertContains(page, label)
+            self.assertEqual(page.context['paid'], collected.total)
+            self.assertEqual(page.context['remaining'], outstanding.total)
+            self.assertEqual([row.pk for row in page.context['cancelled_collections']], [collected.pk])
+            report = self.client.get(reports, {'lang': lang})
+            self.assertEqual(report.context['paid_value'], collected.total)
+            self.assertEqual(report.context['cancelled_collections'], {'count': 1, 'total': collected.total})
+
+    def test_quantity_validation_is_atomic_for_checkout_and_edit(self):
+        guest_url = reverse('place_order', args=[self.table.public_token])
+        staff_url = reverse('staff_order', args=[self.restaurant.slug])
+        self.client.force_login(self.owner)
+        for value in (0, 31, 1.5, 1.0, True, '', '1.5'):
+            with self.subTest(value=value):
+                payload = self.payload()
+                payload['lines'].append(dict(payload['lines'][0], quantity=value))
+                payload.update(session_token=str(self.table.session_token), table_id=self.table.pk)
+                for url in (guest_url, staff_url):
+                    response = self.client.post(url, payload, content_type='application/json')
+                    self.assertEqual(response.status_code, 400)
+                self.assertFalse(Order.objects.exists())
+        payload = self.payload()
+        payload['lines'] = [dict(payload['lines'][0], quantity=value) for value in (1, '30')]
+        order = create_order(self.table, payload)
+        self.assertEqual(create_order(self.table, payload).pk, order.pk)
+        self.assertEqual(order.total, Decimal('3100.00'))
+        line = order.lines.order_by('pk').first()
+        change = {'edit_key': str(uuid.uuid4()), 'expected_version': 0, 'reason': 'Review quantity',
+                  'existing': [{'id': line.pk, 'quantity': 1.5}], 'add': []}
+        edit_url = reverse('order_edit', args=[self.restaurant.slug, order.pk])
+        self.assertEqual(self.client.post(edit_url, change, content_type='application/json').status_code, 400)
+        change['existing'][0]['quantity'] = 1
+        change['add'] = [{'item_id': self.item.pk, 'quantity': 1.5}]
+        self.assertEqual(self.client.post(edit_url, change, content_type='application/json').status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual((order.version, order.total, order.lines.count()), (0, Decimal('3100.00'), 2))
+        self.assertFalse(order.revisions.exists())
+
+    def test_corrected_order_is_read_only_and_counts_first_transition(self):
+        order = create_order(self.table, self.payload())
+        self.client.force_login(self.owner)
+        edit_url = reverse('order_edit', args=[self.restaurant.slug, order.pk])
+        ledger_url = reverse('manage_orders', args=[self.restaurant.slug])
+        advance_order(order, self.owner, 'accepted')
+        self.assertTrue(self.client.get(edit_url).context['can_edit'])
+        advance_order(order, self.owner, 'preparing')
+        change = {'edit_key': str(uuid.uuid4()), 'expected_version': 0, 'reason': 'Late edit',
+                  'existing': [{'id': order.lines.get().pk, 'quantity': 1}], 'add': []}
+        self.assertEqual(self.client.post(edit_url, change, content_type='application/json').status_code, 400)
+        correct_order_status(order, self.owner, 'Wrong step', 'preparing')
+        for lang in ('ar', 'en'):
+            page = self.client.get(edit_url, {'lang': lang})
+            self.assertFalse(page.context['can_edit'])
+            self.assertContains(page, f'?table={self.table.pk}')
+            self.assertNotContains(self.client.get(ledger_url, {'lang': lang}), edit_url)
+        correct_order_status(order, self.owner, 'Wrong step', 'accepted')
+        advance_order(order, self.owner, 'accepted')
+        advance_order(order, self.owner, 'preparing')
+        advance_order(order, self.owner, 'ready')
+        correct_order_status(order, self.owner, 'Wrong step', 'ready')
+        advance_order(order, self.owner, 'ready')
+        for state in ('accepted', 'ready'):
+            events = list(order.history.filter(new_status=state).order_by('pk'))
+            for index, event in enumerate(events):
+                seconds = 120 + 480 * index
+                OrderHistory.objects.filter(pk=event.pk).update(created_at=order.created_at + timedelta(seconds=seconds))
+        report = self.client.get(reverse('reports', args=[self.restaurant.slug]), {'lang': 'ar'})
+        self.assertEqual((report.context['accepted_samples'], report.context['ready_samples']), (1, 1))
+        self.assertEqual(report.context['accepted_time'], '2 د 0 ث')
+        self.assertEqual(report.context['ready_time'], '2 د 0 ث')
+        self.assertEqual(order.history.filter(new_status='ready').count(), 2)
+
+    def test_missing_subscription_blocks_operations_until_operator_configures_it(self):
+        self.restaurant.subscription.delete()
+        self.client.force_login(self.owner)
+        args = [self.restaurant.slug]
+        activation = reverse('subscription_activation', args=args)
+        self.assertRedirects(self.client.get(reverse('manage_menu', args=args)), activation)
+        self.assertContains(self.client.get(activation, {'lang': 'en'}), 'no subscription record')
+        self.client.post(activation)
+        self.assertFalse(Subscription.objects.filter(restaurant=self.restaurant).exists())
+        table_args = [self.table.public_token]
+        self.assertEqual(self.client.get(reverse('public_menu', args=table_args)).status_code, 404)
+        self.assertEqual(self.client.post(reverse('place_order', args=table_args), self.payload(),
+                                          content_type='application/json').status_code, 400)
+        self.client.post(reverse('create_call', args=table_args),
+                         {'kind': 'bill', 'session_token': str(self.table.session_token)})
+        self.assertFalse(ServiceCall.objects.exists())
+        self.client.force_login(User.objects.create_superuser(username='recovery-operator'))
+        plan, _ = Plan.objects.get_or_create(name='Starter')
+        self.client.post(reverse('platform_update_restaurant', args=[self.restaurant.pk]), {
+            'action': 'subscription', 'status': 'active', 'plan_id': plan.pk, 'reason': 'Verified terms',
+            'ends_at': (timezone.localdate() + timedelta(days=10)).isoformat(),
+        })
+        self.assertTrue(Subscription.objects.get(restaurant=self.restaurant).valid())
+        self.assertEqual(self.client.get(reverse('public_menu', args=table_args)).status_code, 200)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_invitation_matches_legacy_email_without_creating_duplicate(self):
+        account = User.objects.create_user('legacy-cashier', 'legacy@example.org', 'StrongPass!123')
+        account_without_membership = User.objects.create_user('legacy-waiter', 'waiter@example.org', 'StrongPass!123')
+        Membership.objects.create(restaurant=self.other_restaurant, user=account, role='manager')
+        User.objects.create_user('shared-a', 'shared@example.org')
+        User.objects.create_user('shared-b', 'shared@example.org')
+        staff = reverse('staff', args=[self.restaurant.slug])
+        self.client.force_login(self.owner)
+        details = {'action': 'invite', 'branch_id': self.branch.pk, 'role': 'cashier'}
+        self.client.post(staff, dict(details, email='shared@example.org'))
+        self.assertFalse(mail.outbox)
+        for user in (account, account_without_membership):
+            self.client.force_login(self.owner)
+            self.client.post(staff, dict(details, email=user.email))
+            invite_path = urlparse(mail.outbox[-1].body.split()[-1]).path
+            self.client.logout()
+            self.assertEqual(self.client.get(invite_path).status_code, 302)
+            login_response = self.client.post(reverse('login'), {'username': user.email,
+                                              'password': 'StrongPass!123', 'next': invite_path})
+            self.assertRedirects(login_response, invite_path)
+            self.assertEqual(self.client.post(invite_path).status_code, 302)
+            self.assertEqual(self.client.get(invite_path).status_code, 410)
+            self.assertEqual(User.objects.filter(email=user.email).count(), 1)
+            self.assertEqual(user.memberships.get(restaurant=self.restaurant).role, 'cashier')
+        self.assertEqual(account.memberships.get(restaurant=self.other_restaurant).role, 'manager')
+
+    def test_admin_language_switch_preserves_query_and_csv_localizes_labels(self):
+        self.client.force_login(User.objects.create_superuser(username='language-operator'))
+        for name in ('admin:core_restaurant_changelist', 'admin:core_order_changelist'):
+            url = reverse(name)
+            response = self.client.get(url, {'q': 'Cafe', 'o': '1', 'lang': 'en'}, follow=True)
+            self.assertEqual(response.redirect_chain, [(url + '?q=Cafe&o=1', 302)])
+            self.assertEqual(response['Content-Language'], 'en')
+            self.assertRedirects(self.client.get(url, {'q': 'Cafe', 'lang': 'ar'}), url + '?q=Cafe')
+        create_order(self.table, self.payload())
+        self.client.force_login(self.owner)
+        report = reverse('reports', args=[self.restaurant.slug])
+        rows = {}
+        for lang in ('ar', 'en'):
+            stream = self.client.get(report, {'export': 'csv', 'lang': lang}).streaming_content
+            rows[lang] = list(csv.reader(io.StringIO(b''.join(stream).decode('utf-8-sig'))))
+        self.assertEqual(rows['en'][0][0], 'Order number')
+        self.assertEqual(rows['en'][1][2:4], ['New', 'Unpaid'])
+        self.assertEqual(rows['ar'][1][2:4], ['جديد', 'غير مدفوع'])
+        self.assertEqual(rows['ar'][1][:2] + rows['ar'][1][4:], rows['en'][1][:2] + rows['en'][1][4:])
 
     def test_local_login_referrer_policy_preserves_csrf_origin_check(self):
         client = Client(enforce_csrf_checks=True, HTTP_HOST='localhost:8000')
@@ -794,8 +964,6 @@ class SafraTests(TestCase):
         self.client.post(endpoint, {'action': 'close_session', 'table_id': self.table.pk})
         self.table.refresh_from_db()
         self.assertNotEqual(self.table.session_token, original)
-        Subscription.objects.create(restaurant=self.other_restaurant,
-            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
         self.client.login(username=self.other.username, password='StrongPass!123')
         self.assertEqual(self.client.post(reverse('manage_tables', args=[self.other_restaurant.slug]),
             {'action': 'close_session', 'table_id': self.table.pk}).status_code, 404)
@@ -998,8 +1166,6 @@ class SafraTests(TestCase):
     def test_modifier_edit_scopes_branch_and_rejects_invalid_price(self):
         group = ModifierGroup.objects.create(item=self.item, name='إضافات')
         option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
-        Subscription.objects.create(restaurant=self.other_restaurant,
-            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
         self.client.login(username=self.other.username, password='StrongPass!123')
         endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
         self.assertEqual(self.client.post(endpoint, {'action': 'modifier_group_edit',
@@ -1037,8 +1203,6 @@ class SafraTests(TestCase):
     def test_modifier_sort_and_delete_are_scoped_and_validated(self):
         group = ModifierGroup.objects.create(item=self.item, name='إضافات')
         option = ModifierOption.objects.create(group=group, name='جبن', price=Decimal('10.00'))
-        Subscription.objects.create(restaurant=self.other_restaurant,
-            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
         self.client.login(username=self.other.username, password='StrongPass!123')
         foreign_endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
         self.assertEqual(self.client.post(foreign_endpoint, {'action': 'modifier_option_delete',
@@ -1320,8 +1484,6 @@ class SafraTests(TestCase):
         self.assertEqual(SubscriptionPayment.objects.count(), 1)
         self.client.login(username=self.owner.username, password='StrongPass!123')
         self.assertContains(self.client.get(reverse('restaurant_settings', args=[self.restaurant.slug])), 'TRANSFER-123')
-        Subscription.objects.create(restaurant=self.other_restaurant, plan=self.restaurant.subscription.plan,
-                                    ends_at=timezone.now()+timedelta(days=14))
         self.client.login(username=self.other.username, password='StrongPass!123')
         self.assertNotContains(self.client.get(reverse('restaurant_settings', args=[self.other_restaurant.slug])),
                                'TRANSFER-123')
@@ -1514,8 +1676,6 @@ class SafraTests(TestCase):
         size.refresh_from_db()
         self.assertFalse(size.available)
         self.client.login(username=self.other.username, password='StrongPass!123')
-        Subscription.objects.create(restaurant=self.other_restaurant,
-            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
         other_endpoint = reverse('manage_menu', args=[self.other_restaurant.slug])
         self.assertEqual(self.client.post(other_endpoint, {'action': 'size_edit', 'size_id': size.pk,
             'name': 'مخترق', 'price': '1'}).status_code, 404)
@@ -1626,8 +1786,6 @@ class SafraTests(TestCase):
         endpoint = reverse('menu_import', args=[self.restaurant.slug])
         upload = SimpleUploadedFile('menu.csv', b'category,name,price,description\nDrinks,Tea,20.00,\n')
         batch = self.client.post(endpoint, {'action': 'preview', 'file': upload}).context['batch']
-        Subscription.objects.create(restaurant=self.other_restaurant,
-            plan=self.restaurant.subscription.plan, ends_at=timezone.now()+timedelta(days=14))
         self.client.login(username=self.other.username, password='StrongPass!123')
         other_endpoint = reverse('menu_import', args=[self.other_restaurant.slug])
         self.assertEqual(self.client.post(other_endpoint, {'action': 'commit', 'batch': str(batch.token)}).status_code, 404)

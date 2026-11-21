@@ -6,8 +6,11 @@
   <section class="panel reset-card" aria-labelledby="activation-title">
     <span class="reset-emblem" aria-hidden="true">{% symbol 'store' %}</span>
     <span class="eyebrow">{{ restaurant.name }}</span>
-    <h1 id="activation-title">{% bi 'اشتراك مطعمك بانتظار التفعيل' 'Your restaurant is awaiting activation' %}</h1>
-    {% if membership.role == 'owner' %}
+    <h1 id="activation-title">{% if subscription %}{% bi 'اشتراك مطعمك بانتظار التفعيل' 'Your restaurant is awaiting activation' %}{% else %}{% bi 'اشتراك المطعم يحتاج إلى إعداد' 'Restaurant subscription setup required' %}{% endif %}</h1>
+    {% if not subscription %}
+      <p role="status">{% bi 'سجل اشتراك المطعم غير متاح. على مالك المطعم التواصل مع خدمة العملاء لإعداده واستعادة الوصول.' 'The restaurant has no subscription record. The owner can contact customer service to set it up and restore access.' %}</p>
+      {% if membership.role == 'owner' %}<a class="btn btn-primary btn-full" href="{% url 'contact' %}">{% bi 'تواصل مع خدمة العملاء' 'Contact customer service' %}</a>{% endif %}
+    {% elif membership.role == 'owner' %}
       {% if subscription.activation_requested_at %}
         <p role="status">{% bi 'وصل طلبك إلى خدمة العملاء. سيتواصل الفريق معك على بريد حسابك لتحديد الباقة وترتيب السداد.' 'Customer service has received your request. The team will email you to agree on a plan and arrange payment.' %}</p>
         <p><bdi>{{ request.user.email }}</bdi></p>

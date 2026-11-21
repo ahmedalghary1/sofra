@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .limits import check_creation_limit
@@ -16,6 +17,13 @@ def invitation_for_token(raw_token):
         return None
     digest = hashlib.sha256(raw_token.encode()).hexdigest()
     return StaffInvitation.objects.select_related('restaurant', 'branch').filter(token_hash=digest).first()
+
+def invited_account(email, *, english=False):
+    matches = list(User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).order_by('pk')[:2])
+    if len(matches) > 1 or (matches and matches[0].email and matches[0].email.casefold() != email.casefold()):
+        raise ValidationError('This email conflicts with existing login accounts. Contact the platform administrator.'
+                              if english else 'يتعارض هذا البريد مع حسابات دخول قائمة. تواصل مع مسؤول المنصة.')
+    return matches[0] if matches else None
 
 
 @transaction.atomic
@@ -33,7 +41,7 @@ def accept_staff_invitation(raw_token, name='', password='', authenticated_user=
     if not inviter_membership or inviter_membership.role not in ('owner', 'manager') or (
             invitation.role == 'manager' and inviter_membership.role != 'owner'):
         raise ValidationError('لم تعد صلاحية الداعي كافية لإكمال هذه الدعوة.')
-    existing_user = User.objects.filter(username__iexact=invitation.email).first()
+    existing_user = invited_account(invitation.email)
     if existing_user:
         if not authenticated_user or authenticated_user.pk != existing_user.pk or not existing_user.is_active:
             raise ValidationError('سجّل الدخول بالبريد المدعو لقبول الدعوة.')

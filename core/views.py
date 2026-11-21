@@ -23,7 +23,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.validators import validate_email
 from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.models.functions import TruncDate
-from django.db.models import Avg, Count, F, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Avg, Count, Exists, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -37,7 +37,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
-from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
+from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, order_edit_allowed, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
 from .models import DemoRequest
 from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
@@ -47,7 +47,7 @@ from .showcase_catalog import public_tier_records
 from .presentation import localized_url
 from .demo_menu import demo_order_total, sample_menu
 from .menu_photos import menu_photo
-from .invitations import accept_staff_invitation, invitation_for_token
+from .invitations import accept_staff_invitation, invitation_for_token, invited_account
 
 def error_text(exc):
     errors = exc.messages if hasattr(exc, 'messages') else [str(exc)]
@@ -230,8 +230,11 @@ def login_view(request):
                 match = None
             if match and match.url_name == 'accept_staff_invitation':
                 invitation = invitation_for_token(match.kwargs['token'])
-                invitation_login = bool(invitation and invitation.pending() and
-                                        invitation.email.lower() == user.username.lower())
+                if invitation and invitation.pending():
+                    try:
+                        invitation_login = invited_account(invitation.email) == user
+                    except ValidationError:
+                        pass
         if user and (user.is_superuser or user.memberships.filter(active=True).exists() or invitation_login):
             LoginAttempt.objects.filter(key=key).delete()
             login(request, user)
@@ -477,8 +480,9 @@ def platform_update_restaurant(request, restaurant_id):
                 audit(restaurant, request.user, 'platform.restaurant.toggle',
                       f'active={restaurant.active}; reason={reason}')
             elif action == 'subscription':
-                subscription = Subscription.objects.select_for_update().get(restaurant=restaurant)
-                plans = public_tier_records() if subscription.status == 'pending' else Plan.objects.all()
+                subscription = Subscription.objects.select_for_update().filter(restaurant=restaurant).first()
+                needs_activation = subscription is None or subscription.status == 'pending'
+                plans = public_tier_records() if needs_activation else Plan.objects.all()
                 try:
                     plan = plans.get(pk=request.POST.get('plan_id'))
                 except (Plan.DoesNotExist, ValueError, OverflowError):
@@ -490,15 +494,19 @@ def platform_update_restaurant(request, restaurant_id):
                     end_date = datetime.fromisoformat(request.POST.get('ends_at','')).date()
                 except (ValueError, TypeError):
                     raise ValidationError('تاريخ الانتهاء غير صالح.')
-                if subscription.status == 'pending' and status != 'active':
+                if needs_activation and status != 'active':
                     raise ValidationError('Choose an active subscription to open the workspace.' if request.LANGUAGE_CODE == 'en' else 'اختر اشتراكًا نشطًا لفتح لوحة المطعم.')
                 if status in ('active', 'trial') and end_date < timezone.localdate():
                     raise ValidationError('Choose today or a future expiry date.' if request.LANGUAGE_CODE == 'en' else 'اختر تاريخ انتهاء اليوم أو بعده.')
-                old = f'{subscription.plan_id}/{subscription.status}/{subscription.ends_at.date() if subscription.ends_at else "-"}'
+                old = 'missing'
+                if subscription:
+                    old = f'{subscription.plan_id}/{subscription.status}/{subscription.ends_at.date() if subscription.ends_at else "-"}'
+                else:
+                    subscription = Subscription(restaurant=restaurant)
                 subscription.plan = plan
                 subscription.status = status
                 subscription.ends_at = timezone.make_aware(datetime.combine(end_date, time.max))
-                subscription.save(update_fields=['plan','status','ends_at'])
+                subscription.save()
                 audit(restaurant, request.user, 'platform.subscription.update',
                       f'{old} → {plan.pk}/{status}/{end_date}; reason={reason}')
             else:
@@ -540,7 +548,7 @@ def scope(request, slug, roles=None, *, allow_pending=False):
     if not membership or (roles and membership.role not in roles):
         return None, None, render(request, '403.html', status=403)
     subscription = getattr(restaurant, 'subscription', None)
-    if not allow_pending and subscription and subscription.status == 'pending':
+    if not allow_pending and (subscription is None or subscription.status == 'pending'):
         return None, None, redirect('subscription_activation', slug=slug)
     if not restaurant.active and request.method not in ('GET','HEAD') and request.resolver_match.url_name != 'select_branch':
         return None, None, render(request, '403.html', status=403)
@@ -553,11 +561,13 @@ def subscription_activation(request, slug):
     if denied:
         return denied
     subscription = getattr(restaurant, 'subscription', None)
-    if not subscription or subscription.status != 'pending':
+    if subscription is not None and subscription.status != 'pending':
         return redirect('dashboard', slug=slug)
     if request.method == 'POST':
         if membership.role != 'owner':
             return render(request, '403.html', status=403)
+        if subscription is None:
+            return redirect('subscription_activation', slug=slug)
         with transaction.atomic():
             requested = Subscription.objects.filter(pk=subscription.pk, status='pending',
                 activation_requested_at__isnull=True).update(activation_requested_at=timezone.now())
@@ -948,13 +958,16 @@ def table_summary(request, slug, table_id):
         return denied
     branch = branch_for(request, restaurant, membership)
     table = get_object_or_404(DiningTable, pk=table_id, branch=branch)
-    orders = list(Order.objects.filter(branch=branch, table=table, session_token=table.session_token)
-                  .exclude(status='cancelled').prefetch_related('lines').order_by('created_at', 'pk'))
+    session_orders = Order.objects.filter(branch=branch, table=table, session_token=table.session_token)
+    orders = list(session_orders.exclude(status='cancelled').prefetch_related('lines').order_by('created_at', 'pk'))
+    cancelled_collections = list(session_orders.filter(status='cancelled', payment_status='paid').order_by('pk'))
     total = sum((order.total for order in orders), Decimal('0.00'))
-    paid = sum((order.total for order in orders if order.payment_status == 'paid'), Decimal('0.00'))
+    billable_paid = sum((order.total for order in orders if order.payment_status == 'paid'), Decimal('0.00'))
+    cancelled_paid = sum((order.total for order in cancelled_collections), Decimal('0.00'))
     return render(request, 'table_summary.html', {
         'restaurant': restaurant, 'branch': branch, 'table': table, 'orders': orders,
-        'total': total, 'paid': paid, 'remaining': total - paid,
+        'total': total, 'paid': billable_paid + cancelled_paid, 'remaining': total - billable_paid,
+        'cancelled_collections': cancelled_collections, 'cancelled_paid': cancelled_paid,
     })
 
 
@@ -983,8 +996,14 @@ def manage_orders(request, slug):
         selected_status = ''
     if selected_status:
         orders = orders.filter(status=selected_status)
-    orders = Paginator(orders.select_related('table').prefetch_related('lines').order_by('-created_at', '-pk'),
+    preparation = OrderHistory.objects.filter(order_id=OuterRef('pk'), new_status='preparing')
+    orders = Paginator(orders.select_related('table').prefetch_related('lines')
+                       .annotate(has_started_preparation=Exists(preparation)).order_by('-created_at', '-pk'),
                        25).get_page(request.GET.get('page'))
+    for order in orders:
+        order.branch = branch
+        order.can_edit = membership.role in ('owner', 'manager', 'cashier', 'waiter') and order_edit_allowed(
+            order, order.has_started_preparation)
     return shell(request, restaurant, membership, 'orders',
         orders=orders,
         tables=branch.tables.all(), selected_table=selected_table,
@@ -1034,10 +1053,12 @@ def order_edit(request, slug, order_id):
                  'modifiers': [mod['name'] for mod in line.modifiers]}
                 for line in order.lines.all()]
     categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
+    order.branch = branch
     return shell(request, restaurant, membership, 'order_edit', order=order, existing_json=existing,
                  categories=categories, items_json=serialize_menu_items(categories),
-                 can_edit=order.status in ('new', 'accepted') and order.payment_status == 'unpaid'
-                          and restaurant.active and branch.active and restaurant.subscription.valid())
+                 can_edit=order_edit_allowed(order, order.history.filter(new_status='preparing').exists()),
+                 can_add_order=order.session_token == order.table.session_token and order.table.active
+                 and restaurant.active and branch.active and branch.accepting_orders and restaurant.subscription.valid())
 
 def kitchen(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','kitchen'])
@@ -1105,7 +1126,7 @@ def order_status_change(request, slug, order_id):
     allowed = membership.role in ('owner','manager') or (membership.role == 'kitchen' and new in ('accepted','preparing','ready')) or (membership.role in ('cashier','waiter') and new == 'served')
     if not allowed: return render(request, '403.html', status=403)
     try:
-        advance_order(order, request.user, new, request.POST.get('reason',''))
+        advance_order(order, request.user, new, request.POST.get('reason',''), english=request.LANGUAGE_CODE == 'en')
         messages.success(request, 'تحدثت حالة الطلب.')
     except ValidationError as exc: messages.error(request, error_text(exc))
     return redirect('kitchen' if membership.role == 'kitchen' else 'manage_orders', slug=slug)
@@ -1230,11 +1251,18 @@ def reports(request, slug):
     if request.GET.get('export') == 'csv':
         if filter_error:
             return HttpResponse(filter_error, status=400)
+        headers = (['Order number', 'Table', 'Status', 'Payment status', 'Source', 'Order total', 'Created at']
+                   if request.LANGUAGE_CODE == 'en' else
+                   ['رقم الطلب', 'الطاولة', 'الحالة', 'حالة الدفع', 'المصدر', 'إجمالي الطلب', 'وقت الإنشاء'])
+        labels = {}
+        for field in ('status', 'payment_status', 'source'):
+            labels[field] = {key: gettext(label) for key, label in Order._meta.get_field(field).choices}
+
         def csv_rows():
             yield '\ufeff'
             buffer = io.StringIO()
             writer = csv.writer(buffer)
-            writer.writerow(['رقم الطلب','الطاولة','الحالة','حالة الدفع','المصدر','إجمالي الطلب','وقت الإنشاء'])
+            writer.writerow(headers)
             yield buffer.getvalue()
             for order in orders.select_related('table').order_by('pk').iterator(chunk_size=1000):
                 buffer.seek(0)
@@ -1242,8 +1270,9 @@ def reports(request, slug):
                 name = str(order.table.name)
                 if name.lstrip().startswith(('=','+','-','@')):
                     name = "'" + name
-                writer.writerow([order.pk,name,order.get_status_display(),order.get_payment_status_display(),
-                                 order.get_source_display(),order.total,order.created_at.isoformat()])
+                writer.writerow([order.pk, name, labels['status'].get(order.status, order.status),
+                                 labels['payment_status'].get(order.payment_status, order.payment_status),
+                                 labels['source'].get(order.source, order.source), order.total, order.created_at.isoformat()])
                 yield buffer.getvalue()
         response = StreamingHttpResponse(csv_rows(), content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="orders.csv"'
@@ -1252,8 +1281,12 @@ def reports(request, slug):
     status_names = dict(Order.STATUSES)
     by_status = [{'label': status_names.get(row['status'], row['status']), 'count': row['count']}
                  for row in orders.values('status').annotate(count=Count('id'))]
-    accepted = OrderHistory.objects.filter(order__in=orders, new_status='accepted')
-    ready = OrderHistory.objects.filter(order__in=orders, new_status='ready')
+    first_transition = OrderHistory.objects.filter(
+        order_id=OuterRef('order_id'), new_status=OuterRef('new_status'),
+    ).order_by('created_at', 'pk').values('pk')[:1]
+    first_events = OrderHistory.objects.filter(order__in=orders, pk=Subquery(first_transition))
+    accepted = first_events.filter(new_status='accepted')
+    ready = first_events.filter(new_status='ready')
     responded = calls.filter(acknowledged_at__isnull=False)
     accepted_avg = accepted.aggregate(value=Avg(F('created_at') - F('order__created_at')))['value']
     ready_avg = ready.aggregate(value=Avg(F('created_at') - F('order__created_at')))['value']
@@ -1268,11 +1301,14 @@ def reports(request, slug):
     elif selected_station:
         prepared_lines = prepared_lines.filter(line__station=selected_station)
     station_avg = prepared_lines.aggregate(value=Avg(F('created_at') - F('started_at')))['value']
+    collections = orders.filter(payment_status='paid')
+    cancelled_collections = collections.filter(status='cancelled').aggregate(count=Count('pk'), total=Sum('total'))
     return shell(request, restaurant, membership, 'reports', total=orders.count(),
                  by_status=by_status,
                  by_source=orders.values('source').annotate(count=Count('id')),
                  total_value=orders.exclude(status='cancelled').aggregate(sum=Sum('total'))['sum'] or 0,
-                 paid_value=orders.filter(payment_status='paid').aggregate(sum=Sum('total'))['sum'] or 0,
+                 paid_value=collections.aggregate(sum=Sum('total'))['sum'] or 0,
+                 cancelled_collections=cancelled_collections,
                  top_items=OrderLine.objects.filter(order__in=orders).exclude(order__status='cancelled').values('item_name').annotate(quantity=Sum('quantity')).order_by('-quantity')[:5],
                  accepted_time=format_duration(accepted_avg), ready_time=format_duration(ready_avg),
                  call_response_time=format_duration(call_avg), accepted_samples=accepted.count(),
@@ -1303,7 +1339,9 @@ def staff(request, slug):
                     raise ValidationError('الدور المختار غير مسموح.')
                 branch = get_object_or_404(Branch, pk=request.POST.get('branch_id'),
                                            restaurant=restaurant, active=True)
-                existing_user = User.objects.filter(username__iexact=email).first()
+                if len(email) > User._meta.get_field('username').max_length:
+                    raise ValidationError('Email address is too long.' if request.LANGUAGE_CODE == 'en' else 'عنوان البريد طويل جدًا.')
+                existing_user = invited_account(email, english=request.LANGUAGE_CODE == 'en')
                 if existing_user and Membership.objects.filter(user=existing_user, restaurant=restaurant).exists():
                     raise ValidationError('هذا البريد عضو في المطعم بالفعل.')
                 with transaction.atomic():
@@ -1416,7 +1454,10 @@ def accept_invitation_view(request, token):
     invitation = invitation_for_token(token)
     if not invitation or not invitation.pending():
         return render(request, 'invitation_invalid.html', status=410)
-    existing_user = User.objects.filter(username__iexact=invitation.email).first()
+    try:
+        existing_user = invited_account(invitation.email, english=request.LANGUAGE_CODE == 'en')
+    except ValidationError as exc:
+        return render(request, 'invitation_invalid.html', {'invitation_error': error_text(exc)}, status=409)
     if existing_user and not request.user.is_authenticated:
         return redirect(reverse('login') + '?' + urlencode({'next': request.path}))
     if request.user.is_authenticated and (not existing_user or request.user.pk != existing_user.pk):
@@ -1432,6 +1473,9 @@ def accept_invitation_view(request, token):
             return redirect('dashboard', slug=restaurant.slug)
         except ValidationError as exc:
             messages.error(request, error_text(exc))
+        except IntegrityError:
+            messages.error(request, 'Account details changed. Review the invitation and try again.'
+                           if request.LANGUAGE_CODE == 'en' else 'تغيرت بيانات الحساب. راجع الدعوة وحاول مجددًا.')
     response = render(request, 'invitation_accept.html',
                       {'invitation': invitation, 'existing_user': bool(existing_user)})
     response['Cache-Control'] = 'no-store'
@@ -1548,7 +1592,7 @@ def restaurant_settings(request, slug):
 def public_menu(request, token):
     table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant__subscription'), public_token=token)
     subscription = getattr(table.branch.restaurant, 'subscription', None)
-    if subscription and subscription.status == 'pending':
+    if subscription is None or subscription.status == 'pending':
         return render(request, 'table_closed.html', status=404)
     if not table.active or not table.branch.active or not table.branch.restaurant.active:
         return render(request, 'table_closed.html', status=404)
@@ -1560,7 +1604,7 @@ def public_menu(request, token):
         category = item['category']
         item['category_name'] = menu_categories[category] = category_names[category]
         item['photo'] = menu_photo(item['name'], item['image'])
-    accepting = table.branch.accepting_orders and (subscription is None or subscription.valid())
+    accepting = table.branch.accepting_orders and subscription.valid()
     return render(request, 'public_menu.html', {
         'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,
         'illustrative_photos': any(not item['image'] for item in items),
@@ -1608,5 +1652,5 @@ def track_order(request, token):
     subscription = getattr(branch.restaurant, 'subscription', None)
     can_add_order = (order.session_token is not None and order.session_token == table.session_token
                      and table.active and branch.active and branch.accepting_orders
-                     and branch.restaurant.active and (subscription is None or subscription.valid()))
+                     and branch.restaurant.active and subscription is not None and subscription.valid())
     return render(request, 'track.html', {'order': order, 'can_add_order': can_add_order})

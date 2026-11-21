@@ -1,6 +1,8 @@
 ﻿"""Run with python manage.py test scripts.test_restaurant_ui (Playwright and Chrome)."""
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
+from hashlib import sha256
 from uuid import uuid4
 
 from django.conf import settings
@@ -8,6 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import (
@@ -20,13 +23,108 @@ from core.models import (
     ModifierGroup,
     ModifierOption,
     Order,
+    Plan,
     Restaurant,
+    StaffInvitation,
+    Subscription,
 )
+from core.services import advance_order, correct_order_status, create_order, record_manual_payment
 
 
 class ServiceAcrossRolesTests(StaticLiveServerTestCase):
+    def create_venue(self, **fields):
+        venue = Restaurant.objects.create(**fields)
+        plan, _ = Plan.objects.get_or_create(name='Starter')
+        Subscription.objects.create(restaurant=venue, plan=plan, ends_at=timezone.now() + timedelta(days=7))
+        return venue
+
+    def test_audit_repairs_in_both_languages(self):
+        venue = self.create_venue(name='Audit Cafe', slug='audit-cafe')
+        self.create_venue(name='Other venue', slug='audit-other')
+        missing = Restaurant.objects.create(name='Missing subscription', slug='missing-subscription')
+        branch = Branch.objects.create(restaurant=venue)
+        Branch.objects.create(restaurant=venue, name='Second branch')
+        closed_table = DiningTable.objects.create(branch=Branch.objects.create(restaurant=missing), name='Patio')
+        table = DiningTable.objects.create(branch=branch, name='Window')
+        item = MenuItem.objects.create(category=Category.objects.create(branch=branch, name='Menu'),
+                                       name='Tea', price='25.00')
+        owner = User.objects.create_user('audit-owner')
+        operator = User.objects.create_superuser('audit-operator')
+        for restaurant in (venue, missing):
+            Membership.objects.create(restaurant=restaurant, user=owner, role='owner')
+        for name in ('shared-a', 'shared-b'):
+            User.objects.create_user(name, 'shared@example.org')
+        token = 'audit-shared-invitation'
+        StaffInvitation.objects.create(restaurant=venue, branch=branch, role='waiter', invited_by=owner,
+            email='shared@example.org', token_hash=sha256(token.encode()).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=1))
+        orders = [create_order(table, {'idempotency_key': str(uuid4()), 'lines': [{'item_id': item.pk, 'quantity': 1}]})
+                  for _ in range(3)]
+        corrected, paid, legacy = orders
+        order_url = reverse('manage_orders', args=[venue.slug])
+        edit_url = reverse('order_edit', args=[venue.slug, corrected.pk])
+        advance_order(corrected, owner, 'accepted')
+        advance_order(corrected, owner, 'preparing')
+        correct_order_status(corrected, owner, 'Wrong step', 'preparing')
+        record_manual_payment(paid, owner)
+        record_manual_payment(legacy, owner)
+        Order.objects.filter(pk=legacy.pk).update(status='cancelled')
+
+        def cookie(user):
+            client = Client()
+            client.force_login(user)
+            return client.cookies[settings.SESSION_COOKIE_NAME].value
+
+        owner_session, operator_session = cookie(owner), cookie(operator)
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel='chrome')
+            for width in (360, 1366):
+                with browser.new_context(viewport={'width': width, 'height': 850}) as context:
+                    owner_cookie = {'name': settings.SESSION_COOKIE_NAME, 'url': self.live_server_url,
+                                    'value': owner_session}
+                    context.add_cookies([owner_cookie])
+                    page = context.new_page()
+                    for lang, direction in [('ar', 'rtl'), ('en', 'ltr')]:
+                        screens = [
+                            (order_url, 200, 'يتعذر إلغاء طلب بعد تسجيل تحصيله.' if lang == 'ar'
+                             else 'A collected order cannot be cancelled.'),
+                            (edit_url, 200, 'هذا الطلب غير قابل للتعديل الآن' if lang == 'ar'
+                             else 'This order can no longer be edited'),
+                            (reverse('table_summary', args=[venue.slug, table.pk]), 200,
+                             'تحصيل مسجّل لطلبات ملغاة' if lang == 'ar' else 'Recorded collection on cancelled orders'),
+                            (reverse('reports', args=[venue.slug]), 200,
+                             'يتضمن تحصيل طلبات ملغاة' if lang == 'ar' else 'Includes collection on cancelled orders'),
+                            (reverse('subscription_activation', args=[missing.slug]), 200,
+                             'اشتراك المطعم يحتاج إلى إعداد' if lang == 'ar' else 'Restaurant subscription setup required'),
+                            (reverse('public_menu', args=[closed_table.public_token]), 404, None),
+                            (reverse('accept_staff_invitation', args=[token]), 409,
+                             'يتعارض هذا البريد' if lang == 'ar' else 'This email conflicts'),
+                        ]
+                        for path, status, label in screens:
+                            self.assertEqual(page.goto(f'{self.live_server_url}{path}?lang={lang}').status, status)
+                            expect(page.locator('html')).to_have_attribute('dir', direction)
+                            if label:
+                                expect(page.get_by_text(label, exact=False)).to_be_visible()
+                            self.assertLessEqual(page.evaluate('document.documentElement.scrollWidth'), width)
+                    context.add_cookies([dict(owner_cookie, value=operator_session)])
+                    for lang, direction, label in [('ar', 'rtl', 'تحديد الباقة وتفعيل المطعم'),
+                                                   ('en', 'ltr', 'Assign a plan and activate')]:
+                        path = reverse('platform_dashboard')
+                        self.assertEqual(page.goto(f'{self.live_server_url}{path}?lang={lang}').status, 200)
+                        expect(page.locator('html')).to_have_attribute('dir', direction)
+                        expect(page.locator(f'#restaurant-{missing.pk}')).to_contain_text(label)
+                    for name in ('admin:core_restaurant_changelist', 'admin:core_order_changelist'):
+                        url = self.live_server_url + reverse(name)
+                        page.goto(url + '?q=Audit&lang=ar')
+                        expect(page.locator('html')).to_have_attribute('dir', 'rtl')
+                        page.locator('a.ops-language').click()
+                        expect(page).to_have_url(url + '?q=Audit')
+                        expect(page.locator('html')).to_have_attribute('dir', 'ltr')
+                        expect(page.locator('#searchbar')).to_have_value('Audit')
+            browser.close()
+
     def test_pinned_category_picker_shows_matching_items_at_the_start_of_results(self):
-        venue = Restaurant.objects.create(name='Menu QA', slug='menu-qa')
+        venue = self.create_venue(name='Menu QA', slug='menu-qa')
         branch = Branch.objects.create(restaurant=venue)
         table = DiningTable.objects.create(branch=branch, name='Table A')
         for index in range(10):
@@ -59,7 +157,7 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             browser.close()
 
     def test_guest_draft_is_table_session_scoped_and_rechecks_catalog(self):
-        venue = Restaurant.objects.create(name='مطعم الحي · Neighborhood Kitchen', slug='draft-menu')
+        venue = self.create_venue(name='مطعم الحي · Neighborhood Kitchen', slug='draft-menu')
         branch = Branch.objects.create(restaurant=venue, name='الفرع الرئيسي · Main branch')
         table = DiningTable.objects.create(branch=branch, name='Window')
         other = DiningTable.objects.create(branch=branch, name='Patio')
@@ -98,7 +196,7 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             browser.close()
 
     def test_branch_picker_and_order_headings_have_vertical_clearance(self):
-        venue = Restaurant.objects.create(name='QA Café', slug='two-branches')
+        venue = self.create_venue(name='QA Café', slug='two-branches')
         Branch.objects.create(restaurant=venue, name='الفرع الرئيسي')
         Branch.objects.create(restaurant=venue, name='Second branch')
         owner = User.objects.create_user(username='layout-owner')
@@ -129,14 +227,14 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             browser.close()
 
     def test_guest_to_kitchen_waiter_and_cashier(self):
-        venue = Restaurant.objects.create(name='QA Café', slug='qa-cafe')
+        venue = self.create_venue(name='QA Café', slug='qa-cafe')
         branch = Branch.objects.create(restaurant=venue)
         table = DiningTable.objects.create(branch=branch, name='Window 4')
         drinks = Category.objects.create(branch=branch, name='Drinks')
         item = MenuItem.objects.create(category=drinks, name='Latte', price='60.00')
         MenuSize.objects.create(item=item, name='Large', price='80.00')
         sessions = {}
-        for role in ['kitchen', 'cashier', 'waiter']:
+        for role in ['kitchen', 'cashier', 'waiter', 'owner']:
             member = Membership.objects.create(restaurant=venue, role=role,
                                                user=User.objects.create_user(username=role))
             member.branches.add(branch)
@@ -201,10 +299,30 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             waiter.get_by_role('button', name='Acknowledge').click()
             expect(waiter.locator('.call-card')).to_contain_text('Accepted')
             cashier = open_page('cashier', reverse('manage_orders', args=[venue.slug]), 'ar')
-            cashier.get_by_role('button', name='تم التقديم').click()
             cashier.on('dialog', lambda dialog: dialog.accept())
             cashier.get_by_role('button', name='تسجيل التحصيل').click()
             expect(cashier.locator('.data-table')).to_contain_text('تحصيل مسجل')
+            owner = open_page('owner', reverse('manage_orders', args=[venue.slug]))
+            expect(owner.get_by_text('A collected order cannot be cancelled.')).to_be_visible()
+            expect(owner.locator('form input[value="cancelled"]')).to_have_count(0)
+            cashier.get_by_role('button', name='تم التقديم').click()
+            waiter.locator('.call-card form button').click()
+            waiter.get_by_role('button', name='Mark complete').click()
+            expect(waiter.locator('.call-card form')).to_have_count(0)
+            summary = reverse('table_summary', args=[venue.slug, table.pk])
+            owner.goto(self.live_server_url + summary)
+            expect(owner.locator('.ops-receipt dl')).to_contain_text('80.00')
+            reports = reverse('reports', args=[venue.slug])
+            owner.goto(self.live_server_url + reports)
+            expect(owner.get_by_text('Payment recorded', exact=True)).to_be_visible()
+            export = owner.request.get(self.live_server_url + reports + '?lang=en&export=csv')
+            self.assertIn('Order number,Table,Status,Payment status', export.text())
+            self.assertIn('Window 4,Served,Paid,QR,80.00', export.text())
+            owner.goto(self.live_server_url + reverse('manage_tables', args=[venue.slug]))
+            owner.on('dialog', lambda dialog: dialog.accept())
+            owner.locator('.table-card form').filter(has=owner.locator('input[value="close_session"]')).get_by_role('button').click()
+            owner.goto(self.live_server_url + summary)
+            expect(owner.locator('.ops-receipt .empty-state')).to_be_visible()
             browser.close()
         order = Order.objects.get(table=table)
         self.assertEqual(order.note, 'Less foam')

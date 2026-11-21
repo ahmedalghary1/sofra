@@ -6,4 +6,10 @@
 {% for order in orders %}<section><h2>{% bi 'طلب' 'Order' %} #{{ order.pk }} <small>{{ order.created_at|date:'Y-m-d H:i' }} · {% translate order.get_payment_status_display %}</small></h2><table><thead><tr><th>{% bi 'الصنف' 'Item' %}</th><th>{% bi 'كمية' 'Qty' %}</th><th>{% bi 'السعر' 'Unit price' %}</th><th>{% bi 'القيمة' 'Amount' %}</th></tr></thead><tbody>{% for line in order.lines.all %}<tr><td>{{ line.item_name }}{% if line.size_name %} · {{ line.size_name }}{% endif %}{% for modifier in line.modifiers %}<small>{{ modifier.name }}</small>{% endfor %}</td><td>{{ line.quantity }}</td><td>{{ line.unit_price }}</td><td>{{ line.line_total }}</td></tr>{% endfor %}</tbody></table></section>
 {% empty %}<p class="empty-state">{% bi 'لا توجد طلبات محتسبة في هذه الجلسة.' 'There are no billable orders in this session.' %}</p>{% endfor %}
 <dl>{% bi 'ج.م' 'EGP' as egp %}<div><dt>{% bi 'إجمالي الطلبات' 'Order total' %}</dt><dd><bdi>{{ total }} {{ egp }}</bdi></dd></div><div><dt>{% bi 'المحصّل يدويًا' 'Recorded collection' %}</dt><dd><bdi>{{ paid }} {{ egp }}</bdi></dd></div><div><dt>{% bi 'المتبقي' 'Remaining balance' %}</dt><dd><bdi>{{ remaining }} {{ egp }}</bdi></dd></div></dl>
+{% if cancelled_collections %}
+<section><h2>{% bi 'تحصيل مسجّل لطلبات ملغاة' 'Recorded collection on cancelled orders' %}</h2>
+<p>{% bi 'تدخل هذه المبالغ في التحصيل المسجّل. الرصيد المستحق يخص الطلبات المحتسبة في الجلسة.' 'These amounts count toward recorded collection. The remaining balance applies to billable orders in this session.' %}</p>
+<ul>{% for order in cancelled_collections %}<li>{% bi 'طلب' 'Order' %} #{{ order.pk }} · <bdi>{{ order.total }} {{ egp }}</bdi></li>{% endfor %}</ul>
+<p><bdi>{{ cancelled_paid }} {{ egp }}</bdi></p></section>
+{% endif %}
 </main>{% endblock %}

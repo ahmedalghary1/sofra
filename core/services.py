@@ -15,6 +15,21 @@ CALL_NEXT = {'open': 'acknowledged', 'acknowledged': 'in_progress', 'in_progress
 def audit(restaurant, actor, action, detail=''):
     AuditLog.objects.create(restaurant=restaurant, actor=actor, action=action, detail=detail[:240])
 
+def order_quantity(value):
+    if isinstance(value, str) and len(value) <= 2 and value.isascii() and value.isdecimal():
+        value = int(value)
+    if type(value) is not int or not 1 <= value <= 30:
+        raise ValidationError('كمية أو خيارات غير صالحة.')
+    return value
+
+
+def order_edit_allowed(order, has_started_preparation):
+    branch = order.branch
+    subscription = getattr(branch.restaurant, 'subscription', None)
+    return (order.status in ('new', 'accepted') and order.payment_status == 'unpaid'
+            and not has_started_preparation and branch.active and branch.restaurant.active
+            and subscription is not None and subscription.valid())
+
 def normalize_order_lines(table, raw_lines, allow_empty=False):
     if not isinstance(raw_lines, list) or len(raw_lines) > 40 or (not raw_lines and not allow_empty):
         raise ValidationError('أضف صنفًا واحدًا على الأقل للسلة.')
@@ -22,12 +37,12 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
     for line in raw_lines:
         try:
             item_id = int(line['item_id'])
-            quantity = int(line['quantity'])
+            quantity = order_quantity(line['quantity'])
             selected = line.get('options', [])
             size_id = line.get('size_id')
         except (KeyError, ValueError, TypeError, AttributeError):
             raise ValidationError('توجد بيانات غير صالحة في السلة.')
-        if not 1 <= quantity <= 30 or not isinstance(selected, list):
+        if not isinstance(selected, list):
             raise ValidationError('كمية أو خيارات غير صالحة.')
         item = MenuItem.objects.select_related('category').prefetch_related('sizes', 'modifier_groups__options').filter(pk=item_id, category__branch=table.branch, category__visible=True, available=True).first()
         if not item:
@@ -72,8 +87,10 @@ def create_order(table, payload, user=None, require_session=False):
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
         raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
     subscription = getattr(table.branch.restaurant, 'subscription', None)
-    if subscription and not subscription.valid():
+    if not subscription or not subscription.valid():
         raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
+    if not isinstance(payload, dict):
+        raise ValidationError('توجد بيانات غير صالحة في السلة.')
     try:
         key = uuid.UUID(str(payload['idempotency_key']))
     except (KeyError, ValueError, TypeError):
@@ -99,7 +116,7 @@ def create_order(table, payload, user=None, require_session=False):
                     not locked_table.branch.accepting_orders or not locked_table.branch.restaurant.active):
                 raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
             current_subscription = getattr(locked_table.branch.restaurant, 'subscription', None)
-            if current_subscription and not current_subscription.valid():
+            if not current_subscription or not current_subscription.valid():
                 raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
             prior = Order.objects.filter(table=locked_table, idempotency_key=key).first()
             if prior:
@@ -162,12 +179,8 @@ def edit_order(order, actor, payload):
         if prior.request_hash != digest:
             raise ValidationError('مفتاح التعديل مستخدم لتغيير مختلف.')
         return order
-    if (order.status not in ('new', 'accepted') or order.payment_status != 'unpaid'
-            or order.history.filter(new_status='preparing').exists()):
+    if not order_edit_allowed(order, order.history.filter(new_status='preparing').exists()):
         raise ValidationError('يمكن تعديل طلب جديد أو مستلم وغير مدفوع فقط. أنشئ طلبًا إضافيًا عند بدء التحضير.')
-    subscription = getattr(order.branch.restaurant, 'subscription', None)
-    if not order.branch.active or not order.branch.restaurant.active or not subscription or not subscription.valid():
-        raise ValidationError('التعديل متوقف لهذا المطعم حاليًا.')
     if isinstance(payload.get('expected_version'), bool) or str(payload.get('expected_version')) != str(order.version):
         raise ValidationError('تغير الطلب منذ فتح الصفحة. حدّث الصفحة وراجع التعديل مجددًا.')
     current = {line.pk: line for line in order.lines.all()}
@@ -176,10 +189,10 @@ def edit_order(order, actor, payload):
         if not isinstance(row, dict) or isinstance(row.get('id'), bool) or isinstance(row.get('quantity'), bool):
             raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
         try:
-            line_id, quantity = int(row['id']), int(row['quantity'])
+            line_id, quantity = int(row['id']), order_quantity(row['quantity'])
         except (KeyError, ValueError, TypeError):
             raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
-        if line_id not in current or line_id in chosen or not 1 <= quantity <= 30:
+        if line_id not in current or line_id in chosen:
             raise ValidationError('عنصر غير صالح أو كمية غير مسموحة.')
         chosen[line_id] = quantity
     if not chosen and not added:
@@ -212,9 +225,11 @@ def edit_order(order, actor, payload):
     return order
 
 @transaction.atomic
-def advance_order(order, actor, status, reason=''):
+def advance_order(order, actor, status, reason='', *, english=False):
     order = Order.objects.select_for_update().get(pk=order.pk)
     if status == 'cancelled':
+        if order.payment_status == 'paid':
+            raise ValidationError('A collected order cannot be cancelled.' if english else 'يتعذر إلغاء طلب بعد تسجيل تحصيله.')
         if order.status in ('served', 'cancelled') or not reason.strip():
             raise ValidationError('الإلغاء يتطلب سببًا وطلبًا لم يُقدّم بعد.')
     elif ORDER_NEXT.get(order.status) != status:
@@ -302,7 +317,7 @@ def create_service_call(table, kind, session_token=None):
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
         raise ValidationError('الطاولة لا تستقبل استدعاءات حاليًا.')
     subscription = getattr(table.branch.restaurant, 'subscription', None)
-    if subscription and not subscription.valid():
+    if not subscription or not subscription.valid():
         raise ValidationError('الخدمة متوقفة مؤقتًا. يرجى التواصل مع المطعم.')
     if ServiceCall.objects.filter(table=table, kind=kind, status__in=['open', 'acknowledged', 'in_progress']).exists():
         raise ValidationError('طلبك السابق ما زال قيد التنفيذ.')

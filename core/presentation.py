@@ -1,6 +1,7 @@
 """Public navigation and language preferences shared with the restaurant workspace."""
 
 from django.conf import settings
+from django.http import HttpResponseRedirect
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import translation
@@ -28,7 +29,16 @@ def language_middleware(get_response):
         )
         request.LANGUAGE_CODE = language
         with translation.override(language):
-            response = get_response(request)
+            if (request.method in ('GET', 'HEAD') and 'lang' in request.GET
+                    and request.path.startswith(reverse('admin:index'))):
+                query = request.GET.copy()
+                del query['lang']
+                target = request.path
+                if query:
+                    target += '?' + query.urlencode()
+                response = HttpResponseRedirect(target)
+            else:
+                response = get_response(request)
         response.headers.setdefault("Content-Language", language)
         patch_vary_headers(response, ("Cookie",))
         if explicit == language and saved != language:

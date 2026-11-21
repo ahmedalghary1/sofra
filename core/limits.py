@@ -10,8 +10,8 @@ from .models import MenuItem, Subscription
 
 
 def check_creation_limit(restaurant, resource, branch=None):
-    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').get(restaurant=restaurant)
-    if not subscription.valid():
+    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').filter(restaurant=restaurant).first()
+    if not subscription or not subscription.valid():
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. لا يمكن إضافة موارد جديدة.')
     if resource == 'branch':
         count = restaurant.branches.count()
@@ -40,8 +40,8 @@ def check_creation_limit(restaurant, resource, branch=None):
     return subscription
 
 def check_activation_limit(restaurant, resource, branch=None):
-    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').get(restaurant=restaurant)
-    if not subscription.valid():
+    subscription = Subscription.objects.select_for_update(of=('self',)).select_related('plan').filter(restaurant=restaurant).first()
+    if not subscription or not subscription.valid():
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. لا يمكن تفعيل موارد جديدة.')
     if resource == 'branch':
         count, limit, label = restaurant.branches.filter(active=True).count(), subscription.plan.max_branches, 'الفروع'
