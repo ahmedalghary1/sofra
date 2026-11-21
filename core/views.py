@@ -192,8 +192,11 @@ def resend_owner_verification(request):
 
 def login_username(identifier):
     username = User.normalize_username(identifier.strip())
-    if '@' not in username or User.objects.filter(username=username).exists():
+    if not username or User.objects.filter(username=username).exists():
         return username
+    if '@' not in username:
+        matches = list(User.objects.filter(username__iexact=username).values_list('username', flat=True)[:2])
+        return matches[0] if len(matches) == 1 else username
     normalized = username.lower()
     if username != normalized and User.objects.filter(username=normalized).exists():
         return normalized
@@ -203,14 +206,18 @@ def login_username(identifier):
 
 @never_cache
 def login_view(request):
+    if request.method == 'GET' and request.user.is_authenticated and request.user.is_superuser:
+        return redirect('platform_dashboard')
     login_next = request.POST.get('next') or request.GET.get('next', '')
+    identifier = request.POST.get('username') or request.POST.get('email', '')
+    context = {'mode': 'login', 'login_next': login_next, 'login_identifier': identifier}
     if request.method == 'POST':
-        username = login_username(request.POST.get('email', ''))
+        username = login_username(identifier)
         key = hashlib.sha256(f"{request.META.get('REMOTE_ADDR','')}:{username.lower()}".encode()).hexdigest()
         attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(minutes=15))
         if attempts.count() >= 8:
             messages.error(request, 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.')
-            return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next}, status=429)
+            return render(request, 'auth.html', context, status=429)
         user = authenticate(request, username=username, password=request.POST.get('password', ''))
         target = request.POST.get('next', '')
         safe_target = target and url_has_allowed_host_and_scheme(
@@ -233,9 +240,13 @@ def login_view(request):
             if safe_target:
                 return redirect(target)
             return redirect('home')
-        LoginAttempt.objects.create(key=key)
-        messages.error(request, 'Invalid sign-in details.' if request.LANGUAGE_CODE == 'en' else 'بيانات تسجيل الدخول غير صحيحة.')
-    return render(request, 'auth.html', {'mode': 'login', 'login_next': login_next})
+        if user:
+            messages.error(request, 'Your account has no active workspace. Contact your platform administrator.'
+                           if request.LANGUAGE_CODE == 'en' else 'لا توجد مساحة عمل مفعّلة لحسابك. تواصل مع مسؤول المنصة.')
+        else:
+            LoginAttempt.objects.create(key=key)
+            messages.error(request, 'Check your credentials. If your email is shared, use your username.' if request.LANGUAGE_CODE == 'en' else 'تحقق من بيانات الدخول. إذا كان بريدك مشتركًا، أدخل اسم المستخدم الخاص بحسابك.')
+    return render(request, 'auth.html', context)
 
 class LimitedPasswordResetView(PasswordResetView):
     def form_valid(self, form):

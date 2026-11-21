@@ -28,7 +28,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-افتح `http://127.0.0.1:8000/` لإنشاء حساب مطعم. لإنشاء أول مسؤول منصة، شغّل `python manage.py createsuperuser` وأدخل بريدًا لتسجيل الدخول. افتح `/login/` ثم `/platform/` لإدارة المطاعم والفروع والباقات والحسابات ومتابعة الطلبات والتحصيل والسجل من واجهة المنصة.
+افتح `http://127.0.0.1:8000/` لإنشاء حساب مطعم. لإنشاء أول مسؤول منصة، شغّل `python manage.py createsuperuser`. سجّل الدخول من `/login/` باسم المستخدم نفسه أو ببريده المميز وكلمة مروره. يفتح الموقع `/platform/` مباشرة لإدارة المطاعم والفروع والباقات والحسابات ومتابعة الطلبات والتحصيل والسجل.
 
 للتطوير عبر PostgreSQL: `docker compose up --build` ثم `docker compose exec web python manage.py migrate`. إعدادات التطوير داخل Compose فقط.
 

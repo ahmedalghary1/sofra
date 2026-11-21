@@ -1,6 +1,14 @@
 (() => {
   const english = document.documentElement.lang.startsWith('en');
   const controlIcons = document.getElementById('control-icons').content;
+  function useCurrentCsrfCookie(form) {
+    const token = document.cookie.match(/(?:^|;\s*)csrftoken=([A-Za-z0-9]{32})(?:;|$)/);
+    if (!token) return false;
+    form.elements.csrfmiddlewaretoken.value = token[1];
+    return true;
+  }
+  const accountForm = document.querySelector('[data-account-form]');
+  accountForm?.addEventListener('submit', () => useCurrentCsrfCookie(accountForm));
   const loginForm = document.querySelector('[data-login-form]');
   if (loginForm) {
     const error = document.querySelector('[data-login-error]');
@@ -8,6 +16,8 @@
     separateWindow.hidden = window.self === window.top;
     let refreshing = false;
     loginForm.addEventListener('submit', async event => {
+      if (!refreshing && useCurrentCsrfCookie(loginForm)) return;
+      if (!window.fetch || !window.AbortSignal?.timeout) return;
       event.preventDefault();
       if (refreshing) return;
       refreshing = true;

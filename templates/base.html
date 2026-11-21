@@ -16,11 +16,11 @@
   <link rel="stylesheet" href="{% static 'css/style.css' %}?v=type-scale">
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{% static 'css/operations.css' %}">
-  <script src="{% static 'js/operations.js' %}" defer></script>
+  <script src="{% static 'js/operations.js' %}?v=login-submit-2" defer></script>
 </head>
 <body class="{% block bodyclass %}{% endblock %}">
   <template id="control-icons">{% symbol 'x' %}{% symbol 'eye' %}{% symbol 'eye-off' %}{% symbol 'plus' %}{% symbol 'minus' %}</template>
-  {% if messages %}<div class="toast-stack" role="status">{% for message in messages %}<div class="toast {{ message.tags }}">{% translate message.message %}</div>{% endfor %}</div>{% endif %}
+  {% block notices %}{% include '_notices.html' %}{% endblock %}
   {% block body %}{% endblock %}
 </body>
 </html>

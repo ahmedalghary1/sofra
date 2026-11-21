@@ -73,12 +73,12 @@ def request_status(request, pk):
 
 class AccountForm(forms.Form):
     name = forms.CharField(max_length=150, required=False)
-    email = forms.EmailField(max_length=150)
+    email = forms.EmailField(max_length=254)
     password = forms.CharField(strip=False, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
     access = forms.ChoiceField(choices=[('member', 'عضو مطعم'), ('operator', 'مسؤول المنصة')])
     active = forms.BooleanField(required=False, initial=True)
     branch = forms.ModelChoiceField(queryset=Branch.objects.none(), required=False)
-    role = forms.ChoiceField(choices=StaffInvitation.ROLES, initial='waiter')
+    role = forms.ChoiceField(choices=StaffInvitation.ROLES, initial='waiter', required=False)
     reason = forms.CharField(max_length=120)
 
     def __init__(self, *args, user, actor, english, **kwargs):
@@ -91,6 +91,11 @@ class AccountForm(forms.Form):
         for field, label in zip(self.fields.values(), labels):
             field.label = label[english]
         self.fields['password'].required = not user.pk
+        # Legacy Django accounts can sign in by username and may have no email.
+        self.fields['email'].required = not user.pk or bool(user.email)
+        if not user.pk or user.username.casefold() == user.email.casefold():
+            self.fields['email'].max_length = 150
+            self.fields['email'].widget.attrs['maxlength'] = 150
         self.fields['branch'].queryset = Branch.objects.filter(active=True, restaurant__active=True).select_related('restaurant').order_by('restaurant__name', 'name')
         if english:
             self.fields['access'].choices = [('member', 'Restaurant member'), ('operator', 'Platform administrator')]
@@ -103,13 +108,19 @@ class AccountForm(forms.Form):
 
     def clean(self):
         data = super().clean()
-        email = data.get('email', '').lower()
+        email = data.get('email', '')
+        if self.user.pk and email.casefold() == self.user.email.casefold():
+            email = self.user.email
+        else:
+            email = email.lower()
         data['email'] = email
         existing = User.objects.exclude(pk=self.user.pk)
-        if email and existing.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
+        if len(email) > self.fields['email'].max_length:
+            self.add_error('email', 'Use at most 150 characters.' if self.english else 'الحد الأقصى 150 حرفًا لبريد يُستخدم كاسم للدخول.')
+        elif email and email != self.user.email and existing.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
             self.add_error('email', 'Email already used.' if self.english else 'هذا البريد مستخدم بالفعل.')
         if self.user.pk and OwnerEmailVerification.objects.filter(user=self.user, verified_at__isnull=True).exists():
-            if data.get('active') or email != self.user.email.lower():
+            if data.get('active') or email != self.user.email:
                 self.add_error(None, 'Email verification is pending.' if self.english else 'هذا الحساب بانتظار تأكيد البريد.')
         if data.get('password'):
             try:
@@ -117,6 +128,8 @@ class AccountForm(forms.Form):
             except ValidationError as exc:
                 self.add_error('password', exc)
         branch = data.get('branch')
+        if branch and not data.get('role'):
+            self.add_error('role', 'Select a role for the new membership.' if self.english else 'اختر دور العضوية الجديدة.')
         if data.get('access') == 'member' and not self.user.pk and not branch:
             self.add_error('branch', 'Select a branch.' if self.english else 'اختر فرعًا للعضوية.')
         if branch and (data.get('access') == 'operator' or Membership.objects.filter(user_id=self.user.pk, restaurant=branch.restaurant).exists()):
@@ -150,7 +163,7 @@ def account(request, pk=None):
                         if not hasattr(branch.restaurant, 'subscription'):
                             raise ValidationError('Subscription required.' if english else 'يجب ضبط اشتراك المطعم.')
                         check_creation_limit(branch.restaurant, 'staff')
-                    if not pk or user.username.casefold() == user.email.casefold():
+                    if not pk or (data['email'] != user.email and user.username.casefold() == user.email.casefold()):
                         user.username = data['email']
                     user.email, user.first_name, user.is_active = data['email'], data['name'], data['active']
                     if user.is_superuser and data['access'] == 'member':

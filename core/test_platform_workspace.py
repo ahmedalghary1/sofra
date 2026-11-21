@@ -53,3 +53,27 @@ class PlatformWorkspaceTests(TestCase):
         self.assertContains(self.client.get(reverse('platform_requests'), {'filter':'contacted'}), 'lead@example.com')
         self.assertContains(self.client.get(reverse('platform_activity'), {'filter':'global'}), 'new → contacted')
         self.assertEqual(LogEntry.objects.filter(user=self.operator).count(), 1)
+
+    def test_edit_legacy_account_without_claiming_another_login(self):
+        self.operator.email = 'Shared@example.com'
+        self.operator.save(update_fields=['email'])
+        other = User.objects.create_user('shared@example.com', 'shared@example.com')
+        url = reverse('platform_account_edit', args=[self.operator.pk])
+        payload = {'email': self.operator.email, 'name': 'Site operator', 'reason': 'Profile'}
+        self.assertRedirects(self.client.post(url, payload), reverse('platform_accounts'))
+        self.operator.refresh_from_db()
+        self.assertEqual((self.operator.username, self.operator.email), ('operator', 'Shared@example.com'))
+        other.email = 'different@example.com'
+        other.save(update_fields=['email'])
+        response = self.client.post(url, payload | {'email': other.email})
+        self.assertIn('email', response.context['form'].errors)
+        self.operator.refresh_from_db()
+        self.assertEqual(self.operator.email, 'Shared@example.com')
+
+    def test_username_only_operator_can_update_without_email(self):
+        self.operator.email = ''
+        self.operator.save(update_fields=['email'])
+        url = reverse('platform_account_edit', args=[self.operator.pk])
+        self.assertRedirects(self.client.post(url, {'name': 'Updated', 'reason': 'Profile'}), reverse('platform_accounts'))
+        self.operator.refresh_from_db()
+        self.assertEqual((self.operator.first_name, self.operator.username), ('Updated', 'operator'))

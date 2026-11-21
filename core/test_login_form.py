@@ -5,6 +5,12 @@ from django.urls import reverse
 
 
 class LoginFormTests(TestCase):
+    def test_username_field_accepts_unique_case_variant_and_existing_operator_session(self):
+        operator = User.objects.create_superuser('SiteAdmin', password='Altitude!73840')
+        response = self.client.post(reverse('login'), {'username': 'siteadmin', 'password': 'Altitude!73840'})
+        self.assertRedirects(response, reverse('platform_dashboard'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), operator.pk)
+        self.assertRedirects(self.client.get(reverse('login')), reverse('platform_dashboard'))
     def test_django_admin_credentials_open_platform_directly_even_without_email(self):
         user = User.objects.create_superuser('SiteAdmin', '', 'Altitude!73840')
         credentials = {'username': user.username, 'password': 'Altitude!73840', 'next': reverse('admin:index')}
