@@ -1,9 +1,4 @@
-{% extends 'base.html' %}{% load i18n showroom %}
-{% block title %}{% translate 'إضافة مطعم' %}{% endblock %}{% block bodyclass %}app-body{% endblock %}
-{% block body %}
-<div class="platform-shell">
-  {% include '_platform_header.html' %}
-  <main class="platform-main platform-form-page">
+{% extends 'platform_base.html' %}{% load i18n showroom %}{% block mainclass %}platform-form-page{% endblock %}{% block workspace %}
     <div class="page-head">
       <div><span class="eyebrow">{% translate 'لوحة المشغل' %}</span><h1>{% translate 'إضافة مطعم' %}</h1><p>{% bi 'أنشئ المطعم وفرعه الأول واربطه بحساب المالك.' 'Create the restaurant and its first branch and assign its owner.' %}</p></div>
       <a class="btn btn-outline" href="{% url 'platform_dashboard' %}">{% translate 'العودة للمطاعم' %}</a>
@@ -43,6 +38,4 @@
       </section>
       <div class="platform-form-actions"><a href="{% url 'platform_dashboard' %}" class="btn btn-outline">{% translate 'إلغاء' %}</a><button class="btn btn-primary" type="submit">{% bi 'إنشاء المطعم والفرع' 'Create restaurant and branch' %} {% symbol 'arrow-right' %}</button></div>
     </form>
-  </main>
-</div>
-{% endblock %}
+  {% endblock %}

@@ -1,0 +1,14 @@
+{% load showroom %}<nav class="desk-nav" aria-label="{% bi 'أقسام المنصة' 'Platform sections' %}">
+<span class="desk-nav-label">{% bi 'التشغيل' 'Operations' %}</span>
+<a href="{% url 'platform_dashboard' %}?status=all" {% if section == 'all' %}aria-current="page"{% endif %}>{% symbol 'store' %} {% bi 'دليل المطاعم' 'Restaurant directory' %}</a>
+<a href="{% url 'platform_dashboard' %}?status=pending" {% if section == 'pending' %}aria-current="page"{% endif %}>{% symbol 'inbox' %} {% bi 'طلبات الانضمام' 'Onboarding' %}</a>
+<a href="{% url 'platform_dashboard' %}?status=active" {% if section == 'active' %}aria-current="page"{% endif %}>{% symbol 'circle-check' %} {% bi 'المطاعم النشطة' 'Active restaurants' %}</a>
+<a href="{% url 'platform_dashboard' %}?status=plans" {% if section == 'plans' %}aria-current="page"{% endif %}>{% symbol 'layers' %} {% bi 'الباقات والاشتراكات' 'Plans & subscriptions' %}</a>
+<a href="{% url 'platform_receipts' %}" {% if section == 'receipts' %}aria-current="page"{% endif %}>{% symbol 'receipt-text' %} {% bi 'سجل التحصيل' 'Payment ledger' %}</a>
+<span class="desk-nav-label">{% bi 'إدارة الوصول' 'Access management' %}</span>
+<a href="{% url 'platform_dashboard' %}?status=people" {% if section == 'people' %}aria-current="page"{% endif %}>{% symbol 'users' %} {% bi 'الفرق والصلاحيات' 'Teams & roles' %}</a>
+<a href="{% url 'platform_accounts' %}" {% if section == 'accounts' %}aria-current="page"{% endif %}>{% symbol 'key-round' %} {% bi 'حسابات الدخول' 'Login accounts' %}</a>
+<span class="desk-nav-label">{% bi 'المتابعة' 'Monitoring' %}</span>
+<a href="{% url 'platform_requests' %}" {% if section == 'requests' %}aria-current="page"{% endif %}>{% symbol 'messages-square' %} {% bi 'طلبات العروض' 'Demo enquiries' %}</a>
+<a href="{% url 'platform_activity' %}" {% if section == 'activity' %}aria-current="page"{% endif %}>{% symbol 'clipboard-list' %} {% bi 'سجل الإجراءات' 'Activity log' %}</a>
+</nav>

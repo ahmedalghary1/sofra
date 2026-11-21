@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import views
+from core import platform_console, views
 
 handler500 = 'core.marketing.server_error'
 
@@ -29,6 +29,13 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('health/', views.health, name='health'),
     path('platform/', views.platform_dashboard, name='platform_dashboard'),
+    path('platform/accounts/', platform_console.records, {'section': 'accounts'}, name='platform_accounts'),
+    path('platform/accounts/new/', platform_console.account, name='platform_account_create'),
+    path('platform/accounts/<int:pk>/', platform_console.account, name='platform_account_edit'),
+    path('platform/requests/', platform_console.records, {'section': 'requests'}, name='platform_requests'),
+    path('platform/requests/<int:pk>/', platform_console.request_status, name='platform_request_status'),
+    path('platform/receipts/', platform_console.records, {'section': 'receipts'}, name='platform_receipts'),
+    path('platform/activity/', platform_console.records, {'section': 'activity'}, name='platform_activity'),
     path('platform/plans/new/', views.platform_plan_form, name='platform_plan_create'),
     path('platform/plans/<int:plan_id>/', views.platform_plan_form, name='platform_plan_edit'),
     path('platform/<int:restaurant_id>/members/<int:member_id>/', views.platform_member_update, name='platform_member_update'),

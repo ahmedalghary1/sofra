@@ -1,8 +1,4 @@
-{% extends 'base.html' %}{% load showroom i18n %}
-{% block title %}{% bi 'إدارة الباقات' 'Manage plans' %}{% endblock %}{% block bodyclass %}app-body{% endblock %}
-{% block body %}
-<div class="platform-shell">{% include '_platform_header.html' %}
-  <main class="platform-main platform-form-page">
+{% extends 'platform_base.html' %}{% load i18n showroom %}{% block mainclass %}platform-form-page{% endblock %}{% block workspace %}
     <div class="page-head"><div><span class="eyebrow">{% bi 'باقات الاشتراك' 'Subscription plans' %}</span>
       <h1>{% if plan %}{{ plan.name }}{% else %}{% bi 'إضافة باقة' 'Add plan' %}{% endif %}</h1>
       {% if plan %}<p>{% bi 'تسري الحدود الجديدة على جميع المطاعم المشتركة في هذه الباقة.' 'Updated limits apply to every restaurant on this plan.' %}</p>{% endif %}</div>
@@ -12,5 +8,4 @@
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</section>
       <div class="platform-form-actions"><button class="btn btn-primary">{% bi 'حفظ الباقة' 'Save plan' %}</button></div>
     </form>
-  </main>
-</div>{% endblock %}
+  {% endblock %}

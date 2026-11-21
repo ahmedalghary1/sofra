@@ -67,6 +67,17 @@ class SubscriptionActivationUITests(StaticLiveServerTestCase):
                 admin.add_cookies([{'name': settings.SESSION_COOKIE_NAME, 'url': self.live_server_url,
                                    'value': operator_client.cookies[settings.SESSION_COOKIE_NAME].value}])
                 operator_page = admin.new_page()
+                for name, args in [('platform_accounts', []), ('platform_account_create', []),
+                                   ('platform_account_edit', [operator.pk]), ('platform_requests', []),
+                                   ('platform_activity', []), ('platform_receipts', [])]:
+                    response = operator_page.goto(self.live_server_url + reverse(name, args=args) + '?lang=' + language)
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(operator_page.locator('a[href*="/django-admin/"]').count(), 0)
+                    self.check_layout(operator_page, language, shots / f'{name}-{width}-{language}.png')
+                if width == 360:
+                    operator_page.locator('.desk-mobile-nav summary').click()
+                    operator_page.locator('.desk-mobile-nav a[href$="/accounts/"]').click()
+                    expect(operator_page).to_have_url(self.live_server_url + reverse('platform_accounts'))
                 operator_page.goto(self.live_server_url + reverse('platform_create_restaurant') + '?lang=' + language)
                 self.check_layout(operator_page, language, shots / f'create-{width}-{language}.png')
                 for section in ('all', 'active', 'people', 'plans'):

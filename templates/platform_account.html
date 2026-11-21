@@ -1,0 +1,5 @@
+{% extends 'platform_base.html' %}{% load showroom %}{% block workspace %}
+<div class="desk-heading"><div><span class="eyebrow">{% bi 'إدارة الوصول' 'Access management' %}</span><h1>{% if account.pk %}<bdi>{{ account.username }}</bdi>{% else %}{% bi 'إنشاء حساب' 'Create account' %}{% endif %}</h1></div><a class="btn btn-outline" href="{% url 'platform_accounts' %}">{% bi 'حسابات الدخول' 'Login accounts' %}</a></div>
+<form method="post" class="panel platform-create-form">{% csrf_token %}{{ form.non_field_errors }}
+<section class="platform-form-grid">{% for field in form %}<div class="platform-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</section>
+<div class="platform-form-actions"><button class="btn btn-primary">{% bi 'حفظ الحساب' 'Save account' %}</button></div></form>{% endblock %}

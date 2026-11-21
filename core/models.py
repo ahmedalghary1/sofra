@@ -9,6 +9,8 @@ def token(): return secrets.token_urlsafe(24)
 
 
 class DemoRequest(models.Model):
+    STATES = [('new', 'جديد'), ('contacted', 'تم التواصل'), ('closed', 'مغلق')]
+    status = models.CharField(max_length=12, choices=STATES, default='new')
     submission_key = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     venue = models.CharField(max_length=140)

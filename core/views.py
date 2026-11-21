@@ -39,6 +39,7 @@ from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
+from .models import DemoRequest
 from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
 from .plan_preview import preview_plan_usage
@@ -281,6 +282,11 @@ def platform_dashboard(request):
         records = members if section == 'people' else restaurants
         page = Paginator(records, 25).get_page(request.GET.get('page'))
     return render(request, 'platform.html', {'restaurants': page, 'plans': Plan.objects.order_by('price_monthly', 'name'), 'query': query,
+        'plan_usage': Restaurant.objects.filter(active).values('subscription__plan__name').annotate(
+            venues=Count('pk')).order_by('-venues', 'subscription__plan__name'),
+        'new_enquiries': DemoRequest.objects.filter(status='new').count() if section == 'all' else 0,
+        'expiring': Restaurant.objects.filter(active, subscription__ends_at__lte=now+timedelta(days=7)).select_related(
+            'subscription').order_by('subscription__ends_at', 'pk')[:4],
         'section': section, 'roles': StaffInvitation.ROLES, 'member_total': Membership.objects.count(),
         'activation_plans': public_tier_records().order_by('price_monthly', 'name'),
         'pending_only': pending_only, 'pending_total': Subscription.objects.filter(status='pending').count(),
@@ -345,7 +351,7 @@ def platform_plan_form(request, plan_id=None):
                     action_flag=CHANGE if plan_id else ADDITION, change_message=form.cleaned_data['reason'])
                 messages.success(request, 'Plan saved.' if english else 'تم حفظ الباقة.')
                 return redirect(reverse('platform_dashboard') + '?status=plans')
-    return render(request, 'platform_plan_form.html', {'form': form, 'plan': plan})
+    return render(request, 'platform_plan_form.html', {'form': form, 'plan': plan, 'section': 'plans'})
 
 
 @require_http_methods(['GET', 'POST'])
@@ -387,7 +393,7 @@ def platform_create_restaurant(request):
             form.add_error(None, 'تعذر إنشاء المطعم بسبب تعارض في البيانات. حدّث الصفحة ثم حاول مرة أخرى.')
         except ValidationError as exc:
             form.add_error(None, error_text(exc))
-    return render(request, 'platform_restaurant_form.html', {'form': form})
+    return render(request, 'platform_restaurant_form.html', {'form': form, 'section': 'all'})
 
 
 @require_POST

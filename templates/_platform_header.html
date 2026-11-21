@@ -1,8 +1,6 @@
-{% load i18n showroom %}<header class="platform-header">
-  <a class="brand" href="{% url 'platform_dashboard' %}">{% include '_brand_logo.html' only %}</a>
-  <div>{% include '_ops_language.html' %}
-    <a class="btn btn-outline btn-sm" href="{% url 'admin:core_demorequest_changelist' %}">{% symbol 'messages-square' %} {% if english %}Demo requests{% else %}طلبات العروض{% endif %}</a>
-    <a href="{% url 'admin:core_auditlog_changelist' %}" class="btn btn-outline btn-sm">{% symbol 'clipboard-list' %} {% bi 'سجل الإجراءات' 'Audit log' %}</a>
-    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-dark btn-sm">{% symbol 'log-out' %} {% translate 'تسجيل الخروج' %}</button></form>
-  </div>
-</header>
+{% load showroom i18n %}<aside class="desk-rail">
+<a class="desk-brand" href="{% url 'platform_dashboard' %}">{% include '_brand_logo.html' only %}</a>
+<div class="desk-desktop-nav">{% include '_platform_nav.html' %}</div>
+<details class="desk-mobile-nav"><summary>{% symbol 'menu' %} {% bi 'أقسام الإدارة' 'Administration menu' %}</summary>{% include '_platform_nav.html' %}</details>
+<div class="desk-identity">{% symbol 'shield-check' %}<span><bdi>{{ request.user.get_full_name|default:request.user.username }}</bdi><small>{% bi 'مسؤول المنصة' 'Platform administrator' %}</small></span></div>
+</aside><header class="desk-top"><span>{% symbol 'layout-dashboard' %} {% bi 'مساحة إدارة المنصة' 'Platform workspace' %}</span><div>{% include '_ops_language.html' %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-outline btn-sm">{% symbol 'log-out' %} {% translate 'تسجيل الخروج' %}</button></form></div></header>

@@ -1,12 +1,7 @@
-{% extends 'base.html' %}{% load i18n showroom static %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/platform.css' %}">{% endblock %}
-{% block title %}{% translate 'إدارة المنصة' %}{% endblock %}{% block bodyclass %}app-body{% endblock %}
-{% block body %}
-<div class="platform-shell">{% include '_platform_header.html' %}
-<main class="platform-main operator-console">
+{% extends 'platform_base.html' %}{% load i18n showroom %}{% block mainclass %}operator-console{% endblock %}{% block workspace %}
   <header class="console-hero">
     <div><span class="console-kicker">{% symbol 'store' %} {% bi 'إدارة المنصة' 'Platform administration' %}</span>
-    <h1>{% bi 'مركز إدارة المطاعم' 'Restaurant control center' %}</h1>
+    <h1>{% if section == 'people' %}{% bi 'إدارة الفرق والصلاحيات' 'Teams and permissions' %}{% elif section == 'plans' %}{% bi 'إدارة الباقات' 'Plan management' %}{% elif section == 'pending' %}{% bi 'طلبات الانضمام' 'Onboarding requests' %}{% elif section == 'active' %}{% bi 'المطاعم النشطة حاليًا' 'Active restaurants' %}{% else %}{% bi 'مركز إدارة المطاعم' 'Restaurant control center' %}{% endif %}</h1>
     <p>{% bi 'راجع طلبات الانضمام وأدر الاشتراكات وصلاحيات الفرق.' 'Review onboarding requests, manage subscriptions and control team access.' %}</p></div>
     <a class="btn btn-primary" href="{% url 'platform_create_restaurant' %}">{% symbol 'plus' %} {% bi 'إضافة مطعم' 'Add restaurant' %}</a>
   </header>
@@ -16,13 +11,7 @@
     <a href="?status=pending"><span>{% bi 'بانتظار التفعيل' 'Awaiting activation' %}</span><strong>{{ pending_total }}</strong></a>
     <a href="?status=people"><span>{% bi 'عضويات المطاعم' 'Restaurant memberships' %}</span><strong>{{ member_total }}</strong></a>
   </nav>
-  <nav class="console-tabs" aria-label="{% bi 'أقسام الإدارة' 'Administration sections' %}">
-    <a href="?status=all" {% if section == 'all' %}aria-current="page"{% endif %}>{% bi 'المطاعم' 'Restaurants' %}</a>
-    <a href="?status=pending" {% if pending_only %}aria-current="page"{% endif %}>{% bi 'طلبات الانضمام' 'Onboarding requests' %}</a>
-    <a href="?status=active" {% if section == 'active' %}aria-current="page"{% endif %}>{% bi 'النشطة حاليًا' 'Currently active' %}</a>
-    <a href="?status=people" {% if section == 'people' %}aria-current="page"{% endif %}>{% bi 'المستخدمون والصلاحيات' 'Users and roles' %}</a>
-    <a href="?status=plans" {% if section == 'plans' %}aria-current="page"{% endif %}>{% bi 'الباقات' 'Plans' %}</a>
-  </nav>
+  {% if section == 'all' %}{% include '_platform_priorities.html' %}{% endif %}
   {% if section != 'plans' %}<form method="get" class="platform-search"><input type="hidden" name="status" value="{{ section }}"><input name="q" type="search" value="{{ query }}" aria-label="{% translate 'بحث' %}" placeholder="{% if section == 'people' %}{% bi 'ابحث بالمستخدم أو البريد أو المطعم' 'Search by user, email or restaurant' %}{% else %}{% translate 'ابحث باسم المطعم أو المعرّف' %}{% endif %}"><button class="btn btn-dark">{% translate 'بحث' %}</button></form>{% endif %}
   {% if section == 'people' %}{% include '_platform_people.html' %}
   {% elif section == 'plans' %}{% include '_platform_plans.html' %}
@@ -66,5 +55,4 @@
 </article>{% empty %}<div class="panel empty-state"><span>{% symbol 'store' %}</span><h3>{% translate 'لا توجد مطاعم مطابقة' %}</h3><p>{% translate 'جرّب البحث باسم آخر أو أضف مطعمًا جديدًا.' %}</p></div>{% endfor %}</div>
 {% endif %}
 {% if restaurants.has_other_pages %}<nav class="pagination" aria-label="{% translate 'صفحات المطاعم' %}">{% if restaurants.has_previous %}<a href="?status={{ section }}&amp;q={{ query|urlencode }}&amp;page={{ restaurants.previous_page_number }}">{% translate 'السابق' %}</a>{% endif %}<span>{{ restaurants.number }} / {{ restaurants.paginator.num_pages }}</span>{% if restaurants.has_next %}<a href="?status={{ section }}&amp;q={{ query|urlencode }}&amp;page={{ restaurants.next_page_number }}">{% translate 'التالي' %}</a>{% endif %}</nav>{% endif %}
-</main></div>
 {% endblock %}

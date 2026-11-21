@@ -1,6 +1,6 @@
 {% load showroom i18n %}
 <div class="console-section"><h2>{% bi 'عضويات الفرق' 'Team memberships' %}</h2>
-  <a class="btn btn-outline btn-sm" href="{% url 'admin:auth_user_changelist' %}">{% bi 'إدارة حسابات الدخول' 'Manage login accounts' %}</a>
+  <a class="btn btn-outline btn-sm" href="{% url 'platform_accounts' %}">{% bi 'إدارة حسابات الدخول' 'Manage login accounts' %}</a>
 </div>
 <div class="platform-list">
 {% for member in restaurants %}
