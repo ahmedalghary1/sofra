@@ -14,10 +14,19 @@ def check_sandbox(page, language):
     def act(name):
         return lab.locator(f'[data-act="{name}"]')
 
-    def open_role(role):
-        tab = lab.locator(f'[aria-controls="sandbox-{role}"]')
-        tab.click()
+    def role_tab(role):
+        return lab.locator(f'[aria-controls="sandbox-{role}"]')
+
+    def expect_role(role, focused=False):
+        tab = role_tab(role)
         expect(tab).to_have_attribute('aria-selected', 'true')
+        expect(lab.locator(f'#sandbox-{role}')).to_be_visible()
+        if focused:
+            expect(tab).to_be_focused()
+
+    def open_role(role):
+        role_tab(role).click()
+        expect_role(role)
 
     notice = lab.locator('[data-notice]')
     open_role('guest')
@@ -26,15 +35,20 @@ def check_sandbox(page, language):
     open_role('menu')
     lab.locator('[data-milk]').select_option('oat')
     act('add').click()
+    expect_role('guest', focused=True)
+    lab.locator('[data-go="sandbox-menu"]').click()
+    expect_role('menu', focused=True)
     lab.locator('[data-milk]').select_option('regular')
     act('add').click()
-    open_role('guest')
+    expect_role('guest', focused=True)
     expect(lab.locator('[data-lines] li')).to_have_count(2)
     expect(lab.locator('[data-total]').first).to_contain_text('175')
     act('remove').click()
     expect(lab.locator('[data-total]').first).to_contain_text('95')
     act('submit').click()
+    expect_role('kitchen', focused=True)
     expect(act('submit')).to_be_disabled()
+    open_role('guest')
     act('call').click()
     act('bill').click()
     expect(act('bill')).to_be_disabled()
@@ -44,11 +58,11 @@ def check_sandbox(page, language):
     for action in ('accept', 'prepare', 'ready'):
         act(action).click()
         expect(act(action)).to_be_disabled()
-    open_role('waiter')
+    expect_role('waiter', focused=True)
     for action in ('ackCall', 'ackBill', 'serve'):
         act(action).click()
         expect(act(action)).to_be_disabled()
-    open_role('owner')
+    expect_role('owner', focused=True)
     expect(lab.locator('[data-confirmed]')).to_have_text('1')
     expect(lab.locator('[data-confirmed-total]')).to_contain_text('95')
     expect(lab.locator('[data-events]')).to_contain_text('Served' if language == 'en' else 'تم التقديم')
@@ -60,6 +74,17 @@ def check_sandbox(page, language):
 
 
 def check_home(page, language):
+    expect(page.locator('.mk-hero h1')).to_have_text('Table ordering' if language == 'en' else 'طلبات الطاولات')
+    expect(page.locator('.mk-demo-button')).to_have_attribute('href', '/demo/menu/?lang=en' if language == 'en' else '/demo/menu/')
+    expect(page.locator('.mk-journey li')).to_have_count(4)
+    questions = page.locator('.mk-home-faq summary')
+    expect(questions).to_have_count(5)
+    questions.nth(0).press('Enter')
+    expect(page.locator('.mk-home-faq details').nth(0)).to_have_attribute('open', '')
+    questions.nth(1).click()
+    expect(page.locator('.mk-home-faq details[open]')).to_have_count(1)
+    expect(page.locator('.mk-home-faq details').nth(1)).to_have_attribute('open', '')
+
     tabs = page.locator('#workspace-tour [role=tab]')
     expect(tabs).to_have_count(8)
     for tab in tabs.all():
@@ -71,10 +96,14 @@ def check_home(page, language):
     expect(tabs.nth(1)).to_be_focused()
 
     offer = page.locator('[data-upsell]')
+    suggestion = offer.locator('[data-offer-suggestion]')
     for choice, total in [('yes', '150'), ('no', '80')]:
+        expect(suggestion).to_be_hidden()
         offer.locator('[data-offer=coffee]').click()
+        expect(suggestion).to_be_visible()
         expect(offer.locator('[data-offer-total]')).to_contain_text('80')
         offer.locator(f'[data-offer={choice}]').click()
+        expect(suggestion).to_be_hidden()
         expect(offer.locator('[data-offer-total]')).to_contain_text(total)
         offer.locator('[data-offer=reset]').click()
         expect(offer.locator('[data-offer-total]')).to_contain_text('0')
@@ -120,6 +149,8 @@ def run(origin):
                 response = page.goto(origin + path + '?lang=' + language)
                 assert response and response.ok, f'{path} failed to load'
                 test(page, language)
+                if path == '/':
+                    check_sandbox(page, language)
                 for width in (360, 390, 768, 1024, 1440, 1920):
                     page.set_viewport_size({'width': width, 'height': 960})
                     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), (path, width)

@@ -1,1 +1,14 @@
-{% load showroom %}<ol class="mk-flow">{% for icon,title,copy in flow %}<li><span class="mk-flow-icon">{% symbol icon %}</span><h3>{{ title }}</h3><p>{{ copy }}</p></li>{% endfor %}</ol>
+{% load showroom %}
+<ol class="{% if compact %}mk-journey{% else %}mk-flow{% endif %}" role="list">
+  {% for icon,title,copy in flow %}
+  <li>
+    <span class="mk-flow-icon">{% symbol icon %}</span>
+    {% if compact %}
+      <span class="mk-journey-label">{{ title }}</span>
+      {% if not forloop.last %}<span class="mk-journey-arrow">{% symbol 'arrow-right' %}</span>{% endif %}
+    {% else %}
+      <h3>{{ title }}</h3><p>{{ copy }}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>

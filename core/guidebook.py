@@ -172,10 +172,10 @@ FAQ = [
         "Guests can open the menu without an app or an account. They scan the table code and open the menu in their browser.",
     ),
     (
-        "إيه اللي يحصل لو الإنترنت فصل؟",
-        "What happens if the connection drops?",
-        "الطلب يحتاج تأكيد الخادم. أعد المحاولة من نفس السلة والجلسة عند رجوع الاتصال، أو اطلب المساعدة من الفريق.",
-        "An order needs server confirmation. Retry the same basket in the same session once online, or ask the team for help.",
+        "إزاي أعمل منيو QR لكافيه؟",
+        "How do I set up a QR menu for my café?",
+        "أنشئ حساب المالك وأكّد بريدك ورتّب تفعيل الاشتراك. بعدها أضف الأصناف والطاولات، ونزّل كود كل طاولة واختبره قبل الطباعة.",
+        "Create an owner account, verify your email and arrange activation. Then add your menu and tables. Download and test each table code before printing.",
     ),
     (
         "هل أقدر أستخدم الكاشير الحالي؟",
@@ -184,16 +184,22 @@ FAQ = [
         "Your team can run table service alongside its current till. An external POS connector is not currently available.",
     ),
     (
+        "هل فيه دفع إلكتروني؟",
+        "Can guests pay online?",
+        "الدفع الإلكتروني غير متاح حاليًا. يستطيع الموظف المخوّل تسجيل تحصيل المبلغ يدويًا في Serveza.",
+        "Online payment is currently unavailable. Authorized staff can record manual collections in Serveza.",
+    ),
+    (
         "إزاي أختار باقة؟",
         "How do I choose a plan?",
         "تعرض صفحة الباقات السعر الشهري وحدود الفروع والطاولات والأصناف وإجمالي حسابات الفريق، شاملة المالك.",
         "The pricing page lists each monthly price and the limits for branches, tables, items and total team accounts, including the owner.",
     ),
     (
-        "إزاي أعمل منيو QR لكافيه؟",
-        "How do I set up a QR menu for my café?",
-        "ابدأ بإضافة الأصناف والأسعار والطاولات في لوحة الفرع. أنشئ حساب المالك وأكّد البريد ورتّب تفعيل الاشتراك أولًا، ثم نزّل رمز كل طاولة واختبره من هاتف قبل الطباعة.",
-        "Add menu items, prices and tables in the branch workspace. First create an owner account, verify your email and arrange subscription activation. Download each table code and test it on a phone before printing.",
+        "إيه اللي يحصل لو الإنترنت فصل؟",
+        "What happens if the connection drops?",
+        "الطلب يحتاج تأكيد الخادم. أعد المحاولة من نفس السلة والجلسة عند رجوع الاتصال، أو اطلب المساعدة من الفريق.",
+        "An order needs server confirmation. Retry the same basket in the same session once online, or ask the team for help.",
     ),
     (
         "هل يمكن تغيير لغة الواجهة؟",
@@ -212,12 +218,6 @@ FAQ = [
         "How are visits to one table kept separate?",
         "لكل طاولة جلسة. بعد إغلاقها يرفض النظام الطلبات المربوطة بالجلسة السابقة.",
         "Each table has a session. Once it closes, orders tied to the old session are rejected.",
-    ),
-    (
-        "هل فيه دفع إلكتروني؟",
-        "Can guests pay online?",
-        "الدفع الإلكتروني غير متاح حاليًا. يستطيع الموظف المخوّل تسجيل تحصيل المبلغ يدويًا في Serveza.",
-        "Online payment is currently unavailable. Authorized staff can record manual collections in Serveza.",
     ),
     (
         "إزاي أوصل لفريق Serveza؟",

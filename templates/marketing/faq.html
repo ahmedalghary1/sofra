@@ -1,1 +1,9 @@
-{% load showroom %}<div class="mk-faq-list">{% for question,answer in faq_rows %}<details><summary>{{ question }}{% symbol 'chevron' %}</summary><p>{{ answer }}</p></details>{% endfor %}</div>
+{% load showroom %}
+<div class="mk-faq-list">
+  {% for question,answer in faq_rows %}
+  <details{% if accordion %} name="home-faq"{% endif %}>
+    <summary>{{ question }}{% symbol 'chevron' %}</summary>
+    <p>{{ answer }}</p>
+  </details>
+  {% endfor %}
+</div>

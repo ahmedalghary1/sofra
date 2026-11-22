@@ -120,6 +120,10 @@
       accept: ['new', 'accepted'], prepare: ['accepted', 'preparing'],
       ready: ['preparing', 'ready'], serve: ['ready', 'served']
     };
+    const nextPanels = {
+      add: 'sandbox-guest', submit: 'sandbox-kitchen',
+      ready: 'sandbox-waiter', serve: 'sandbox-owner'
+    };
     lab.addEventListener('click', event => {
       const button = event.target.closest('button');
       if (!button || button.disabled) return;
@@ -165,7 +169,9 @@
       table.events.push(message);
       render();
       announce(message);
-      if (button.disabled) {
+      if (nextPanels[action]) {
+        tabs(nextPanels[action]);
+      } else if (button.disabled) {
         const next = button.closest('[data-panel]')?.querySelector('button:not(:disabled)');
         if (next) next.focus({ preventScroll: true });
       }
@@ -175,11 +181,20 @@
 
   document.querySelectorAll('[data-upsell]').forEach(root => {
     const buttons = Array.from(root.querySelectorAll('[data-offer]'));
+    const suggestion = root.querySelector('[data-offer-suggestion]');
+    const cartItem = root.querySelector('[data-offer-item]');
     root.addEventListener('click', event => {
       const action = event.target.closest('[data-offer]')?.dataset.offer;
       if (!action) return;
       const visible = { coffee: ['yes', 'no'], yes: ['reset'], no: ['reset'], reset: ['coffee'] }[action];
       buttons.forEach(button => { button.hidden = !visible.includes(button.dataset.offer); });
+      suggestion.hidden = action !== 'coffee';
+      cartItem.textContent = {
+        coffee: t('فلات وايت', 'Flat white'),
+        yes: t('فلات وايت + براوني', 'Flat white + brownie'),
+        no: t('فلات وايت', 'Flat white'),
+        reset: t('السلة فارغة', 'Cart is empty')
+      }[action];
       text(root, '[data-offer-total]', money({ coffee: 80, yes: 150, no: 80, reset: 0 }[action]));
       buttons.find(button => !button.hidden).focus({ preventScroll: true });
     });

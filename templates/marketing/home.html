@@ -1,18 +1,20 @@
 {% extends 'marketing/base.html' %}{% load static showroom %}{% block content %}
 <section class="mk-hero"><div class="mk-wrap mk-hero-grid"><div class="mk-hero-copy">
-<div class="mk-eyeline"><span></span>{% bi 'منصّة تشغيل المطاعم والكافيهات' 'Restaurant & café operations' %}</div>
-<h1>{% bi 'نظام طلبات الطاولات للمطاعم والكافيهات في مصر' 'Table ordering for cafés and restaurants in Egypt' %}</h1>
-<p>{{ product_description }} {% bi 'يفتح الضيف المنيو من متصفح الهاتف، ويصل الطلب للمطبخ برقم الطاولة. يتابع الفريق استدعاءات الويتر ويُسجّل التحصيل يدويًا. يقدر صاحب المكان يراجع سجل الطلبات ويحدّث المنيو وأسعاره من لوحة الفرع.' 'Guests open the menu in their browser, and the order reaches the kitchen with the table number. Floor staff follow waiter calls and record payments manually. Owners can review orders and update menu prices in the branch workspace.' %}</p>
-<div class="mk-actions"><a href="{% public_url 'register' %}" class="mk-btn mk-primary">{% bi 'أنشئ حساب مطعمك' 'Create your account' %} {% symbol 'arrow-right' %}</a><a href="{% public_url 'demo_menu' %}" class="mk-btn mk-secondary">{% symbol 'play' %}{% bi 'جرّب المنيو' 'Try the menu' %}</a></div>
-<a class="mk-textlink mk-pricing-shortcut" href="{% public_url 'pricing' %}">{% bi 'قارن الباقات والأسعار' 'Compare plans and pricing' %}</a>{% if monthly_price_text %}<small>{{ monthly_price_text }}</small>{% endif %}
+<div class="mk-eyeline"><span></span>{% bi 'للمطاعم والكافيهات' 'For restaurants & cafés' %}</div>
+<h1>{% bi 'طلبات الطاولات' 'Table ordering' %}</h1>
+<div class="mk-actions"><a href="{% public_url 'demo_menu' %}" class="mk-btn mk-primary mk-demo-button">{% symbol 'play' %}{% bi 'المنيو التجريبي' 'Try the demo menu' %}</a><a href="{% public_url 'register' %}" class="mk-btn mk-secondary">{% bi 'أنشئ حساب مطعمك' 'Create your account' %}</a></div>
+<div class="mk-hero-pricing"><a class="mk-textlink" href="{% public_url 'pricing' %}">{% bi 'قارن الباقات' 'Compare plans' %}</a>{% if monthly_price_text %}<small>{{ monthly_price_text }}</small>{% endif %}</div>
 </div>{% include 'marketing/hero_product.html' %}</div></section>
 <div class="mk-strip"><div class="mk-wrap"><span>{% symbol 'scan' %}{% bi 'كود لكل طاولة' 'A code for every table' %}</span><span>{% symbol 'cup' %}{% bi 'منيو بدون تطبيق' 'No guest app to install' %}</span><span>{% symbol 'ticket' %}{% bi 'تذاكر تحضير للمطبخ' 'Kitchen-ready tickets' %}</span><span>{% symbol 'layers' %}{% bi 'صلاحيات لكل فريق' 'Role-based access' %}</span></div></div>
-<section class="mk-section mk-wrap mk-home-preview"><div class="mk-story-head"><span class="mk-eyeline"><span></span>{% bi 'رحلة الطاولة' 'The table journey' %}</span><h2>{% bi 'من أول مسحة لآخر فنجان.' 'From the first scan to the last cup.' %}</h2><a class="mk-textlink" href="{% public_url 'how_it_works' %}">{% bi 'اكتشف خطوات التشغيل' 'See how service works' %}</a></div>{% include 'marketing/flow.html' %}</section>
+<section class="mk-section mk-wrap" aria-labelledby="home-journey-title">
+  <div class="mk-story-head"><h2 id="home-journey-title">{% bi 'رحلة الطاولة' 'The table journey' %}</h2><a class="mk-textlink" href="{% public_url 'how_it_works' %}">{% bi 'تفاصيل التشغيل' 'See how it works' %}</a></div>
+  {% include 'marketing/flow.html' with compact=True %}
+</section>
 <section class="mk-tint mk-home-preview"><div class="mk-wrap">{% include 'marketing/showcase.html' %}</div></section>
-<section class="mk-section mk-wrap mk-home-preview"><div class="mk-story-head"><span class="mk-eyeline"><span></span>{% bi 'أدوات الفريق' 'Team tools' %}</span><h2>{% bi 'كل دور له شاشة.' 'A workspace for every role.' %}</h2><a class="mk-textlink" href="{% public_url 'features' %}">{% bi 'استكشف كل المميزات' 'Explore all features' %}</a></div>
+<section class="mk-section mk-wrap mk-home-preview"><div class="mk-story-head"><h2>{% bi 'أدوات الفريق' 'Team tools' %}</h2><a class="mk-textlink" href="{% public_url 'features' %}">{% bi 'استكشف كل المميزات' 'Explore all features' %}</a></div>
 <div class="mk-bento"><a class="mk-photo-card" href="{% public_url 'feature_detail' 'digital-menu' %}"><picture><source media="(max-width:650px)" srcset="{% static 'marketing/cafe-small.webp' %}"><img fetchpriority="low" src="{% static 'marketing/cafe.webp' %}" srcset="{% static 'marketing/cafe-small.webp' %} 640w, {% static 'marketing/cafe.webp' %} 1200w" sizes="(min-width: 800px) 54vw, 100vw" alt="{% bi 'قهوة وكرواسون على طاولة مقهى' 'Coffee and a croissant on a café table' %}" width="1200" height="800" loading="lazy" decoding="async"></picture><div><span>{% bi 'منيو QR للمطاعم' 'QR menus for restaurants' %}</span><h3>{% bi 'اعرض منيو الكافيه على الموبايل' 'Show your café menu on a phone' %}</h3></div></a>
 <a class="mk-kds-card" href="{% public_url 'feature_detail' 'kitchen-display' %}"><span>{% bi 'شاشة المطبخ' 'Kitchen display' %}</span><h3>{% bi 'الأوردر بتفاصيله.' 'Every detail on the ticket.' %}</h3><div class="mk-paper"><b>{% bi 'طاولة 04' 'Table 04' %}<small>{% bi 'ديمو' 'Demo' %}</small></b><p>2 × {% bi 'فلات وايت' 'Flat white' %}</p><div>{% symbol 'clock' %}{% bi 'قيد التحضير' 'Preparing' %}</div></div></a></div>
-<div class="mk-topiclinks">{% for slug,title in home_topics %}<a href="{% public_url 'feature_detail' slug %}">{{ title }}{% if slug == 'upselling' or slug == 'promotions' %}<small>{% bi 'مخطط' 'Planned' %}</small>{% endif %}</a>{% endfor %}</div></section>
+</section>
 <div class="mk-tint mk-home-preview"><div class="mk-wrap">{% include 'marketing/sandbox.html' %}</div></div><div class="mk-wrap">{% include 'marketing/upsell.html' %}</div>
 <section class="mk-section mk-wrap"><div class="mk-story-head"><span class="mk-eyeline"><span></span>{% bi 'الحلول' 'Solutions' %}</span><h2>{% bi 'اختار يوم الشغل اللي يشبهك.' 'Find your kind of service.' %}</h2></div><div class="mk-venue-grid">{% for slug,title,headline in venue_tiles %}<a href="{% public_url 'solution_detail' slug %}"><small>{{ title }}</small><strong>{{ headline }}</strong></a>{% endfor %}</div></section>
 <div class="mk-tint"><div class="mk-wrap">{% include 'marketing/roi.html' %}</div></div>
@@ -21,5 +23,8 @@
   <div class="mk-story-head"><span class="mk-eyeline"><span></span>{% bi 'الباقات الشهرية' 'Monthly plans' %}</span><h2 id="home-plans-title">{% bi 'اختَر باقتك بحجم فريقك.' 'Pick a plan for your team.' %}</h2><a class="mk-textlink" href="{% public_url 'pricing' %}">{% bi 'قارن جميع المميزات' 'Compare all features' %}</a></div>
   {% include 'marketing/_plan_teasers.html' %}
 </section>
-<section class="mk-section mk-wrap mk-split mk-home-preview" id="faq"><div><span class="mk-eyeline"><span></span>{% bi 'قبل البداية' 'Before you start' %}</span><h2>{% bi 'أسئلة أصحاب الأماكن.' 'Questions from the floor.' %}</h2></div>{% include 'marketing/faq.html' %}</section>
+<section class="mk-section mk-wrap mk-home-faq" id="faq" aria-labelledby="home-faq-title">
+  <div class="mk-story-head"><h2 id="home-faq-title">{% bi 'أسئلة أصحاب الأماكن' 'FAQs for venue owners' %}</h2><a class="mk-textlink" href="{% public_url 'faq' %}">{% bi 'كل الأسئلة الشائعة' 'View all FAQs' %}</a></div>
+  {% include 'marketing/faq.html' with accordion=True %}
+</section>
 {% include 'marketing/cta.html' %}{% endblock %}

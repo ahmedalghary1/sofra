@@ -16,7 +16,7 @@ from .models import DemoRequest
 from .presentation import localized_url, site_metadata
 from .seo import AVAILABLE, MARKET, PRODUCT, UNAVAILABLE, WHATSAPP, monthly_price_text, public_metadata
 from .showcase_catalog import LIMITS, public_plans, starter_price
-from .showcase_data import SOLUTIONS, TOPICS
+from .showcase_data import SOLUTIONS
 from .sitemaps import PublicSitemap
 
 META = {
@@ -138,7 +138,8 @@ def public_page(request, name=None):
             plans = []
         context["monthly_price_text"] = monthly_price_text(starter_price(plans), en)
         if name in ("home", "faq"):
-            context["faq_rows"] = faq_content(en, plans)
+            rows = faq_content(en, plans)
+            context["faq_rows"] = rows[:5] if name == "home" else rows
     if name in ("home", "how_it_works"):
         context["flow"] = [(s[0], s[1 + en], s[3 + en]) for s in FLOW]
     if name == "home":
@@ -146,21 +147,6 @@ def public_page(request, name=None):
         context["starter_price"] = starter_price(plans)
         context["venue_tiles"] = [
             (s.slug, s.title[en], s.headline[en]) for s in SOLUTIONS
-        ]
-        context["home_topics"] = [
-            (t.slug, t.title[en])
-            for t in TOPICS
-            if t.slug
-            in (
-                "tables",
-                "waiter",
-                "billing",
-                "upselling",
-                "analytics",
-                "team",
-                "promotions",
-                "multi-branch",
-            )
         ]
     if name == "resources":
         q = request.GET.get("q", "").strip()[:150]
