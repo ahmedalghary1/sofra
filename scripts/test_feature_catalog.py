@@ -17,13 +17,55 @@ def exercise_filters(page, origin, language):
     expect(page.locator('.cat-counter b')).to_have_text('1')
     page.locator('.cat-matches a').first.click()
     assert urlsplit(page.url).fragment == 'publish'
-    page.locator('.cat-faq summary').first.focus()
-    page.keyboard.press('Enter')
+    page.locator('.cat-faq summary').first.press('Enter')
     expect(page.locator('.cat-faq details[open]')).to_have_count(1)
     page.goto(f'{origin}/features/?lang={language}&q=absent-query-no-match')
     expect(page.locator('.cat-empty')).to_be_visible()
     page.locator('.cat-empty a').click()
     expect(page.locator('.cat-counter b')).to_have_text('18')
+
+
+def exercise_pricing(page, origin, language):
+    page.set_viewport_size({'width': 320, 'height': 850})
+    page.goto(f'{origin}/pricing/?lang={language}')
+    expect(page.locator('html')).to_have_attribute('dir', 'ltr' if language == 'en' else 'rtl')
+    intro = page.locator('.cat-pricing-intro')
+    demo_path = '/demo/menu/?lang=en' if language == 'en' else '/demo/menu/'
+    expect(intro.locator('a[href*="/demo/menu/"]')).to_have_attribute('href', demo_path)
+    intro.locator('a[href="#compare-title"]').click()
+    assert urlsplit(page.url).fragment == 'compare-title'
+    comparisons = page.locator('.cat-compare')
+    expect(comparisons.first).to_be_visible()
+    for details in page.locator('.cat-comparison-details').all():
+        table = details.locator('table')
+        expect(table).to_be_hidden()
+        details.locator('summary').press('Enter')
+        expect(table).to_be_visible()
+    for table in comparisons.all():
+        assert table.evaluate(
+            '(table) => table.scrollWidth <= table.parentElement.clientWidth '
+            '&& document.documentElement.scrollWidth <= innerWidth'
+        )
+
+    page.locator('.cat-plan-jump a[href="#plan-growth"]').click()
+    assert urlsplit(page.url).fragment == 'plan-growth'
+    card = page.locator('#plan-growth')
+    expect(card.locator('[data-tier-price]')).to_be_visible()
+    expect(card.locator('[data-tier-role=waiter]')).to_be_hidden()
+    card.locator('.cat-plan-details summary').first.press('Enter')
+    expect(card.locator('[data-tier-role=waiter]')).to_be_visible()
+    card.locator('.cat-plan-included summary').click()
+    expect(card.locator('.cat-plan-benefits')).to_be_visible()
+    card.locator('a[href*="/contact/"]').click()
+    contact = urlsplit(page.url)
+    assert contact.path == '/contact/' and 'plan=growth' in contact.query
+
+    page.goto(f'{origin}/pricing/?lang={language}')
+    questions = page.locator('#faq summary')
+    questions.nth(0).press('Enter')
+    questions.nth(1).click()
+    expect(page.locator('#faq details[open]')).to_have_count(1)
+    expect(page.locator('#faq details').nth(1)).to_have_attribute('open', '')
 
 
 def main():
@@ -50,6 +92,7 @@ def main():
             page.goto(f'{origin}/solutions/?lang={language}')
             solution_urls = page.locator('.cat-solution-card h2 a').evaluate_all('(links) => links.map(a => a.href)')
             assert len(set(feature_urls)) == 18 and len(set(solution_urls)) == 6
+            exercise_pricing(page, origin, language)
             pages = [f'{origin}/{section}/?lang={language}' for section in ('features', 'solutions', 'pricing')]
             for width in widths:
                 page.set_viewport_size({'width': width, 'height': 900})
@@ -64,7 +107,7 @@ def main():
             context.close()
         browser.close()
         assert not problems, problems
-        print(f'{checks} catalog and pricing viewport checks passed, including bilingual filters and keyboard FAQ operation.')
+        print(f'{checks} viewport checks passed, including bilingual catalog filters and pricing interactions.')
 
 
 if __name__ == '__main__':

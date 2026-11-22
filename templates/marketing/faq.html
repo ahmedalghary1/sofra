@@ -1,7 +1,7 @@
 {% load showroom %}
-<div class="mk-faq-list">
+<div class="mk-faq-list{% if accordion %} mk-faq-cards{% endif %}">
   {% for question,answer in faq_rows %}
-  <details{% if accordion %} name="home-faq"{% endif %}>
+  <details{% if accordion %} name="page-faq"{% endif %}>
     <summary>{{ question }}{% symbol 'chevron' %}</summary>
     <p>{{ answer }}</p>
   </details>
