@@ -15,7 +15,7 @@ from .guidebook import FAQ, FLOW, GUIDES
 from .models import DemoRequest
 from .presentation import localized_url, site_metadata
 from .seo import AVAILABLE, MARKET, PRODUCT, UNAVAILABLE, WHATSAPP, monthly_price_text, public_metadata
-from .showcase_catalog import LIMITS, public_plans, starter_price
+from .showcase_catalog import LIMITS, PRICING_NOTE, public_plans, starter_price
 from .showcase_data import SOLUTIONS
 from .sitemaps import PublicSitemap
 
@@ -212,6 +212,8 @@ class ContactForm(forms.ModelForm):
 @require_http_methods(["GET", "HEAD", "POST"])
 def contact(request):
     en = request.LANGUAGE_CODE == "en"
+    billing = request.GET.get("billing")
+    annual = billing == "annual"
     initial = {"key": uuid.uuid4()}
     selected_plan = None
     slug = request.GET.get("plan")
@@ -219,7 +221,18 @@ def contact(request):
         selected_plan = next((plan for plan in public_plans(en) if plan["slug"] == slug), None)
         if selected_plan:
             name = selected_plan["name"]
-            initial["message"] = f"I’d like to ask about {name}." if en else f"أرغب في الاستفسار عن باقة {name}."
+            if annual:
+                initial["message"] = (
+                    f"I’d like to ask about the annual {name} plan."
+                    if en else f"أرغب في الاستفسار عن باقة {name} السنوية."
+                )
+            elif billing == "monthly":
+                initial["message"] = (
+                    f"I’d like to ask about the monthly {name} plan."
+                    if en else f"أرغب في الاستفسار عن باقة {name} الشهرية."
+                )
+            else:
+                initial["message"] = f"I’d like to ask about {name}." if en else f"أرغب في الاستفسار عن باقة {name}."
     form = ContactForm(
         request.POST if request.method == "POST" else None,
         english=en,
@@ -260,7 +273,10 @@ def contact(request):
     return render(
         request,
         "marketing/contact.html",
-        public_metadata(request, {**page_data(request, "contact"), "form": form, "selected_plan": selected_plan}),
+        public_metadata(request, {
+            **page_data(request, "contact"), "form": form, "selected_plan": selected_plan, "annual": annual,
+            "pricing_note": PRICING_NOTE[en],
+        }),
         status=status,
     )
 

@@ -11,6 +11,13 @@
   </header>
 
   {% if plans %}
+  <div class="cat-pricing-options">
+    <nav class="cat-billing" id="billing-period" aria-label="{% bi 'فترة الاشتراك' 'Billing period' %}">
+      <a href="?billing=monthly{% if english %}&amp;lang=en{% endif %}#billing-period"{% if not annual %} aria-current="true"{% endif %}>{% bi 'شهري' 'Monthly' %}</a>
+      <a href="?billing=annual{% if english %}&amp;lang=en{% endif %}#billing-period"{% if annual %} aria-current="true"{% endif %}>{% bi 'سنوي' 'Annual' %}</a>
+    </nav>
+    <p>{{ pricing_note }}</p>
+  </div>
   <nav class="cat-plan-jump" aria-label="{% bi 'انتقل إلى باقة' 'Jump to a plan' %}">
     {% for plan in plans %}<a href="#plan-{{ plan.slug }}"><bdi lang="en">{{ plan.name }}</bdi></a>{% endfor %}
   </nav>

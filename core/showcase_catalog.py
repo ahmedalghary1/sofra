@@ -1,5 +1,7 @@
 """Read-only feature discovery, venue solutions and public plan comparisons."""
 
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db.models.functions import Lower
 from django.http import Http404
 from django.shortcuts import render
@@ -14,6 +16,12 @@ PUBLIC_TIERS = (
     ('Starter', ('Starter', 'ستارتر', 'البداية')),
     ('Growth', ('Growth', 'النمو')),
     ('Business', ('Business', 'الأعمال')),
+)
+ANNUAL_DISCOUNTS = {'Starter': 10, 'Growth': 15, 'Business': 20}
+FREE_TRIAL_DAYS = 14
+PRICING_NOTE = (
+    'الأسعار استرشادية. أكّد السعر وموعد بدء التجربة مع فريق Serveza.',
+    'Prices are illustrative. Confirm your price and trial start date with Serveza.',
 )
 LIMITS = {
     'max_branches': ('فروع لكل مطعم', 'Branches per venue'),
@@ -99,9 +107,16 @@ def public_plans(english=False):
         if row is None:
             continue
         limits = {key: getattr(row, key) for key in LIMITS}
+        discount = ANNUAL_DISCOUNTS[name]
+        annual_price = (row.price_monthly * 12 * (100 - discount) / 100).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP,
+        )
         price_text = format(row.price_monthly, '.2f').rstrip('0').rstrip('.')
         plan = {
             'name': name, 'slug': name.lower(), 'price': price_text, 'limits': limits,
+            'annual_price': format(annual_price, '.2f').rstrip('0').rstrip('.'),
+            'annual_discount': discount,
+            'trial_duration': f'{FREE_TRIAL_DAYS} days' if english else f'{FREE_TRIAL_DAYS} يومًا',
             'rows': [(key, label[english], limits[key]) for key, label in LIMITS.items()],
         }
         focus = PLAN_FOCUS[name]
@@ -229,8 +244,16 @@ def feature_detail(request, slug):
 @require_safe
 def pricing(request):
     en = _language(request)
+    annual = request.GET.get('billing') == 'annual'
     plans = public_plans(en)
-    rows = [('price', ('السعر الشهري (ج.م)', 'Monthly price (EGP)')[en], [p['price'] for p in plans])]
+    if annual:
+        rows = [
+            ('price', ('السعر السنوي (ج.م)', 'Annual price (EGP)')[en], [p['annual_price'] for p in plans]),
+            ('annual_discount', ('الخصم السنوي', 'Annual discount')[en], [f"{p['annual_discount']}%" for p in plans]),
+        ]
+    else:
+        rows = [('price', ('السعر الشهري (ج.م)', 'Monthly price (EGP)')[en], [p['price'] for p in plans])]
+    rows.append(('trial', ('التجربة المجانية', 'Free trial')[en], [p['trial_duration'] for p in plans]))
     rows.extend((key, label[en], [p['limits'][key] for p in plans]) for key, label in LIMITS.items())
     for plan in plans:
         plan['included'] = []
@@ -266,7 +289,7 @@ def pricing(request):
     ]
     return _page(request, 'pricing', ('سعر نظام منيو QR وطلبات الطاولات في مصر', 'QR menu and table ordering prices in Egypt')[en],
                  description, plans=plans, rows=rows, staff_rows=staff_rows, tools=tools, faq_rows=faq_rows,
-                 starter_price=price)
+                 starter_price=price, annual=annual, pricing_note=PRICING_NOTE[en])
 
 
 @require_safe

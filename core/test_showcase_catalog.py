@@ -51,6 +51,38 @@ class ShowcaseCatalogTests(TestCase):
             self.assertEqual(details, available)
             self.assertNotContains(page, 'By agreement' if lang == 'en' else 'حسب الاتفاق')
 
+    def test_annual_prices_discounts_and_trial_match_the_inquiry(self):
+        Plan.objects.filter(name='Starter').update(price_monthly=Decimal('610.77'))
+        for lang, direction, trial, annual_label in (
+            ('ar', 'rtl', '14 يومًا', 'السعر السنوي'),
+            ('en', 'ltr', '14 days', 'Annual price'),
+        ):
+            with self.subTest(lang=lang):
+                page = self.client.get(reverse('pricing'), {'lang': lang, 'billing': 'annual'})
+                self.assertContains(page, f'dir="{direction}"')
+                self.assertContains(page, annual_label)
+                rows = {key: values for key, _, values in page.context['rows']}
+                self.assertEqual(rows['price'], ['6596.32', '13260', '24000'])
+                self.assertEqual(rows['annual_discount'], ['10%', '15%', '20%'])
+                self.assertEqual(rows['trial'], [trial] * 3)
+                for price in rows['price']:
+                    self.assertContains(page, f'<bdi data-tier-price>{price}</bdi>')
+                self.assertContains(page, 'plan=starter&amp;billing=annual')
+                contact = self.client.get(reverse('contact'), {'lang': lang, 'plan': 'starter', 'billing': 'annual'})
+                self.assertContains(contact, '<bdi>6596.32</bdi>')
+                self.assertContains(contact, '<bdi dir="ltr">10%</bdi>')
+                self.assertContains(contact, trial)
+                self.assertIn('annual' if lang == 'en' else 'السنوية', contact.context['form'].initial['message'])
+
+                monthly = self.client.get(reverse('pricing'), {'lang': lang, 'billing': 'monthly'})
+                self.assertContains(monthly, '<bdi data-tier-price>610.77</bdi>')
+                self.assertContains(monthly, trial)
+                self.assertContains(monthly, 'plan=starter&amp;billing=monthly')
+                self.assertNotContains(monthly, '6596.32')
+                contact = self.client.get(reverse('contact'), {'lang': lang, 'plan': 'starter', 'billing': 'monthly'})
+                self.assertContains(contact, '<bdi>610.77</bdi>')
+                self.assertIn('monthly' if lang == 'en' else 'الشهرية', contact.context['form'].initial['message'])
+
     def test_configured_changes_appear_on_all_public_surfaces(self):
         plan = Plan.objects.get(name='Business')
         Plan.objects.filter(pk=plan.pk).update(price_monthly='3100.50', max_branches=1, max_stations=0)

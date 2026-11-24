@@ -109,7 +109,13 @@
 .cat-pricing-intro .cat-actions {gap:8px}
 .cat-pricing .cat-button-secondary {background:#fff;color:var(--brand-primary);border-color:#b2c9bd;gap:7px}
 .cat-pricing .cat-button-secondary:hover {background:#f3faf6}
-.cat-pricing .cat-button:focus-visible,.cat-pricing summary:focus-visible,.cat-plan-jump a:focus-visible {outline:2px solid var(--brand-accent-strong);outline-offset:3px}
+.cat-pricing .cat-button:focus-visible,.cat-pricing summary:focus-visible,.cat-plan-jump a:focus-visible,.cat-billing a:focus-visible {outline:2px solid var(--brand-accent-strong);outline-offset:3px}
+.cat-pricing-options {display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin-block-end:14px}
+.cat-pricing-options p {font-size:.875rem}
+.cat-billing {display:inline-flex;gap:4px;padding:4px;border:1px solid var(--border);border-radius:var(--radius-control);background:#fff}
+.cat-billing a {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding-inline:20px;border-radius:var(--radius-control);color:var(--brand-primary);font-weight:700;text-decoration:none}
+.cat-billing a[aria-current] {color:#fff;background:var(--brand-primary)}
+.cat-billing a:not([aria-current]):hover {background:#eaf4ef}
 .cat-plans {align-items:start;gap:12px;margin-block-end:24px}
 .cat-plan {--plan-tint:#e7f3ee;--plan-ink:#225b4f;--plan-accent:#6eb3a1;border-block-start:3px solid var(--plan-accent);padding:clamp(14px,2vw,24px)}
 .cat-plan-growth {--plan-tint:#fbefdd;--plan-ink:#704609;--plan-accent:#cd9d54}
@@ -120,6 +126,9 @@
 .cat-plan-icon {display:grid;flex:none;place-items:center;inline-size:38px;block-size:38px;border-radius:50%;background:var(--plan-tint);color:var(--plan-ink)}
 .cat-plan .cat-price {font-size:clamp(1.8rem,3.4vw,2.75rem);line-height:1.35;font-weight:800;color:var(--brand-primary);margin-block-start:6px;overflow-wrap:anywhere}
 .cat-price small,.cat-plan .cat-price-period {font-size:.875rem;font-weight:600}
+.cat-price-period {display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-height:28px}
+.cat-price-period span {padding:2px 8px;border-radius:999px;background:var(--plan-tint);color:var(--plan-ink)}
+.cat-plan .cat-plan-trial {margin-block-start:4px;color:var(--plan-ink);font-size:.9rem;font-weight:700}
 .cat-plan .cat-capacity {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-block:12px}
 .cat-capacity>div {display:grid;align-content:start;gap:4px;padding:8px 10px;border-radius:8px;background:#f1f6f3}
 .cat-plan dd {margin:0;font-weight:750;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}

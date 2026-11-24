@@ -68,6 +68,34 @@ def exercise_pricing(page, origin, language):
     expect(page.locator('#faq details').nth(1)).to_have_attribute('open', '')
 
 
+def exercise_billing_period(page, origin, language, width):
+    page.set_viewport_size({'width': width, 'height': 900})
+    page.goto(f'{origin}/pricing/?lang={language}')
+    direction = 'ltr' if language == 'en' else 'rtl'
+    billing = page.locator('#billing-period')
+    monthly = billing.locator('a[href*="billing=monthly"]')
+    annual = billing.locator('a[href*="billing=annual"]')
+    growth = page.locator('#plan-growth')
+    expect(monthly).to_have_attribute('aria-current', 'true')
+    expect(growth.locator('.cat-plan-trial')).to_be_visible()
+    annual.press('Enter')
+    expect(annual).to_have_attribute('aria-current', 'true')
+    expect(page.locator('html')).to_have_attribute('dir', direction)
+    expect(growth.locator('.cat-price-period span')).to_contain_text('15%')
+    expect(page.locator('.cat-compare tr[data-comparison=annual_discount] td')).to_have_text(['10%', '15%', '20%'])
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    annual_price = growth.locator('[data-tier-price]').inner_text()
+    growth.locator('a[href*="/contact/"]').click()
+    assert 'billing=annual' in urlsplit(page.url).query
+    expect(page.locator('html')).to_have_attribute('dir', direction)
+    expect(page.locator('.mk-contact .mk-note bdi').first).to_have_text(annual_price)
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.go_back()
+    monthly.click()
+    expect(monthly).to_have_attribute('aria-current', 'true')
+    expect(growth.locator('.cat-price-period')).not_to_contain_text('%')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('origin', nargs='?', default='http://127.0.0.1:8000')
@@ -93,6 +121,8 @@ def main():
             solution_urls = page.locator('.cat-solution-card h2 a').evaluate_all('(links) => links.map(a => a.href)')
             assert len(set(feature_urls)) == 18 and len(set(solution_urls)) == 6
             exercise_pricing(page, origin, language)
+            for width in (320, 1440):
+                exercise_billing_period(page, origin, language, width)
             pages = [f'{origin}/{section}/?lang={language}' for section in ('features', 'solutions', 'pricing')]
             for width in widths:
                 page.set_viewport_size({'width': width, 'height': 900})

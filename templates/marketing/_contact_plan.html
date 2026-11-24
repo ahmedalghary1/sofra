@@ -2,7 +2,13 @@
 {% if selected_plan %}
 <section class="mk-note" aria-label="{% bi 'الباقة المختارة' 'Selected plan' %}">
   <h2 lang="en" dir="ltr">{{ selected_plan.name }}</h2>
+  {% if annual %}
+  <p>{% bi 'السعر السنوي' 'Annual price' %} · <bdi>{{ selected_plan.annual_price }}</bdi> {% bi 'ج.م' 'EGP' %} · {% bi 'خصم' 'Save' %} <bdi dir="ltr">{{ selected_plan.annual_discount }}%</bdi></p>
+  {% else %}
   <p>{% bi 'السعر الشهري' 'Monthly price' %} · <bdi>{{ selected_plan.price }}</bdi> {% bi 'ج.م' 'EGP' %}</p>
+  {% endif %}
+  <p>{% bi 'تجربة مجانية لمدة' 'Free trial for' %} {{ selected_plan.trial_duration }}</p>
+  <p>{{ pricing_note }}</p>
   <dl>{% for key,label,count in selected_plan.rows %}<div><dt>{{ label }}</dt><dd data-tier-limit="{{ key }}">{{ count }}</dd></div>{% endfor %}</dl>
 </section>
 {% endif %}

@@ -5,15 +5,22 @@
       <h2 id="name-{{ plan.slug }}"><bdi lang="en">{{ plan.name }}</bdi></h2>
       <span class="cat-plan-icon">{% if plan.slug == 'business' %}{% symbol 'layers' %}{% elif plan.slug == 'growth' %}{% symbol 'chart-no-axes-column' %}{% else %}{% symbol 'store' %}{% endif %}</span>
     </div>
-    <p class="cat-price"><bdi data-tier-price>{{ plan.price }}</bdi> <small>{% bi 'ج.م' 'EGP' %}</small></p>
-    <p class="cat-price-period">{% bi 'السعر الشهري' 'Monthly price' %}</p>
+    <p class="cat-price"><bdi data-tier-price>{% if annual %}{{ plan.annual_price }}{% else %}{{ plan.price }}{% endif %}</bdi> <small>{% bi 'ج.م' 'EGP' %}</small></p>
+    <p class="cat-price-period">
+      {% if annual %}
+      {% bi 'السعر السنوي' 'Annual price' %} <span>{% bi 'خصم' 'Save' %} <bdi dir="ltr">{{ plan.annual_discount }}%</bdi></span>
+      {% else %}
+      {% bi 'السعر الشهري' 'Monthly price' %}
+      {% endif %}
+    </p>
+    <p class="cat-plan-trial">{% bi 'تجربة مجانية لمدة' 'Free trial for' %} {{ plan.trial_duration }}</p>
   </header>
   <dl class="cat-capacity">
     {% for key,label,count in plan.rows %}
     <div{% if key == 'max_stations' %} class="cat-stations"{% endif %}><dt>{{ label }}</dt><dd data-tier-limit="{{ key }}">{{ count }}</dd></div>
     {% endfor %}
   </dl>
-  <a class="cat-button" href="{% url 'contact' %}?plan={{ plan.slug }}{% if english %}&amp;lang=en{% endif %}">{% bi 'استفسر عن' 'Ask about' %} <bdi lang="en">{{ plan.name }}</bdi></a>
+  <a class="cat-button" href="{% url 'contact' %}?plan={{ plan.slug }}&amp;billing={% if annual %}annual{% else %}monthly{% endif %}{% if english %}&amp;lang=en{% endif %}">{% bi 'استفسر عن' 'Ask about' %} <bdi lang="en">{{ plan.name }}</bdi></a>
   <details class="cat-plan-details">
     <summary>{% bi 'مثال لتوزيع الفريق' 'Example team setup' %}{% symbol 'chevron' %}</summary>
     <dl class="cat-staff">{% for role,label,count in plan.staff_rows %}<div><dt>{{ label }}</dt><dd data-tier-role="{{ role }}">{{ count }}</dd></div>{% endfor %}</dl>
