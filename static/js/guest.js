@@ -54,7 +54,8 @@ function saveDraft() {
     }
     sessionStorage.setItem(draftKey, JSON.stringify({session: window.SAFRA.cartSession, requestKey,
       lines: orderLines(), prices: cart.map(row => row.unit.toFixed(2)), note: cartNote, pending: pendingOrder,
-      fulfillment: onlineMode ? onlineDetails.fulfillment : null}));
+      fulfillment: onlineMode ? onlineDetails.fulfillment : null,
+      deliveryFee: onlineMode ? deliveryFee().toFixed(2) : null}));
   } catch { /* Ordering also works when browser storage is unavailable. */ }
 }
 
@@ -86,10 +87,11 @@ function restoreDraft() {
       return;
     }
     const restored = draft.lines.map(restoreLine);
-    const changed = restored.some((row, index) => !row || row.unit.toFixed(2) !== draft.prices?.[index]);
+    let changed = restored.some((row, index) => !row || row.unit.toFixed(2) !== draft.prices?.[index]);
     cart.push(...restored.filter(Boolean));
     if (onlineMode && ((draft.fulfillment === 'pickup' && window.SAFRA.pickupEnabled)
         || (draft.fulfillment === 'delivery' && window.SAFRA.deliveryEnabled))) onlineDetails.fulfillment = draft.fulfillment;
+    if (onlineMode && draft.deliveryFee !== deliveryFee().toFixed(2)) changed = true;
     cartNote = typeof draft.note === 'string' ? draft.note.slice(0, 500) : '';
     if (/^[a-f0-9-]{36}$/i.test(draft.requestKey)) requestKey = draft.requestKey;
     if (draft.pending?.idempotency_key === requestKey && Array.isArray(draft.pending.lines)) {

@@ -14,7 +14,7 @@
         {% else %}<label>{% translate field.label %}{{ field }}</label>{% endif %}
         {% if field.errors %}<small class="form-errors">{{ field.errors|striptags }}</small>{% endif %}
       {% endfor %}
-      <p class="form-hint">{% translate 'يظهر اسم المطعم والوصف للضيف. لا تظهر بيانات الاتصال والعنوان وساعات العمل إلا عند تفعيل خيار النشر أعلاه.' %}</p>
+      <p class="form-hint">{% bi 'يظهر اسم المطعم والوصف للضيف. بيانات الاتصال والعنوان والمواعيد تظهر في منيو الطاولات عند تفعيل النشر أعلاه. رابط الطلب أونلاين يعرض عنوان الفرع ومواعيده عند تفعيله من قسمه أدناه.' 'Guests see the restaurant name and description. Contact details, address and hours appear on table menus when publishing is enabled above. The online ordering link publishes branch addresses and hours when enabled in its section below.' %}</p>
       <button class="btn btn-primary">{% translate 'حفظ الإعدادات' %}</button>
       {% if preview_table and branch.active and restaurant.active %}<a class="btn btn-outline" href="{% url 'public_menu' preview_table.public_token %}" target="_blank" rel="noopener">{% symbol 'external-link' %} {% bi 'معاينة منيو الضيف' 'Preview guest menu' %}</a>{% endif %}
     </form>

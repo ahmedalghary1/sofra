@@ -312,6 +312,8 @@
 .online-share-link {display:inline-flex;align-items:center;gap:8px;max-width:100%;color:#205e4e;font-weight:700}
 .online-share-link bdi {min-width:0;overflow-wrap:anywhere}
 .online-settings-form {margin-block-start:16px;max-width:42rem}
+.online-settings-form .check-label {display:flex;flex-direction:row;align-items:center;gap:10px;cursor:pointer}
+.online-settings-form .check-label input {width:20px;min-height:20px;flex:0 0 20px;margin:0}
 .app-body .online-price-row {display:flex;justify-content:space-between;gap:10px;padding-block:8px}
 @media(max-width:560px) {
   .workspace-tasks,.team-role-guide {grid-template-columns:minmax(0,1fr)}

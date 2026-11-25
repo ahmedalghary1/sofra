@@ -101,6 +101,25 @@ class AuditRepairConcurrencyTests(TransactionTestCase):
         self.assertEqual(Order.objects.get().history.count(), 1)
 
     @skipUnlessDBFeature('has_select_for_update')
+    def test_online_same_key_simultaneous_submission_creates_one_order_with_one_fee(self):
+        from .online import create_online_order
+
+        Restaurant.objects.filter(pk=self.restaurant.pk).update(online_ordering_enabled=True,
+            online_delivery_enabled=True, delivery_fee='3.25')
+        payload = {'idempotency_key': str(uuid4()), 'lines': [{'item_id': self.item.pk, 'quantity': 1}],
+                   'fulfillment': 'delivery', 'customer_name': 'Guest', 'customer_phone': '01012345678',
+                   'delivery_address': 'Test street 12', 'reviewed_total': '13.25', 'reviewed_delivery_fee': '3.25'}
+        def submit():
+            return create_online_order(Branch.objects.get(pk=self.branch.pk), payload).pk
+        first, second = self.parallel(submit, submit)
+        self.assertEqual(first, second)
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.get()
+        self.assertEqual(str(order.delivery_fee), '3.25')
+        self.assertEqual(str(order.total), '13.25')
+        self.assertEqual(order.history.count(), 1)
+
+    @skipUnlessDBFeature('has_select_for_update')
     def test_competing_staff_creations_preserve_reserved_invitation(self):
         StaffInvitation.objects.create(restaurant=self.restaurant, branch=self.branch, email='reserved@example.test',
             role='waiter', token_hash=sha256(b'reserved').hexdigest(), invited_by=self.owner,
