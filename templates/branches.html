@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">{% translate 'إدارة المطعم' %}</span><h1>{% translate 'الفروع' %}</h1><p>{% translate 'لكل فرع منيو وطاولات وطلبات مستقلة داخل مطعمك.' %}</p></div><span class="usage-pill">{{ branches.count }} / {{ limit }} {% translate 'فرع' %}</span></div>
 <section class="panel add-panel"><div><h2>{% translate 'أضف فرعًا' %}</h2><p>{% translate 'يمكن لمشغل المنصة تعديل حد الفروع في باقتك.' %}</p></div>
-  <form method="post" class="staff-order-form">{% csrf_token %}<input type="hidden" name="action" value="create"><input name="name" required maxlength="120" placeholder="{% translate 'اسم الفرع' %}"><input name="address" maxlength="240" placeholder="{% translate 'العنوان (اختياري)' %}"><button class="btn btn-primary">{% symbol 'plus' %} {% bi 'إضافة الفرع' 'Add branch' %}</button></form>
+  <form method="post" class="staff-order-form">{% csrf_token %}<input type="hidden" name="action" value="create"><label class="ux-field"><span>{% translate 'اسم الفرع' %}</span><input name="name" required maxlength="120" placeholder="{% bi 'مثال: فرع النيل' 'For example, Nile branch' %}"></label><label class="ux-field"><span>{% translate 'العنوان (اختياري)' %}</span><input name="address" maxlength="240" autocomplete="street-address"></label><button class="btn btn-primary">{% symbol 'plus' %} {% bi 'إضافة الفرع' 'Add branch' %}</button></form>
 </section>
 <div class="table-card-grid">
 {% for choice in branches %}<article class="table-card">

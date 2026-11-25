@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="{% static 'css/whatsapp.css' %}">
 {% if kind == 'home' or kind == 'demo' %}<link rel="stylesheet" href="{% static 'css/showcase.css' %}"><script src="{% static 'js/showcase.js' %}" defer></script>{% endif %}
 {% block extra_css %}{% endblock %}<script src="{% static 'js/marketing.js' %}" defer></script>{% block extra_js %}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/experience.css' %}"><script src="{% static 'js/experience.js' %}" defer></script>
 {% if seo_graph %}{% json_ld seo_graph %}{% endif %}
 </head>
 <body class="mk" id="page-top">

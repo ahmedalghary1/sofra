@@ -53,7 +53,7 @@
   const main = document.querySelector('.main-wrap');
   const closeButton = document.getElementById('closeNav');
   if (sidebar && toggle) {
-    const narrow = matchMedia('(max-width: 780px)');
+    const narrow = matchMedia('(max-width: 1023px)');
     function setOpen(open, restoreFocus = true) {
       sidebar.classList.toggle('open', open);
       overlay.classList.toggle('show', open);

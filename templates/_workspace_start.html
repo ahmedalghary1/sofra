@@ -1,5 +1,5 @@
 {% load i18n showroom %}
-<section class="panel workspace-start" aria-labelledby="workspace-start-title">
+<section class="panel workspace-start {% if membership.role == 'owner' or membership.role == 'manager' %}workspace-setup{% endif %}" aria-labelledby="workspace-start-title">
   <div class="panel-head"><div>
     <span class="eyebrow">{% translate membership.get_role_display %} · {{ branch.name }}</span>
     <h2 id="workspace-start-title">{% bi 'ابدأ من هنا' 'Start here' %}</h2>

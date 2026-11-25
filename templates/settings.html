@@ -4,8 +4,9 @@
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">{% translate 'إعدادات المطعم' %}</span><h1>{% translate 'الإعدادات' %}</h1><p>{% translate 'بيانات المطعم وحالة استقبال الطلبات في' %} {{ branch.name }}.</p></div></div>
 {% if not restaurant.active %}<div class="account-notice"><strong>{% translate 'المطعم معلق حاليًا' %}</strong><p>{% translate 'البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة.' %}</p></div>{% elif not subscription.valid %}<div class="account-notice"><strong>{% translate 'انتهت فترة الاشتراك أو التجربة' %}</strong><p>{% translate 'يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة.' %}</p></div>{% elif over_limit %}<div class="account-notice"><strong>{% translate 'الاستخدام أعلى من حدود الباقة الحالية' %}</strong><p>{% translate 'بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام.' %}</p></div>{% endif %}
+<nav class="section-tabs" aria-label="{% bi 'أقسام الإعدادات' 'Settings sections' %}"><a href="#branchProfile">{% bi 'بيانات الفرع' 'Branch details' %}</a><a href="#menuBranding">{% bi 'اللوجو والألوان' 'Logo and colors' %}</a><a href="#onlineOrdering">{% bi 'الطلب أونلاين' 'Online ordering' %}</a><a href="#subscriptionPlan">{% bi 'الباقة والحدود' 'Plan and limits' %}</a></nav>
 <div class="two-cols">
-  <section class="panel"><div class="panel-head"><div><h2>{{ restaurant.name }}</h2><p>{{ branch.name }}</p></div></div>
+  <section class="panel" id="branchProfile"><div class="panel-head"><div><h2>{{ restaurant.name }}</h2><p>{{ branch.name }}</p></div></div>
     <form method="post" class="stack-form compact">{% csrf_token %}
       {% if profile_form.non_field_errors %}<div class="form-errors">{{ profile_form.non_field_errors }}</div>{% endif %}
       {% for field in profile_form %}
@@ -19,7 +20,7 @@
       {% if preview_table and branch.active and restaurant.active %}<a class="btn btn-outline" href="{% url 'public_menu' preview_table.public_token %}" target="_blank" rel="noopener">{% symbol 'external-link' %} {% bi 'معاينة منيو الضيف' 'Preview guest menu' %}</a>{% endif %}
     </form>
   </section>
-  <section class="panel subscription-panel"><div class="panel-head"><div><h2>{% translate 'الباقة الحالية' %}</h2><p>{% translate 'الحدود الفعلية والاستخدام الحالي' %}</p></div></div>
+  <section class="panel subscription-panel" id="subscriptionPlan"><div class="panel-head"><div><h2>{% translate 'الباقة الحالية' %}</h2><p>{% translate 'الحدود الفعلية والاستخدام الحالي' %}</p></div></div>
     <div class="plan-icon">{% symbol 'credit-card' %}</div><h3>{{ subscription.plan.name }}</h3><p>{% translate 'الحالة:' %} {% translate subscription.get_status_display %}</p><p>{% translate 'تنتهي في' %} {{ subscription.ends_at|date:'j F Y' }}</p>
     {% if grandfathered %}<p class="form-hint">{% bi 'تتضمن حدود اشتراكك سماحًا للموارد المسجلة قبل تحديث الباقات.' 'Your subscription limits include allowances for resources recorded before the plan update.' %}</p>{% endif %}
     {% if subscription.agreed_terms %}<p class="form-hint">{% bi 'سعر الباقة الشهري وقت الاتفاق' 'Monthly plan price when agreed' %}: {{ subscription.agreed_terms.monthly_price }} EGP. {% bi 'هذه الشروط محفوظة بشكل مستقل عن تعديل العرض العام.' 'These terms are captured independently of changes to the public offer.' %}</p>{% endif %}

@@ -467,6 +467,7 @@ function openCart(){
     if(!editing)wrap.append(el('p','allergy-note',guestCopy("لو عندك حساسية غذائية، أخبر فريق المطعم مباشرة.", "Please tell the venue team directly about food allergies.")));
   }
   const total = el('div', 'cart-total');
+  const priceRows = [];
   if (onlineMode || window.SAFRA.fixedDeliveryFee) {
     const subtotalRow = el('div', 'online-price-row');
     subtotalAmount = el('strong');
@@ -474,7 +475,7 @@ function openCart(){
     const feeRow = el('div', 'online-price-row');
     deliveryAmount = el('strong');
     feeRow.append(el('span', '', guestCopy('رسوم التوصيل', 'Delivery fee')), deliveryAmount);
-    wrap.append(subtotalRow, feeRow);
+    priceRows.push(subtotalRow, feeRow);
     refreshTotal();
   }
   total.append(el('span', '', guestCopy("الإجمالي", "Total")), totalAmount);
@@ -573,7 +574,9 @@ function openCart(){
       if (note) note.disabled = false;
     }
   };
-  wrap.append(total, error, send);
+  const footer = el('div', 'cart-review-footer');
+  footer.append(...priceRows, total, error, send);
+  wrap.append(footer);
   show(wrap);
 }
 

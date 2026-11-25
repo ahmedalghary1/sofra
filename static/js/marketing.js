@@ -23,7 +23,11 @@
   drawer.addEventListener('close', () => {
     document.body.classList.remove('mk-lock');
     opener.setAttribute('aria-expanded', 'false');
-    opener.focus();
+    if (opener.getClientRects().length) opener.focus();
+    else document.querySelector('.mk-brand').focus();
+  });
+  window.addEventListener('resize', () => {
+    if (drawer.open && getComputedStyle(opener).display === 'none') drawer.close();
   });
   document.addEventListener('click', event => {
     if (menu.open && !menu.contains(event.target)) menu.open = false;

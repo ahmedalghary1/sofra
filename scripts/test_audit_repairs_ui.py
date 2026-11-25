@@ -75,7 +75,7 @@ class AuditRepairBrowserTests(StaticLiveServerTestCase):
                     else:
                         route.continue_()
                 page.route('**/orders/new/', drop_first_response)
-                page.locator('.cart-modal > button.btn-primary').click()
+                page.locator('.cart-modal button.btn-primary').click()
                 expect(page.locator('.cart-modal h2')).to_have_text('بانتظار تأكيد المطعم' if lang == 'ar' else 'Awaiting order confirmation')
                 expect(page.locator('#staffTable')).to_be_disabled()
                 expect(page.locator('.cart-modal .cart-list')).to_have_count(0)
