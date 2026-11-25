@@ -1,0 +1,30 @@
+{% load i18n showroom %}
+<section class="panel workspace-start" aria-labelledby="workspace-start-title">
+  <div class="panel-head"><div>
+    <span class="eyebrow">{% translate membership.get_role_display %} · {{ branch.name }}</span>
+    <h2 id="workspace-start-title">{% bi 'ابدأ من هنا' 'Start here' %}</h2>
+    <p>{% if membership.role == 'owner' or membership.role == 'manager' %}{% bi 'جهّز مطعمك بهذه الخطوات، وارجع لها في أي وقت للتعديل.' 'Set up your restaurant with these steps. Return anytime to make changes.' %}{% elif membership.role == 'kitchen' %}{% bi 'استلم الطلب الجديد، ابدأ التحضير، ثم علّمه جاهزًا ليقدّمه الويتر.' 'Accept new orders, start preparation, then mark them ready for the waiter.' %}{% elif membership.role == 'cashier' %}{% bi 'سجّل طلبات الطاولات، راجع الحساب، وسجّل التحصيل بعد استلام المبلغ.' 'Enter table orders, review the bill, and record collection after receiving payment.' %}{% else %}{% bi 'تابع نداءات الطاولات، سجّل طلبات الضيوف، وعلّم الطلبات الجاهزة بعد تقديمها.' 'Respond to table calls, enter guest orders, and mark ready orders as served after delivery.' %}{% endif %}</p>
+  </div></div>
+  <div class="workspace-tasks">
+    {% if membership.role == 'owner' or membership.role == 'manager' %}
+      <a class="workspace-task" href="{% url 'manage_menu' restaurant.slug %}?add=item#menuTools">
+        <span class="quick-icon peach">{% symbol 'utensils-crossed' %}</span><strong>{% bi 'أضف المنتجات والأسعار' 'Add products and prices' %}</strong><small>{% bi 'أنشئ التصنيفات، ثم أضف الأصناف والصور والأسعار.' 'Create categories, then add items, photos and prices.' %}</small><span class="task-action">{% bi 'إدارة المنيو' 'Manage menu' %} {% symbol 'arrow-right' %}</span>
+      </a>
+      <a class="workspace-task" href="{% url 'restaurant_settings' restaurant.slug %}#menuBranding">
+        <span class="quick-icon sage">{% symbol 'store' %}</span><strong>{% bi 'غيّر اللوجو وهوية المنيو' 'Change logo and menu colors' %}</strong><small>{% bi 'ارفع لوجو مطعمك واختَر الألوان، ثم احفظ الهوية.' 'Upload your restaurant logo, choose colors, then save the branding.' %}</small><span class="task-action">{% bi 'تخصيص الهوية' 'Customize branding' %} {% symbol 'arrow-right' %}</span>
+      </a>
+      <a class="workspace-task" href="{% url 'staff' restaurant.slug %}#inviteStaff">
+        <span class="quick-icon lilac">{% symbol 'users' %}</span><strong>{% bi 'أنشئ حسابات الفريق' 'Create team accounts' %}</strong><small>{% bi 'أضف الكاشير والمطبخ والويتر، وحدّد دور وفرع كل واحد.' 'Add cashiers, kitchen staff and waiters with their role and branch.' %}</small><span class="task-action">{% bi 'إضافة موظف' 'Add a team member' %} {% symbol 'arrow-right' %}</span>
+      </a>
+      <a class="workspace-task" href="{% url 'manage_tables' restaurant.slug %}">
+        <span class="quick-icon sand">{% symbol 'qr-code' %}</span><strong>{% bi 'جهّز الطاولات وQR' 'Set up tables and QR codes' %}</strong><small>{% bi 'أضف طاولات الفرع، وافتح منيو طاولة لمراجعته قبل طباعة QR.' 'Add branch tables and open a table menu to review it before printing its QR code.' %}</small><span class="task-action">{% bi 'إدارة الطاولات' 'Manage tables' %} {% symbol 'arrow-right' %}</span>
+      </a>
+    {% elif membership.role == 'kitchen' %}
+      <a class="workspace-task" href="{% url 'kitchen' restaurant.slug %}"><span class="quick-icon sand">{% symbol 'chef-hat' %}</span><strong>{% bi 'ابدأ استقبال وتحضير الطلبات' 'Start receiving and preparing orders' %}</strong><small>{% bi 'كل طلب يعرض الطاولة والأصناف والكميات والملاحظات.' 'Each order shows its table, items, quantities and notes.' %}</small><span class="task-action">{% bi 'افتح شاشة المطبخ' 'Open kitchen display' %} {% symbol 'arrow-right' %}</span></a>
+    {% else %}
+      {% if membership.role == 'waiter' %}<a class="workspace-task" href="{% url 'manage_calls' restaurant.slug %}"><span class="quick-icon sage">{% symbol 'concierge-bell' %}</span><strong>{% bi 'استجب لنداءات الطاولات' 'Respond to table calls' %}</strong><small>{% bi 'استلم النداء، تابع احتياج الضيف، ثم علّمه منتهيًا.' 'Accept the call, help the guest, then mark it done.' %}</small><span class="task-action">{% bi 'افتح طلبات الخدمة' 'Open service calls' %} {% symbol 'arrow-right' %}</span></a>{% endif %}
+      <a class="workspace-task" href="{% url 'staff_order' restaurant.slug %}"><span class="quick-icon peach">{% symbol 'circle-plus' %}</span><strong>{% bi 'سجّل طلبًا لطاولة' 'Enter a table order' %}</strong><small>{% bi 'اختَر الطاولة والأصناف، ثم راجع الطلب وأرسله للمطبخ.' 'Choose a table and items, then review and send the order to the kitchen.' %}</small><span class="task-action">{% bi 'طلب جديد' 'New order' %} {% symbol 'arrow-right' %}</span></a>
+      <a class="workspace-task" href="{% url 'manage_orders' restaurant.slug %}"><span class="quick-icon lilac">{% symbol 'clipboard-list' %}</span><strong>{% if membership.role == 'cashier' %}{% bi 'راجع الحساب وسجّل التحصيل' 'Review bills and record collection' %}{% else %}{% bi 'تابع الطلبات الجاهزة للتقديم' 'Follow orders ready to serve' %}{% endif %}</strong><small>{% if membership.role == 'cashier' %}{% bi 'افتح طلبات الطاولة وراجع المبلغ قبل تسجيل التحصيل اليدوي.' 'Open the table orders and check the amount before recording manual collection.' %}{% else %}{% bi 'راجع رقم الطاولة وتفاصيل الطلب قبل تقديمه للضيف.' 'Check the table and order details before serving the guest.' %}{% endif %}</small><span class="task-action">{% bi 'افتح الطلبات' 'Open orders' %} {% symbol 'arrow-right' %}</span></a>
+    {% endif %}
+  </div>
+</section>

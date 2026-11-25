@@ -290,6 +290,31 @@
 .platform-subscription-form label {display:grid;gap:5px;flex:1 1 155px;min-width:0;font-size:.9rem}
 .platform-subscription-form label :is(input,select) {min-width:0;width:100%}
 .platform-card .platform-details a {overflow-wrap:anywhere}
+.workspace-start {margin-block-end:20px}
+.workspace-tasks {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}
+.workspace-task {display:flex;flex-direction:column;align-items:start;gap:9px;min-width:0;padding:17px;border:1px solid var(--ops-line);border-radius:12px;background:#f8fbf9;color:var(--ops-ink)}
+.workspace-task:hover {border-color:#7b9e8d;background:#f0f6f2}
+.workspace-task strong {font-size:1rem;line-height:1.6}
+.workspace-task small {color:#486357;font-size:.88rem;line-height:1.7}
+.workspace-task .quick-icon {margin:0}
+.task-action {display:inline-flex;align-items:center;gap:6px;min-height:32px;margin-block-start:auto;padding-block-start:6px;color:#205e4e;font-weight:750;font-size:.9rem}
+.task-action .ui-icon {width:17px;height:17px}
+.team-role-guide {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-block-end:18px}
+.team-role-guide>div {padding:14px;background:#f3f7f4;border:1px solid var(--ops-line);border-radius:10px}
+.team-role-guide strong {display:flex;align-items:center;gap:7px;color:var(--ops-ink)}
+.team-role-guide p {margin:7px 0 0;font-size:.88rem;color:#486357;line-height:1.7}
+.staff-invite-form label {display:grid;gap:6px;flex:1 1 180px;min-width:0;font-size:.9rem;font-weight:650}
+.staff-invite-form label :is(input,select) {width:100%;min-width:0}
+.staff-invite-form {align-items:end}
+.menu-start-hint {margin-block:0 16px;color:#486357}
+#inviteStaff,#menuTools,#menuBranding {scroll-margin-block-start:90px}
+@media(max-width:560px) {
+  .workspace-tasks,.team-role-guide {grid-template-columns:minmax(0,1fr)}
+  .workspace-task {display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 12px;padding:13px}
+  .workspace-task .quick-icon {grid-column:1;grid-row:1/4;width:40px;height:40px}
+  .workspace-task :is(strong,small,.task-action) {grid-column:2}
+  .staff-invite-form>button {width:100%}
+}
 @media(max-width:760px) {
   .platform-actions>details {flex-basis:100%;min-width:0}
   .platform-card-head {flex-wrap:wrap}

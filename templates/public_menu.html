@@ -12,7 +12,15 @@
     <span class="guest-table">{% symbol 'qr-code' %} {{ table.name }}</span>
   </header>
   <div class="guest-main catalog-main" id="guest-menu">
-    <div class="guest-hero menu-heading"><h1>{% translate 'قائمة الطعام' %}</h1></div>
+    <div class="guest-hero menu-heading">
+      {% if accepting and items_json %}
+        <div><h1>{% bi 'اطلب من هنا لطاولتك' 'Order here for your table' %}</h1><p>{% bi 'اختار أكلك، أضفه للسلة، ثم راجع وأرسل طلبك للمطعم. من غير حساب.' 'Choose your food, add it to your cart, then review and send your order to the restaurant. No account needed.' %}</p></div>
+        <a class="guest-order-start" href="#foodGrid">{% bi 'ابدأ الطلب' 'Start ordering' %} {% symbol 'chevron-down' %}</a>
+      {% else %}
+        <h1>{% translate 'قائمة الطعام' %}</h1>
+        {% if not accepting %}<p class="guest-order-paused" role="status">{% bi 'الطلب من المنيو متوقف مؤقتًا. تقدر تتصفح الأصناف وتطلب مساعدة فريق المطعم.' 'Menu ordering is temporarily paused. You can browse the items and ask the restaurant team for help.' %}</p>{% endif %}
+      {% endif %}
+    </div>
     {% with restaurant=table.branch.restaurant branch=table.branch %}
     {% if restaurant.description or restaurant.name_en or branch.show_contact_on_menu and branch.address or branch.show_contact_on_menu and branch.phone or branch.show_contact_on_menu and branch.opening_hours %}
       <details class="guest-venue-details"><summary>{% bi 'معلومات المطعم والفرع' 'Restaurant and branch details' %}</summary>
@@ -28,4 +36,4 @@
     {% else %}
       <div class="empty-state">{% symbol 'utensils-crossed' %}<h2>{% translate 'المنيو في طريقه إليك' %}</h2><p>{% translate 'اسأل فريق المطعم عن الأصناف المتاحة اليوم.' %}</p></div>
     {% endif %}
-    <section class="guest-service"><div><span class="service-spark">{% symbol 'concierge-bell' %}</span><span><strong>{% translate 'محتاج مساعدة؟' %}</strong><small>{% translate 'فريقنا موجود عشان يخدمك.' %}</small></span></div><div class="service-buttons"><form method="post" action="{% url 'create_call' table.public_token %}">{% csrf_token %}<input type="hidden" name="kind" value="waiter"><input type="hidden" name="session_token" value="{{ table.session_token }}"><button>{% translate 'نادِ الويتر' %}</button></form><form method="post" action="{% url 'create_call' table.public_token %}">{% csrf_token %}<input type="hidden" name="kind" value="bill"><input type="hidden" name="session_token" value="{{ table.session_token }}"><button>{% translate 'اطلب الحساب' %}</button></form></div></section></div>{% include '_powered_by.html' only %}</main>{% include '_guest_cart.html' only %}{{ items_json|json_script:'menu-data' }}<script>window.SAFRA={cartTable:{{ table.pk }},cartSession:'{{ cart_session }}',orderUrl:'{% url "place_order" table.public_token %}',csrf:'{{ csrf_token }}',sessionToken:'{{ table.session_token }}',accepting:{{ accepting|yesno:'true,false' }}};</script><script src="{% static 'js/guest.js' %}"></script>{% endblock %}
+    <section class="guest-service"><div><span class="service-spark">{% symbol 'concierge-bell' %}</span><span><strong>{% translate 'محتاج مساعدة؟' %}</strong><small>{% translate 'فريقنا موجود عشان يخدمك.' %}</small></span></div><div class="service-buttons"><form method="post" action="{% url 'create_call' table.public_token %}">{% csrf_token %}<input type="hidden" name="kind" value="waiter"><input type="hidden" name="session_token" value="{{ table.session_token }}"><button>{% translate 'نادِ الويتر' %}</button></form><form method="post" action="{% url 'create_call' table.public_token %}">{% csrf_token %}<input type="hidden" name="kind" value="bill"><input type="hidden" name="session_token" value="{{ table.session_token }}"><button>{% translate 'اطلب الحساب' %}</button></form></div></section></div>{% include '_powered_by.html' only %}</main>{% include '_guest_cart.html' with english=english only %}{{ items_json|json_script:'menu-data' }}<script>window.SAFRA={cartTable:{{ table.pk }},cartSession:'{{ cart_session }}',orderUrl:'{% url "place_order" table.public_token %}',csrf:'{{ csrf_token }}',sessionToken:'{{ table.session_token }}',accepting:{{ accepting|yesno:'true,false' }}};</script><script src="{% static 'js/guest.js' %}"></script>{% endblock %}
