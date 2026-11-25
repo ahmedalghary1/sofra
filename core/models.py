@@ -39,12 +39,17 @@ class Plan(models.Model):
     max_branches = models.PositiveIntegerField(default=1)
     max_stations = models.PositiveIntegerField(default=1)
     staff_example = models.JSONField(default=dict, blank=True, editable=False)
+    enabled_features = models.JSONField(default=None, null=True, blank=True)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=models.Q(price_monthly__gte=0), name='plan_price_nonnegative')]
 
     def clean(self):
         super().clean()
+        from .plan_features import FEATURES
+        if self.enabled_features is not None and (not isinstance(self.enabled_features, list) or
+                any(not isinstance(key, str) or key not in FEATURES for key in self.enabled_features)):
+            raise ValidationError({'enabled_features': 'Choose valid plan services.' if get_language() == 'en' else 'اختر خدمات باقة صالحة.'})
         if self.max_stations and self.max_staff is not None and self.max_staff < 2:
             raise ValidationError({'max_staff': 'Kitchen stations require seats for the owner and at least one kitchen account.'
                                    if get_language() == 'en' else

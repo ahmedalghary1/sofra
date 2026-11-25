@@ -5,7 +5,7 @@
       <a class="btn btn-outline" href="{% url 'platform_dashboard' %}?status=plans">{% bi 'العودة للباقات' 'Back to plans' %}</a></div>
     <form method="post" class="panel platform-create-form">{% csrf_token %}{{ form.non_field_errors }}
       <section class="platform-form-grid">{% for field in form %}<div class="platform-field">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</section>
+        {% if field.name == 'enabled_features' %}<fieldset class="plan-feature-options"><legend>{{ field.label }}</legend>{{ field }}{{ field.errors }}</fieldset>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% endif %}</div>{% endfor %}</section>
       <div class="platform-form-actions"><button class="btn btn-primary">{% bi 'حفظ الباقة' 'Save plan' %}</button></div>
     </form>
   {% endblock %}

@@ -3,7 +3,7 @@
 <div class="cat-pricing">
   <header class="cat-intro cat-pricing-intro">
     <h1>{% bi 'باقات المطاعم' 'Restaurant plans' %}</h1>
-    <p>{% bi 'اختَر حسب عدد الفروع وحجم الفريق.' 'Choose a plan for your branches and team.' %}</p>
+    <p>{% bi 'قارن الخدمات بسرعة: ✓ مشمول، والخدمة المشطوبة غير مشمولة. اختَر ما يناسب تشغيل مطعمك وفريقك.' 'Compare services at a glance: ✓ included; crossed-out services are not included. Choose what suits your venue and team.' %}</p>
     <div class="cat-actions">
       {% if plans %}<a class="cat-button" href="#compare-title">{% bi 'قارن الباقات' 'Compare plans' %}</a>{% endif %}
       <a class="cat-button{% if plans %} cat-button-secondary{% endif %}" href="{% public_url 'demo_menu' %}">{% symbol 'play' %}{% bi 'المنيو التجريبي' 'Try the demo menu' %}</a>
@@ -24,6 +24,7 @@
   <div class="cat-plans">
     {% for plan in plans %}{% include 'marketing/catalog/_plan_card.html' %}{% endfor %}
   </div>
+  <p class="cat-team-note">{% bi 'الأعداد إجمالي حسابات الفريق بكل الأدوار، شاملة المالك؛ وليست عدد الويترز. التوزيع مثال مرن وليس حصة إلزامية لكل دور. حساب المطبخ يمكنه متابعة عدة محطات. أعداد Business موزعة على كل الفروع.' 'Team limits cover all roles including the owner, not just waiters. Role examples are flexible, not role quotas. One kitchen account can monitor several stations. Business totals cover all branches.' %}</p>
 
   <section class="cat-section" aria-labelledby="compare-title">
     <h2 id="compare-title">{% bi 'مقارنة الباقات' 'Plan comparison' %}</h2>
@@ -59,10 +60,10 @@
           {% bi 'الأداة' 'Tool' as row_heading %}
           {% include 'marketing/catalog/_comparison_header.html' %}
           <tbody>
-            {% for group,availability in tools %}
-            <tr>
-              <th scope="row"><a href="{% public_url 'feature_detail' group.slug %}">{{ group.title }}</a></th>
-              {% for included in availability %}<td>{% if included %}<span class="cat-included-check">{% bi 'متاح' 'Included' %}</span>{% else %}{% bi 'خارج السعة' 'Outside limits' %}{% endif %}</td>{% endfor %}
+            {% for service,availability in comparison_services %}
+            <tr data-service-comparison="{{ service.key }}">
+              <th scope="row">{{ service.title }}</th>
+              {% for included in availability %}<td>{% if included %}<span class="cat-included-check" aria-label="{% bi 'مشمول' 'Included' %}">✓</span>{% else %}<span aria-label="{% bi 'غير مشمول' 'Not included' %}">—</span>{% endif %}</td>{% endfor %}
             </tr>
             {% endfor %}
           </tbody>
@@ -70,6 +71,7 @@
       </div>
     </details>
   </section>
+  <p class="cat-team-note">{% bi 'الحجز والولاء والكوبونات والدفع الإلكتروني والتكاملات غير المنفذة ليست مشمولة في أي باقة حالية. راجع حالة كل خدمة في دليل المميزات.' 'Unimplemented reservations, loyalty, coupons, online payments and integrations are not included in any current plan. Check the feature guide for availability.' %}</p>
   {% else %}
   <p class="cat-empty">{% bi 'لا توجد باقات معروضة حاليًا.' 'No plans are currently listed.' %}</p>
   {% endif %}

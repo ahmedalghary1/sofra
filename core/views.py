@@ -46,6 +46,7 @@ from .accounts import account_for_email, new_login_email
 from .security import client_address, consume_limits, limited_response
 from .services import audit_change, correct_manual_collection
 from .subscriptions import freeze_plan_subscribers, record_agreement
+from .plan_features import FEATURES, enabled_features, has_feature, service_groups
 from .resources import archive_resource, lock_resource
 from .reporting import collection_activity, collection_csv, csv_safe
 from .models import CollectionCorrection
@@ -709,9 +710,17 @@ def shell(request, restaurant, membership, page, **extra):
     ctx = {'restaurant': restaurant, 'membership': membership, 'branch': branch_for(request, restaurant, membership),
            'available_restaurants': Membership.objects.filter(user=request.user, active=True, archived=False)
                .select_related('restaurant').order_by('restaurant__name'),
-           'available_branches': branches, 'page': page}
+           'available_branches': branches, 'page': page,
+           'plan_access': {key: has_feature(restaurant.subscription, key) for key in FEATURES}}
     ctx.update(extra)
     return render(request, f'{page}.html', ctx)
+
+
+def locked_service(request, restaurant, membership, feature):
+    response = shell(request, restaurant, membership, 'plan_service_locked',
+                     service_name=FEATURES[feature][request.LANGUAGE_CODE == 'en'])
+    response.status_code = 403
+    return response
 
 def dashboard(request, slug):
     restaurant, membership, denied = scope(request, slug)
@@ -940,6 +949,8 @@ def manage_menu(request, slug):
 def menu_import(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
     if denied: return denied
+    if not has_feature(restaurant.subscription, 'menu_import'):
+        return locked_service(request, restaurant, membership, 'menu_import')
     branch = branch_for(request, restaurant, membership)
     if request.method == 'GET' and request.GET.get('template') == '1':
         response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -1320,6 +1331,10 @@ def reports(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     all_branches = request.GET.get('scope') == 'all'
+    if all_branches and not has_feature(restaurant.subscription, 'multi_branch_reports'):
+        return locked_service(request, restaurant, membership, 'multi_branch_reports')
+    if request.GET.get('station') and not has_feature(restaurant.subscription, 'advanced_reports'):
+        return locked_service(request, restaurant, membership, 'advanced_reports')
     scoped_orders = Order.objects.filter(branch__restaurant=restaurant) if all_branches else Order.objects.filter(branch=branch)
     orders = scoped_orders
     station_key = request.GET.get('station', '')
@@ -1683,6 +1698,8 @@ def restaurant_settings(request, slug):
     branding_initial = {key: getattr(restaurant, key) for key in MENU_COLOR_DEFAULTS}
     branding_post = request.method == 'POST' and action == 'branding'
     online_post = request.method == 'POST' and action == 'online'
+    if online_post and not has_feature(restaurant.subscription, 'online_ordering'):
+        return locked_service(request, restaurant, membership, 'online_ordering')
     online_form = OnlineOrderingForm(request.POST if online_post else None,
         initial={key: getattr(restaurant, key) for key in OnlineOrderingForm.base_fields}, prefix='online')
     branding_form = MenuBrandingForm(request.POST if branding_post else None,
@@ -1696,6 +1713,8 @@ def restaurant_settings(request, slug):
         else:
             with transaction.atomic():
                 venue = Restaurant.objects.select_for_update().get(pk=restaurant.pk)
+                if not has_feature(venue.subscription, 'online_ordering'):
+                    return locked_service(request, venue, membership, 'online_ordering')
                 fields = list(online_form.cleaned_data)
                 before = {key: str(getattr(venue, key)) for key in fields}
                 for key, value in online_form.cleaned_data.items():
@@ -1766,7 +1785,11 @@ def restaurant_settings(request, slug):
         selected_plan = Plan.objects.filter(pk=valid_pk(request.GET['preview_plan'])).first()
         if selected_plan:
             plan_preview = preview_plan_usage(restaurant, selected_plan)
+            plan_preview['removed_features'] = [label[request.LANGUAGE_CODE == 'en'] for key, label in FEATURES.items()
+                if has_feature(subscription, key) and key not in enabled_features(selected_plan)]
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
+                 subscribed_services=service_groups([key for key in FEATURES if has_feature(subscription, key)],
+                     {field: subscription.limit(field, branch) for field in ('max_branches', 'max_stations')}, request.LANGUAGE_CODE == 'en'),
                  online_form=online_form, online_url=request.build_absolute_uri(reverse('online_menu', args=[slug])),
                  branding_form=branding_form, branding_defaults=MENU_COLOR_DEFAULTS,
                  menu_theme=menu_theme({key: branding_form[key].value() for key in MENU_COLOR_DEFAULTS}),
@@ -1856,6 +1879,7 @@ def online_menu(request, slug):
     subscription = getattr(restaurant, 'subscription', None)
     ctx = {'restaurant': restaurant, 'menu_theme': restaurant_menu_theme(restaurant)}
     if (not restaurant.active or not restaurant.online_ordering_enabled or subscription is None
+            or not has_feature(subscription, 'online_ordering')
             or subscription.status == 'pending'):
         return render(request, 'online_unavailable.html', ctx, status=404)
     branches = restaurant.branches.filter(active=True, archived=False).order_by('pk')

@@ -12,9 +12,9 @@ from .showcase_data import SOLUTIONS, TOPICS
 class ShowcaseCatalogTests(TestCase):
     def test_public_pages_render_the_same_prices_limits_and_staff_examples(self):
         expected = {
-            'starter': ('600', (1, 20, 100, 4, 1), (1, 2, 1, 0)),
-            'growth': ('1300', (1, 60, 300, 12, 3), (2, 5, 3, 2)),
-            'business': ('2500', (3, 120, 800, 40, 6), (5, 20, 10, 5)),
+            'starter': ('600', (1, 20, 100, 4, 1), (1, 1, 1, 1)),
+            'growth': ('1300', (1, 60, 300, 8, 3), (1, 3, 2, 2)),
+            'business': ('2500', (3, 120, 800, 15, 6), (3, 6, 3, 3)),
         }
         for lang in ('ar', 'en'):
             page = self.client.get(reverse('pricing'), {'lang': lang})
@@ -33,7 +33,7 @@ class ShowcaseCatalogTests(TestCase):
                         self.assertIn(f'data-tier-role="{role}">{count}<', card)
                 self.assertEqual(sum(staff), limits[3])
                 self.assertGreaterEqual(staff[2], limits[0])
-                self.assertLessEqual(limits[4], staff[2])
+                self.assertGreaterEqual(staff[2], 1)  # One kitchen account can cover several stations.
                 contact = self.client.get(reverse('contact'), {'plan': slug, 'lang': lang})
                 for key, count in zip(LIMITS, limits):
                     self.assertContains(contact, f'data-tier-limit="{key}">{count}<')
@@ -123,8 +123,8 @@ class ShowcaseCatalogTests(TestCase):
         })
         entries = response.context['entries']
         self.assertEqual([item['slug'] for item in entries], ['digital-menu'])
-        self.assertEqual([item['anchor'] for item in entries[0]['items']], ['publish'])
-        self.assertContains(response, reverse('feature_detail', args=['digital-menu']) + '?lang=en#publish')
+        self.assertEqual([item['anchor'] for item in entries[0]['items']], ['import'])
+        self.assertContains(response, reverse('feature_detail', args=['digital-menu']) + '?lang=en#import')
         self.assertContains(response, 'value="digital-menu" selected')
         empty = self.client.get(reverse('features'), {'q': 'no-matching-term', 'lang': 'en'})
         self.assertContains(empty, 'No matching features')

@@ -1,0 +1,8 @@
+{% extends 'app_base.html' %}{% load showroom %}
+{% block title %}{% bi 'خدمة خارج الاشتراك الحالي' 'Service outside the current subscription' %}{% endblock %}
+{% block content %}<section class="panel empty-state">
+<h1>{% bi 'هذه الخدمة تحتاج باقة أخرى' 'This service needs another plan' %}</h1>
+<p>{{ service_name }}</p><p>{% bi 'راجع الخدمات المشمولة وحدود الفريق في إعدادات المطعم، أو تواصل مع فريق Serveza لتغيير الباقة.' 'Review included services and team limits in venue settings, or contact Serveza to change plans.' %}</p>
+<a class="btn btn-primary" href="{% url 'restaurant_settings' restaurant.slug %}#subscriptionPlan">{% bi 'راجع اشتراكي' 'Review my subscription' %}</a>
+<a class="btn btn-outline" href="{% public_url 'pricing' %}">{% bi 'قارن الباقات' 'Compare plans' %}</a>
+</section>{% endblock %}

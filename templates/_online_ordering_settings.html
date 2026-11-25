@@ -1,6 +1,7 @@
 {% load showroom i18n %}
 <section class="panel spaced-panel" id="onlineOrdering">
   <div class="panel-head"><div><h2>{% bi 'الطلب أونلاين من خارج المطعم' 'Online ordering from home' %}</h2><p>{% bi 'رابط خاص بمطعمك باللوجو والألوان الحالية، لطلبات الاستلام من الفرع أو التوصيل. الإعدادات تسري على كل الفروع؛ يظل إيقاف استقبال الطلبات في الفرع نافذًا.' 'A dedicated link with your logo and colors for branch pickup or delivery. These settings apply to all branches; a branch can still pause incoming orders.' %}</p></div></div>
+  {% if plan_access.online_ordering %}
   <p><a href="{{ online_url }}" target="_blank" rel="noopener" class="online-share-link"><bdi>{{ online_url }}</bdi> {% symbol 'external-link' %}</a></p>
   <p class="form-hint">{% bi 'الرابط يستقبل الطلبات بعد التفعيل والحفظ. رسوم التوصيل ثابتة لكل طلب، والطلب المستلم من الفرع بلا رسوم. يتولى المطعم التوصيل والتحصيل عند الاستلام.' 'The link accepts orders after enabling and saving. Delivery uses one flat fee per order; pickup has no fee. The restaurant arranges delivery and collects payment on fulfillment.' %}</p>
   <p class="form-hint">{% bi 'تفعيل الرابط ينشر اسم الفرع وعنوانه ومواعيده المحفوظة لمساعدة العميل على الاستلام. راجعها من بيانات الفرع قبل مشاركة الرابط.' 'Enabling the link publishes saved branch names, addresses and opening hours to help customers collect orders. Review branch details before sharing the link.' %}</p>
@@ -9,4 +10,5 @@
     {% for field in online_form %}<label {% if field.field.widget.input_type == 'checkbox' %}class="check-label"{% endif %}>{% if field.field.widget.input_type == 'checkbox' %}{{ field }} {{ field.label }}{% else %}{{ field.label }}{{ field }}{% endif %}</label>{% if field.errors %}<div class="form-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
     <button type="submit" class="btn btn-primary">{% bi 'حفظ إعدادات الطلب أونلاين' 'Save online ordering settings' %}</button>
   </form>
+  {% else %}<p>{% bi 'الطلب أونلاين غير مشمول في اشتراكك الحالي. متاح في Growth وBusiness، أو حسب خدمات اتفاقك.' 'Online ordering is not included in your current subscription. It is offered in Growth and Business, or through your agreed services.' %}</p><a class="btn btn-outline" href="#subscriptionPlan">{% bi 'قارن الخدمات في الاشتراك' 'Review subscription services' %}</a>{% endif %}
 </section>

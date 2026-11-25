@@ -26,10 +26,7 @@
     <dl class="cat-staff">{% for role,label,count in plan.staff_rows %}<div><dt>{{ label }}</dt><dd data-tier-role="{{ role }}">{{ count }}</dd></div>{% endfor %}</dl>
     {% if plan.limits.max_stations %}<p>{% bi 'حساب المطبخ يقدر يتابع أكثر من محطة في فرعه.' 'A kitchen account can monitor multiple stations in its branch.' %}</p>{% endif %}
   </details>
-  <details class="cat-plan-details cat-plan-included">
-    <summary>{% bi 'المميزات المشمولة' 'Included features' %}{% symbol 'chevron' %}</summary>
-    <p>{{ plan.focus }}</p>
-    <ul class="cat-plan-benefits">{% for text in plan.highlights %}<li>{% symbol 'check' %}<span>{{ text }}</span></li>{% endfor %}</ul>
-    {% for group in plan.included %}<div><h3>{{ group.title }}</h3><ul>{% for detail in group.items %}<li>{{ detail }}</li>{% endfor %}</ul></div>{% endfor %}
-  </details>
+  <div class="cat-plan-included"><p>{{ plan.focus }}</p>
+    {% include '_plan_services.html' with services=plan.service_groups %}
+  </div>
 </article>

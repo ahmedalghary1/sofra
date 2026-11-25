@@ -8,7 +8,7 @@
     <dl>{% for key,label,count in plan.rows %}<div><dt>{{ label }}</dt><dd data-tier-limit="{{ key }}">{{ count }}</dd></div>{% endfor %}</dl>
     <p class="mk-team-example"><small>{% bi 'مثال لتوزيع الفريق' 'Example team setup' %}</small>
       {% for role,label,count in plan.staff_rows %}<span>{{ label }} <b data-tier-role="{{ role }}">{{ count }}</b></span>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
-    <ul class="mk-tier-features">{% for text in plan.highlights|slice:':2' %}<li>{{ text }}</li>{% endfor %}</ul>
+    {% include '_plan_services.html' with services=plan.service_groups %}
     <a class="mk-textlink" href="{% public_url 'pricing' %}#plan-{{ plan.slug }}">{% bi 'مميزات' 'Explore' %} {{ plan.name }} {% symbol 'arrow-right' %}</a>
   </article>
   {% empty %}<p>{% bi 'تفاصيل الباقات غير متاحة الآن.' 'Plan details are temporarily unavailable.' %}</p>{% endfor %}

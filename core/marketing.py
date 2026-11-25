@@ -294,7 +294,7 @@ def plan_teaser(request):
     for plan in public_plans(en):
         currency = "EGP / month" if en else "ج.م / شهر"
         rows.append(f"{plan['name']} · {plan['price']} {currency}")
-        tiers.append({key: plan[key] for key in ("slug", "price", "focus", "limits", "staff", "highlights")})
+        tiers.append({key: plan[key] for key in ("slug", "price", "focus", "limits", "staff", "highlights", "service_groups")})
     return JsonResponse({"rows": rows, "configured": tiers})
 
 
@@ -345,9 +345,9 @@ def robots(request):
 
 @require_safe
 def llms(request):
-    plans = public_plans(True)
     origin = settings.SITE_URL
     en = request.LANGUAGE_CODE == "en"
+    plans = public_plans(en)
     lines = ["# Serveza", "", "> " + PRODUCT[en], "",
              f"- {('السوق', 'Market')[en]}: {MARKET[en]}",
              f"- WhatsApp: {WHATSAPP}"]
@@ -364,6 +364,8 @@ def llms(request):
         label = "Price" if en else "السعر"
         limits = "; ".join(f"{names[en]}: {plan['limits'][key]}" for key, names in LIMITS.items())
         lines.append(f"- {plan['name']}: {label} {plan['price']} {currency}; {limits}.")
+        for group in plan['service_groups']:
+            lines.extend(f"  - {'Included' if row['included'] else 'Not included'}: {row['title']}" for row in group['rows'])
     for heading, features in ((("المتاح", "Available"), AVAILABLE), (("غير متاح حاليًا", "Not currently available"), UNAVAILABLE)):
         lines.extend(["", "## " + heading[en], *(f"- {feature[en]}" for feature in features)])
     paths = (

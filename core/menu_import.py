@@ -13,6 +13,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .limits import check_creation_limit
+from .plan_features import require_feature
 from .models import Category, MenuImportBatch, MenuItem
 from .services import audit
 from .validation import money
@@ -116,6 +117,7 @@ def commit_menu_import(batch, actor):
     if not restaurant.active or not branch.active:
         raise ValidationError('هذا الفرع لا يقبل استيرادًا حاليًا.')
     subscription = check_creation_limit(restaurant, 'item', branch)
+    require_feature(restaurant, 'menu_import', subscription=subscription)
     current_count = MenuItem.objects.filter(category__branch=branch, archived=False).count()
     limit = subscription.limit('max_items', branch)
     if current_count + len(batch.rows) > limit:

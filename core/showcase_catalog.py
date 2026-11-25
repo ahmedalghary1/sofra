@@ -11,6 +11,7 @@ from django.views.decorators.http import require_safe
 from .models import Plan
 from .seo import TOPIC_SEARCH, monthly_price_text, public_metadata
 from .showcase_data import FAQS, GROUPS, ROLES, SOLUTIONS, STATES, TOPICS
+from .plan_features import capability_feature, enabled_features, service_groups
 
 PUBLIC_TIERS = (
     ('Starter', ('Starter', 'ستارتر', 'البداية')),
@@ -42,25 +43,10 @@ PLAN_FOCUS = {
     'Business': ('لتشغيل عدة فروع. أدِر حتى {max_branches} فروع و{max_staff} حسابًا للفريق، بمنيو ومطبخ وتقارير مستقلة لكل فرع.',
                  'Run up to {max_branches} branches with {max_staff} team accounts and a separate menu, kitchen and reports for each branch.'),
 }
-HIGHLIGHTS = {
-    'Starter': (
-        ('digital-menu', 'منيو بالصور والأحجام والإضافات', 'Photo menu with sizes and extras'),
-        ('qr-ordering', 'رمز QR لكل طاولة وطلب مباشر من الموبايل', 'Table QR codes and mobile ordering'),
-        ('kitchen-display', 'شاشة مطبخ KDS بتذاكر الطلبات', 'Kitchen display (KDS) with order tickets'),
-        ('waiter', 'استدعاء الويتر وطلب الحساب من الطاولة', 'Waiter calls and bill requests at the table'),
-    ),
-    'Growth': (
-        ('kitchen-display', 'تذاكر حسب محطة التحضير ومتابعة جاهزية الأصناف', 'Station tickets and item readiness'),
-        ('notifications', 'تنبيهات لتأخر التحضير واستجابة الويتر', 'Late prep and service alerts'),
-        ('billing', 'طباعة ملخص الطاولة وتسجيل التحصيل', 'Print table summaries and record collections'),
-        ('analytics', 'الأصناف الأكثر طلبًا وتقرير طلبات CSV', 'Best-selling items and CSV order reports'),
-    ),
-    'Business': (
-        ('multi-branch', 'منيو وأسعار وطاولات مستقلة لكل فرع', 'Separate menus, prices and tables for each branch'),
-        ('team', 'أدوار للموظفين وتحديد الفروع المتاحة لكل حساب', 'Staff roles and branch access per account'),
-        ('kitchen-display', 'توزيع التذاكر على محطات المطبخ ومتابعة الجاهزية', 'Route kitchen tickets and track readiness'),
-        ('analytics', 'تقارير كل فرع عن الطلبات والتحصيل وزمن الخدمة', 'Branch reports on orders, collections and service times'),
-    ),
+HIGHLIGHT_KEYS = {
+    'Starter': ('photo_menu', 'qr', 'kitchen', 'service'),
+    'Growth': ('online_ordering', 'menu_import', 'advanced_reports', 'stations'),
+    'Business': ('branches', 'multi_branch_reports', 'online_ordering', 'stations'),
 }
 # These topics contain planned modules as well as smaller live functions.
 INCLUDED_TITLES = {
@@ -114,6 +100,7 @@ def public_plans(english=False):
         price_text = format(row.price_monthly, '.2f').rstrip('0').rstrip('.')
         plan = {
             'name': name, 'slug': name.lower(), 'price': price_text, 'limits': limits,
+            'features': enabled_features(row),
             'annual_price': format(annual_price, '.2f').rstrip('0').rstrip('.'),
             'annual_discount': discount,
             'trial_duration': f'{FREE_TRIAL_DAYS} days' if english else f'{FREE_TRIAL_DAYS} يومًا',
@@ -127,8 +114,9 @@ def public_plans(english=False):
         plan['focus'] = focus[english].format(**limits)
         plan['staff'] = _staff_example(row)
         plan['staff_rows'] = [(role, label[english], plan['staff'][role]) for role, label in STAFF_ROLES.items()]
-        plan['highlights'] = [(ar, en)[english] for slug, ar, en in HIGHLIGHTS[name]
-                              if _fits_plan(TOPIC_BY_SLUG[slug], plan)]
+        plan['service_groups'] = service_groups(plan['features'], limits, english)
+        plan['highlights'] = [row['title'] for group in plan['service_groups'] for row in group['rows']
+                              if row['key'] in HIGHLIGHT_KEYS[name] and row['included']]
         plans.append(plan)
     return plans
 
@@ -174,12 +162,18 @@ def _options(options, en):
 
 
 def _fits_plan(topic, plan):
-    # Only the resources defined by Plan are entitlements. No feature flags exist.
     if topic.slug == 'multi-branch':
         return plan['limits']['max_branches'] > 1
     if topic.slug == 'kitchen-display':
         return plan['limits']['max_stations'] > 0
     return True
+
+
+def _fits_capability(topic, anchor, plan):
+    feature = capability_feature(topic.slug, anchor)
+    if feature == 'multi_branch_reports' and plan['limits']['max_branches'] <= 1:
+        return False
+    return _fits_plan(topic, plan) and (feature is None or feature in plan['features'])
 
 
 @require_safe
@@ -206,6 +200,10 @@ def features(request):
             if filters['state'] and filters['state'] != item['status']:
                 continue
             if filters['plan'] and item['status'] != 'available':
+                continue
+            if selected and not _fits_capability(topic, item['anchor'], selected):
+                continue
+            if filters['plan'] == 'common' and plans and not all(_fits_capability(topic, item['anchor'], plan) for plan in plans):
                 continue
             if query.casefold() in topic_text or query.casefold() in ' '.join(capability[2:]).casefold():
                 matches.append(item)
@@ -234,6 +232,9 @@ def feature_detail(request, slug):
     title, answer = TOPIC_SEARCH.get(slug, (topic.title, None))
     if answer:
         entry['direct_answer'] = answer[en]
+    for item in entry['items']:
+        if item['status'] == 'available':
+            item['plans'] = [p['name'] for p in plans if _fits_capability(topic, item['anchor'], p)]
     description = entry['direct_answer'] if answer else entry['summary']
     return _page(request, 'feature', title[en], description, entry=entry, breadcrumb_title=entry['title'],
                  faq_rows=[(FAQS[slug][0][en], FAQS[slug][1][en])],
@@ -263,12 +264,20 @@ def pricing(request):
         if not items:
             continue
         group = {'slug': topic.slug, 'title': INCLUDED_TITLES.get(topic.slug, topic.title)[en], 'items': items}
-        availability = [_fits_plan(topic, plan) for plan in plans]
-        for plan, available in zip(plans, availability):
-            if available:
-                plan['included'].append(group)
+        availability = []
+        for plan in plans:
+            included = [(ar, eng)[en] for anchor, state, ar, eng in topic.capabilities
+                        if state == 'available' and _fits_capability(topic, anchor, plan)]
+            availability.append(bool(included))
+            if included:
+                plan['included'].append(dict(group, items=included))
         tools.append((group, availability))
     staff_rows = [(label[en], [p['staff'][key] for p in plans]) for key, label in STAFF_ROLES.items()]
+    comparison_services = []
+    if plans:
+        for group_index, group in enumerate(plans[0]['service_groups']):
+            for row_index, row in enumerate(group['rows']):
+                comparison_services.append((row, [p['service_groups'][group_index]['rows'][row_index]['included'] for p in plans]))
     price = starter_price(plans)
     description = (
         monthly_price_text(price, en) + ' ' +
@@ -278,8 +287,8 @@ def pricing(request):
     )
     faq_rows = [
         (('إزاي أعرف حدود اشتراكي الفعلي؟', 'Where can I check my actual limits?')[en],
-         ('حدود باقتك واستخدام الفروع موجودان في إعدادات المطعم. يقدر المالك يعاين أثر تغيير الباقة قبل التواصل مع فريق Serveza.',
-          'Open restaurant settings to check plan limits and branch usage. Owners can preview a plan change before contacting Serveza.')[en]),
+         ('الخدمات وحدود باقتك واستخدام الفروع موجودة في إعدادات المطعم. يقدر المالك يعاين الخدمات التي ستتوقف عند تغيير الباقة قبل التواصل مع فريق Serveza. العقود القائمة تحتفظ بشروطها حتى تسجيل اتفاق جديد.',
+          'Venue settings show included services, plan limits and branch usage. Owners can preview services lost on a plan change. Existing agreements keep their terms until explicitly renewed.')[en]),
         (('هل يمكن الدفع من الصفحة؟', 'Can I pay on this page?')[en],
          ('الدفع الإلكتروني غير متاح حاليًا. يتواصل فريق Serveza معك لاختيار الباقة وتسجيل التحصيل يدويًا.',
           'Online payment is currently unavailable. The Serveza team helps you choose a plan and records collections manually.')[en]),
@@ -289,7 +298,7 @@ def pricing(request):
     ]
     return _page(request, 'pricing', ('سعر نظام منيو QR وطلبات الطاولات في مصر', 'QR menu and table ordering prices in Egypt')[en],
                  description, plans=plans, rows=rows, staff_rows=staff_rows, tools=tools, faq_rows=faq_rows,
-                 starter_price=price, annual=annual, pricing_note=PRICING_NOTE[en])
+                 starter_price=price, annual=annual, pricing_note=PRICING_NOTE[en], comparison_services=comparison_services)
 
 
 @require_safe

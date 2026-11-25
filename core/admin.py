@@ -2,6 +2,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
 from django import forms
 from .subscriptions import freeze_plan_subscribers
+from .plan_features import FEATURES, enabled_features
 from .models import DemoRequest
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
@@ -43,6 +44,13 @@ class PlanAdmin(admin.ModelAdmin):
     list_display = ('name','price_monthly','max_branches','max_tables','max_items','max_staff','max_stations')
     class PlanForm(forms.ModelForm):
         change_reason = forms.CharField(label=_('سبب التعديل'), required=False)
+        enabled_features = forms.MultipleChoiceField(required=False, widget=forms.CheckboxSelectMultiple,
+            choices=[(key, label[0]) for key, label in FEATURES.items()], label=_('الخدمات الإضافية المشمولة'))
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            from django.utils.translation import get_language
+            self.fields['enabled_features'].choices = [(key, label[get_language() == 'en']) for key, label in FEATURES.items()]
+            self.initial['enabled_features'] = enabled_features(self.instance) if self.instance.pk else list(FEATURES)
         class Meta:
             model = Plan
             fields = '__all__'

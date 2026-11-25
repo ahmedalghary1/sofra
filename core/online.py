@@ -11,6 +11,7 @@ from django.db import IntegrityError, transaction
 from .models import Branch, Order, OrderHistory, OrderLine, Restaurant
 from .services import normalize_order_lines
 from .validation import TOTAL_MAX, localized, money
+from .plan_features import require_feature
 
 
 class OnlineOrderingForm(forms.Form):
@@ -104,6 +105,7 @@ def create_online_order(branch, payload):
             if prior:
                 return prior
             subscription = getattr(restaurant, 'subscription', None)
+            require_feature(restaurant, 'online_ordering')
             if (not restaurant.active or not restaurant.online_ordering_enabled or not branch.active
                     or branch.archived or not branch.accepting_orders or not subscription or not subscription.valid()):
                 raise ValidationError(localized('استقبال الطلبات أونلاين متوقف حاليًا. حدّث الصفحة أو تواصل مع المطعم.',

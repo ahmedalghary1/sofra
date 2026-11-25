@@ -50,7 +50,7 @@ class ManualActivationTests(TestCase):
         self.assertContains(page, 'mailto:' + self.email)
         plans = list(page.context['activation_plans'])
         self.assertEqual([(p.name, p.price_monthly, p.max_staff) for p in plans],
-                         [('Starter', 600, 4), ('Growth', 1300, 12), ('Business', 2500, 40)])
+                         [('Starter', 600, 4), ('Growth', 1300, 8), ('Business', 2500, 15)])
         end = timezone.localdate() + timedelta(days=30)
         terms = {'action': 'subscription', 'reason': 'تمت مراجعة التحويل', 'plan_id': plans[1].pk,
                  'status': 'active', 'ends_at': end.isoformat()}

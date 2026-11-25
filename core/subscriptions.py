@@ -7,6 +7,7 @@ from django.utils import timezone
 from .models import Plan, Subscription, SubscriptionAgreement, SubscriptionPayment
 from .validation import TOTAL_MAX, money
 from decimal import Decimal, ROUND_HALF_UP
+from .plan_features import enabled_features
 
 LIMIT_FIELDS = ('max_branches', 'max_tables', 'max_items', 'max_staff', 'max_stations')
 
@@ -14,17 +15,19 @@ LIMIT_FIELDS = ('max_branches', 'max_tables', 'max_items', 'max_staff', 'max_sta
 def terms_for_plan(plan):
     return {'plan_id': plan.pk, 'plan_name': plan.name, 'currency': 'EGP',
             'monthly_price': str(plan.price_monthly),
-            'limits': {field: getattr(plan, field) for field in LIMIT_FIELDS}}
+            'limits': {field: getattr(plan, field) for field in LIMIT_FIELDS}, 'features': enabled_features(plan)}
 
 
 @transaction.atomic
 def freeze_plan_subscribers(plan_id, actor=None):
     previous = Plan.objects.get(pk=plan_id)
     terms = terms_for_plan(previous)
-    for subscription in Subscription.objects.select_for_update().filter(plan_id=plan_id, agreed_terms={}):
-        subscription.agreed_terms = terms
+    for subscription in Subscription.objects.select_for_update().filter(plan_id=plan_id):
+        if subscription.agreed_terms and 'features' in subscription.agreed_terms:
+            continue
+        subscription.agreed_terms = dict(subscription.agreed_terms or terms, features=terms['features'])
         subscription.save(update_fields=['agreed_terms'])
-        SubscriptionAgreement.objects.create(subscription=subscription, terms=terms,
+        SubscriptionAgreement.objects.create(subscription=subscription, terms=subscription.agreed_terms,
             status=subscription.status, starts_on=timezone.localdate(), ends_at=subscription.ends_at,
             actor=actor, reason='Baseline captured from configured terms; not a reconstruction of an earlier contract.')
 

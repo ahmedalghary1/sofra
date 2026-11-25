@@ -10,5 +10,6 @@
   <p>{% bi 'تجربة مجانية لمدة' 'Free trial for' %} {{ selected_plan.trial_duration }}</p>
   <p>{{ pricing_note }}</p>
   <dl>{% for key,label,count in selected_plan.rows %}<div><dt>{{ label }}</dt><dd data-tier-limit="{{ key }}">{{ count }}</dd></div>{% endfor %}</dl>
+  {% include '_plan_services.html' with services=selected_plan.service_groups %}
 </section>
 {% endif %}

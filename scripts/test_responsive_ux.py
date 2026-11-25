@@ -20,6 +20,7 @@ from core.models import Branch, Category, DemoRequest, DiningTable, Membership, 
 from core.online import create_online_order
 from core.services import create_order, create_service_call
 from core.showcase_data import SOLUTIONS, TOPICS
+from core.plan_features import TIER_FEATURES, TEAM_PRESETS
 
 
 LAYOUT_AUDIT = """() => {
@@ -48,9 +49,10 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
     def setUp(self):
         # Live-server classes flush migrated rows. Every test owns its public plan fixtures.
         for name,price,branches,tables,items,staff,stations in (
-            ('Starter',600,1,20,100,4,1),('Growth',1300,1,60,300,12,3),('Business',2500,3,120,800,40,6)):
+            ('Starter',600,1,20,100,4,1),('Growth',1300,1,60,300,8,3),('Business',2500,3,120,800,15,6)):
             Plan.objects.update_or_create(name=name,defaults={'price_monthly':price,'max_branches':branches,
-                'max_tables':tables,'max_items':items,'max_staff':staff,'max_stations':stations})
+                'max_tables':tables,'max_items':items,'max_staff':staff,'max_stations':stations,
+                'enabled_features':list(TIER_FEATURES[name]),'staff_example':TEAM_PRESETS[name][1]})
         self.venue = Restaurant.objects.create(name='مطعم الورد للمأكولات الشرقية · Ward neighborhood kitchen', slug='ux-restaurant',
             online_ordering_enabled=True, online_delivery_enabled=True, delivery_fee='17.50')
         plan = Plan.objects.create(name='UX test', max_branches=6, max_staff=12)
@@ -430,3 +432,65 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
                 expect(page.locator('#platformMain')).to_be_focused()
                 context.close()
             browser.close()
+
+    def test_plan_service_comparison_and_operator_service_selection(self):
+        output=Path('tmp/plan-services-ui')
+        output.mkdir(parents=True,exist_ok=True)
+        starter=Restaurant.objects.create(name='Starter service test',slug='starter-services')
+        Subscription.objects.create(restaurant=starter,plan=Plan.objects.get(name='Starter'),status='active',ends_at=timezone.now()+timedelta(days=30))
+        Branch.objects.create(restaurant=starter)
+        Membership.objects.create(restaurant=starter,user=self.owner,role='owner')
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='chrome',headless=True)
+            for language in ('ar','en'):
+                context=self.context(browser,width=360,height=900)
+                page=context.new_page()
+                for width in (320,390,768,1366,1920):
+                    page.set_viewport_size({'width':width,'height':900})
+                    page.goto(self.live_server_url+reverse('pricing')+'?lang='+language)
+                    for tier in ('starter','growth','business'):
+                        card=page.locator('#plan-'+tier)
+                        expect(card.locator('[data-service]')).to_have_count(16)
+                        online=card.locator('[data-service=online_ordering]')
+                        expect(online).to_have_attribute('data-included','false' if tier=='starter' else 'true')
+                        if tier=='starter':expect(online.locator('s')).to_be_visible()
+                        else:expect(online.locator('s')).to_have_count(0)
+                        expect(card.locator('[data-service=multi_branch_reports]')).to_have_attribute('data-included','true' if tier=='business' else 'false')
+                        if width in (390,1366):card.screenshot(path=str(output/f'{tier}-{language}-{width}.png'))
+                    layout=page.evaluate(LAYOUT_AUDIT)
+                    self.assertFalse(layout['overflow'] or layout['clipped'])
+                page.set_viewport_size({'width':360,'height':900})
+                page.goto(self.live_server_url+reverse('home')+'?lang='+language)
+                expect(page.locator('[data-tier=starter] [data-service=online_ordering]')).to_have_attribute('data-included','false')
+                page.goto(self.live_server_url+reverse('contact')+'?plan=growth&lang='+language)
+                expect(page.locator('.mk-note [data-service=online_ordering]')).to_have_attribute('data-included','true')
+                context.close()
+                context=self.context(browser,'owner',width=360,height=900)
+                page=context.new_page()
+                response=page.goto(self.live_server_url+reverse('menu_import',args=[starter.slug])+'?lang='+language)
+                self.assertEqual(response.status,403)
+                expect(page.locator('h1')).to_contain_text('هذه الخدمة تحتاج باقة أخرى' if language=='ar' else 'This service needs another plan')
+                page.screenshot(path=str(output/f'locked-service-{language}.png'))
+                page.goto(self.live_server_url+reverse('restaurant_settings',args=[starter.slug])+'?lang='+language)
+                expect(page.locator('#onlineOrdering form')).to_have_count(0)
+                expect(page.locator('#subscriptionPlan [data-service=online_ordering]')).to_have_attribute('data-included','false')
+                self.assertFalse(page.evaluate(LAYOUT_AUDIT)['clipped'])
+                context.close()
+                context=self.context(browser,'operator',width=360,height=900)
+                page=context.new_page()
+                page.goto(self.live_server_url+reverse('platform_plan_create')+'?lang='+language)
+                for name,value in {'name':'Service UI '+language,'price_monthly':'799','max_staff':'6',
+                    'max_branches':'1','max_tables':'20','max_items':'100','max_stations':'2','reason':'Reviewed service selection'}.items():
+                    page.locator('[name='+name+']').fill(value)
+                for checkbox in page.locator('[name=enabled_features]').all():
+                    checkbox.uncheck()
+                for feature in ('online_ordering','advanced_reports'):
+                    page.locator('[name=enabled_features][value='+feature+']').check()
+                self.assertFalse(page.evaluate(LAYOUT_AUDIT)['clipped'])
+                page.screenshot(path=str(output/f'operator-services-{language}.png'),full_page=True)
+                page.get_by_role('button',name='حفظ الباقة' if language=='ar' else 'Save plan',exact=True).click()
+                page.wait_for_url('**/platform/?status=plans')
+                context.close()
+            browser.close()
+        for language in ('ar','en'):
+            self.assertEqual(Plan.objects.get(name='Service UI '+language).enabled_features,['online_ordering','advanced_reports'])

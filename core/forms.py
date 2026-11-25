@@ -11,17 +11,22 @@ from .accounts import account_for_email, new_login_email
 from .branding import MENU_COLOR_DEFAULTS, validate_menu_color, validate_menu_contrast
 from .images import prepare_menu_image
 from .validation import localized
+from .plan_features import FEATURES, enabled_features
 
 
 class PlatformPlanForm(forms.ModelForm):
     reason = forms.CharField(max_length=120)
+    enabled_features = forms.MultipleChoiceField(required=False, widget=forms.CheckboxSelectMultiple)
 
     class Meta:
         model = Plan
-        fields = ('name', 'price_monthly', 'max_branches', 'max_tables', 'max_items', 'max_staff', 'max_stations')
+        fields = ('name', 'price_monthly', 'max_branches', 'max_tables', 'max_items', 'max_staff', 'max_stations', 'enabled_features')
 
     def __init__(self, *args, english=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['enabled_features'].choices = [(key, label[english]) for key, label in FEATURES.items()]
+        self.fields['enabled_features'].label = ('الخدمات الإضافية المشمولة', 'Included additional services')[english]
+        self.initial['enabled_features'] = enabled_features(self.instance) if self.instance.pk else list(FEATURES)
         labels = {
             'name': ('اسم الباقة', 'Plan name'), 'price_monthly': ('السعر الشهري بالجنيه', 'Monthly price in EGP'),
             'max_branches': ('الفروع', 'Branches'), 'max_tables': ('الطاولات لكل فرع', 'Tables per branch'),

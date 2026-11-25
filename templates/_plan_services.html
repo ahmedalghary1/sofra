@@ -1,0 +1,9 @@
+{% load showroom %}
+<div class="plan-services" aria-label="{% bi 'الخدمات المشمولة وغير المشمولة' 'Included and excluded services' %}">
+{% for group in services %}<section class="plan-service-group"><h3>{{ group.title }}</h3>
+<ul>{% for row in group.rows %}<li data-service="{{ row.key }}" data-included="{{ row.included|yesno:'true,false' }}" class="{% if row.included %}service-included{% else %}service-excluded{% endif %}">
+<span class="service-mark" aria-hidden="true">{% if row.included %}{% symbol 'check' %}{% else %}{% symbol 'x' %}{% endif %}</span>
+<span class="sr-only">{% if row.included %}{% bi 'مشمول:' 'Included:' %}{% else %}{% bi 'غير مشمول:' 'Not included:' %}{% endif %}</span>
+{% if row.included %}<span>{{ row.title }}</span>{% else %}<s>{{ row.title }}</s>{% endif %}
+</li>{% endfor %}</ul></section>{% endfor %}
+</div>

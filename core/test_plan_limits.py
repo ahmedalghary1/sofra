@@ -46,7 +46,7 @@ class PublicPlanLimitTests(TestCase):
 
     def test_new_plan_limits_are_enforced_for_every_resource(self):
         for plan_name, branches, tables, items, team, stations in (
-            ('Starter', 1, 20, 100, 4, 1), ('Growth', 1, 60, 300, 12, 3), ('Business', 3, 120, 800, 40, 6),
+            ('Starter', 1, 20, 100, 4, 1), ('Growth', 1, 60, 300, 8, 3), ('Business', 3, 120, 800, 15, 6),
         ):
             restaurant, _, owner, branch = self.venue(plan_name, plan_name.lower())
             Branch.objects.bulk_create([Branch(restaurant=restaurant, name=f'Extra {i}') for i in range(branches - 1)])

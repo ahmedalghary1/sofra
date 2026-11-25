@@ -12,11 +12,11 @@ def exercise_filters(page, origin, language):
     form.locator('[name=role]').select_option('owner')
     form.locator('[name=category]').select_option('digital-menu')
     form.locator('[name=state]').select_option('available')
-    form.locator('[name=plan]').select_option('common')
+    form.locator('[name=plan]').select_option('growth')
     form.locator('button').click()
     expect(page.locator('.cat-counter b')).to_have_text('1')
     page.locator('.cat-matches a').first.click()
-    assert urlsplit(page.url).fragment == 'publish'
+    assert urlsplit(page.url).fragment == 'import'
     page.locator('.cat-faq summary').first.press('Enter')
     expect(page.locator('.cat-faq details[open]')).to_have_count(1)
     page.goto(f'{origin}/features/?lang={language}&q=absent-query-no-match')
@@ -54,8 +54,7 @@ def exercise_pricing(page, origin, language):
     expect(card.locator('[data-tier-role=waiter]')).to_be_hidden()
     card.locator('.cat-plan-details summary').first.press('Enter')
     expect(card.locator('[data-tier-role=waiter]')).to_be_visible()
-    card.locator('.cat-plan-included summary').click()
-    expect(card.locator('.cat-plan-benefits')).to_be_visible()
+    expect(card.locator('.cat-plan-included .plan-services')).to_be_visible()
     card.locator('a[href*="/contact/"]').click()
     contact = urlsplit(page.url)
     assert contact.path == '/contact/' and 'plan=growth' in contact.query
