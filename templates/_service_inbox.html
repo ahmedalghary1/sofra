@@ -2,4 +2,8 @@
 <aside class="service-inbox" data-service-inbox data-branch="{{ branch.pk }}" data-feed="{% url 'service_call_feed' restaurant.slug %}" aria-label="{% bi 'طلبات خدمة الفرع' 'Branch service requests' %}">
   <a href="{% url 'manage_calls' restaurant.slug %}?queue=open{% if english %}&amp;lang=en{% endif %}"><strong>{% symbol 'concierge-bell' %} {% bi 'طلبات الخدمة' 'Service requests' %} · <span data-service-count>—</span></strong><span data-service-summary role="status" aria-live="polite" aria-atomic="true">{% bi 'جارٍ التحقق من طلبات الفرع…' 'Checking branch requests…' %}</span></a>
   <small data-service-connection>{% bi 'تظهر طلبات الويتر والحساب هنا تلقائيًا.' 'Waiter and bill requests appear here automatically.' %}</small>
+  <div class="service-live-alert" data-service-alert hidden>
+    <a href="{% url 'manage_calls' restaurant.slug %}?queue=open{% if english %}&amp;lang=en{% endif %}"><strong>{% bi 'طلب خدمة جديد' 'New service request' %}</strong><span data-service-alert-text></span></a>
+    <button type="button" data-service-alert-close aria-label="{% bi 'إغلاق تنبيه الخدمة' 'Dismiss service alert' %}">{% symbol 'x' %}</button>
+  </div>
 </aside>

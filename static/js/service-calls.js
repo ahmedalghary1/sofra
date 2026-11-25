@@ -102,7 +102,13 @@
     const board=document.getElementById('serviceBoard');
     const connection=inbox.querySelector('[data-service-connection]');
     const summary=inbox.querySelector('[data-service-summary]');
-    let signature=board?.dataset.signature,checking=false,lastInteraction=0;
+    const alert=inbox.querySelector('[data-service-alert]');
+    let signature=board?.dataset.signature,checking=false,lastInteraction=0,maxSeen=null,alertTimer,previousFocus;
+    inbox.querySelector('[data-service-alert-close]').addEventListener('click',()=>{
+      alert.hidden=true;clearTimeout(alertTimer);
+      const target=previousFocus?.isConnected&&!alert.contains(previousFocus)?previousFocus:document.getElementById('workspaceMain');
+      target?.focus({preventScroll:true});
+    });
     document.addEventListener('pointerdown',()=>{lastInteraction=Date.now();},true);
     async function refreshInbox(){
       if(checking||document.hidden)return;
@@ -122,6 +128,14 @@
         const text=data.latest.map(call=>call.table+' · '+kindName(call.kind)).join(copy('، ', '; '))
           ||copy('لا توجد طلبات خدمة جارية في الفرع.','No active service requests in this branch.');
         if(summary.textContent!==text)summary.textContent=text;
+        const incoming=data.latest.find(call=>call.status==='open'&&(maxSeen===null||call.id>maxSeen));
+        if(incoming&&maxSeen!==null&&!board){
+          previousFocus=document.activeElement;
+          inbox.querySelector('[data-service-alert-text]').textContent=incoming.table+' · '+kindName(incoming.kind);
+          alert.hidden=false;clearTimeout(alertTimer);
+          alertTimer=setTimeout(()=>{if(!alert.contains(document.activeElement))alert.hidden=true;},8000);
+        }
+        maxSeen=Math.max(maxSeen||0,...data.latest.map(call=>call.id));
         if(board&&data.html&&Date.now()-lastInteraction>700){
           const focused=document.activeElement.closest('[data-call]')?.dataset.call;
           board.innerHTML=data.html;signature=data.signature;

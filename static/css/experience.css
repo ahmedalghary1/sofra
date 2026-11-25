@@ -21,9 +21,11 @@ body {text-rendering:optimizeLegibility}
 .plan-feature-options>div {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
 .plan-feature-options label {display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
 .plan-feature-options input {width:18px!important;min-height:18px!important;flex:none}
-.service-panel {display:block;margin-block:14px 24px;padding:16px;background:var(--menu-surface,#eff6f3);border:1px solid var(--menu-border,#d2e2d9);color:var(--menu-text,var(--navy,#163143))}
-.service-panel .service-panel-heading {display:flex;align-items:start;gap:10px;margin-block-end:12px}
-.service-panel h2 {font-size:1.1rem;margin:0 0 5px;color:inherit}
+.service-panel {display:block;margin-block:10px 16px;padding:12px;background:var(--menu-surface,#eff6f3);border:1px solid var(--menu-border,#d2e2d9);color:var(--menu-text,var(--navy,#163143))}
+.service-panel .service-panel-heading {display:flex;align-items:start;gap:8px;margin-block-end:8px}
+.service-panel h2 {font-size:.95rem;margin:0;color:inherit}
+.service-panel .service-spark {width:26px;height:26px;flex:none;background:transparent;color:inherit}
+.service-panel .service-spark svg {width:22px;height:22px}
 .service-panel .service-panel-heading p {font-size:.88rem;line-height:1.7;margin:0;color:inherit;max-width:70ch}
 .service-panel .service-buttons {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
 .service-panel .service-buttons form {min-width:0}
@@ -47,6 +49,11 @@ body {text-rendering:optimizeLegibility}
 .service-inbox>small {color:#3e5c50;font-size:.78rem}
 .service-inbox.has-requests {border-inline-start:4px solid #287656;background:#e7f5ed}
 .service-inbox.service-offline {border-color:#af8342;background:#fff5e8}
+.service-live-alert {position:fixed;inset-inline-end:16px;inset-block-end:90px;z-index:23;display:flex;gap:10px;width:min(360px,calc(100vw - 32px));padding:14px;border:1px solid #8db5a0;border-inline-start:5px solid #287656;border-radius:12px;background:#f4fff7;box-shadow:0 5px 22px #122e3926;color:#173e2d}
+.service-live-alert[hidden] {display:none}
+.service-live-alert>a {display:grid;gap:5px;min-width:0;flex:1;color:inherit;text-decoration:none;font-size:.9rem;overflow-wrap:anywhere}
+.service-live-alert>button {width:44px;height:44px;min-height:44px;flex:none;background:transparent;border:0;color:inherit}
+@media print {.service-live-alert {display:none!important}}
 @media print {.service-inbox,.service-panel {display:none!important}}
 :where(button,input,select,textarea,summary,a) {-webkit-tap-highlight-color:transparent}
 :where(button,input,select,textarea,summary):focus-visible {outline:3px solid var(--focus,#20786d);outline-offset:3px}
