@@ -1,4 +1,4 @@
 {% extends 'base.html' %}{% load static showroom %}{% block head %}<link rel="stylesheet" href="{% static 'css/platform.css' %}?v=desk3">{% endblock %}
 {% block title %}{% bi 'مركز إدارة المنصة' 'Platform control center' %}{% endblock %}{% block bodyclass %}app-body{% endblock %}
 {% block notices %}{% endblock %}
-{% block body %}<div class="platform-desk">{% include '_platform_header.html' %}<main class="platform-main desk-main {% block mainclass %}{% endblock %}">{% include '_notices.html' %}{% block workspace %}{% endblock %}</main></div>{% endblock %}
+{% block body %}<a class="ops-skip" href="#platformMain">{% bi 'انتقل إلى المحتوى' 'Skip to content' %}</a><div class="platform-desk">{% include '_platform_header.html' %}<main id="platformMain" tabindex="-1" class="platform-main desk-main {% block mainclass %}{% endblock %}">{% include '_notices.html' %}{% block workspace %}{% endblock %}</main></div>{% endblock %}

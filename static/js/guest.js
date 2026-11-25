@@ -26,6 +26,8 @@ let editReason = '';
 let submittedTableId = null;
 let submitting = false;
 let modalOpener = null;
+let modalBackground = [];
+let previousOverflow = '';
 const draftKey = window.SAFRA.cartSession ? (window.SAFRA.staffMode ? 'serveza:staff-cart:' : 'serveza:table-cart:') + window.SAFRA.cartTable : null;
 let pendingOrder = null;
 const money = v => Number(v).toLocaleString(guestEnglish ? 'en-EG' : 'ar-EG-u-nu-latn', {minimumFractionDigits: 0, maximumFractionDigits: 2});
@@ -164,8 +166,29 @@ async function sendGuestOrder(status, button) {
   }
 }
 
+function lockModalBackground() {
+  // Staff dialogs are nested in the workspace; public dialogs sit beside it.
+  for (let node = backdrop; node !== document.body; node = node.parentElement) {
+    for (const sibling of node.parentElement.children) {
+      if (sibling === node || !(sibling instanceof HTMLElement) || sibling.inert ||
+          sibling.matches('script,style,link,template')) continue;
+      sibling.inert = true;
+      modalBackground.push(sibling);
+    }
+  }
+}
+
+// A restored pending order can open while the document is still being parsed.
+document.addEventListener('DOMContentLoaded', () => {
+  if (!backdrop.hidden) lockModalBackground();
+}, {once:true});
+
 function show(node) {
-  if (backdrop.hidden) modalOpener = document.activeElement;
+  const opening = backdrop.hidden;
+  if (opening) {
+    modalOpener = document.activeElement;
+    previousOverflow = document.body.style.overflow;
+  }
   content.replaceChildren(node);
   backdrop.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -173,13 +196,20 @@ function show(node) {
   heading.id = 'guestModalTitle';
   heading.tabIndex = -1;
   heading.focus();
+  if (opening) lockModalBackground();
 }
 
 function hide() {
   if (submitting || backdrop.hidden) return;
   backdrop.hidden = true;
-  document.body.style.overflow = '';
-  modalOpener?.focus();
+  modalBackground.forEach(node => { node.inert = false; });
+  modalBackground = [];
+  document.body.style.overflow = previousOverflow;
+  document.dispatchEvent(new Event('guestmodalclosed'));
+  const openerVisible = modalOpener?.isConnected && modalOpener.getClientRects().length &&
+    !modalOpener.disabled && !modalOpener.closest('[inert]');
+  const target = openerVisible ? modalOpener : document.querySelector('#menuSearch,.menu-add,.add-item,.demo-add-item');
+  target?.focus();
 }
 
 closeModal.onclick = hide;
@@ -310,6 +340,7 @@ function openItem(id){
   const wrap=el('div','item-modal');
   wrap.append(el('span','eyebrow',guestCopy("اختار صنفك", "Customize item")),el('h2','',current.name),el('p','muted',current.description||guestCopy("طبق محضّر بعناية", "Prepared to order")));
   const form=el('form','item-options');form.id='itemOptions';
+  const optionGroups = [];
   if(current.sizes?.length){
     const group=el('fieldset','option-group');group.append(el('legend','',guestCopy("اختر الحجم", "Choose a size")));
     const choices=[{id:'',name:guestCopy("الحجم الأساسي", "Regular"),price:current.price},...current.sizes];
@@ -320,11 +351,25 @@ function openItem(id){
   }
   current.groups.forEach((g,index)=>{
     const group=el('fieldset','option-group');const legend=el('legend','',g.name+(g.min?guestCopy(" · مطلوب", " · Required"):''));group.append(legend);
-    const hint=el('small','muted',guestCopy(`اختر من ${g.min} إلى ${g.max}`, `Choose ${g.min} to ${g.max}`));group.append(hint);
+    const hint=el('small','muted',guestCopy(`اختر من ${g.min} إلى ${g.max}`, `Choose ${g.min} to ${g.max}`));
+    hint.id='option-hint-'+index;
+    const error=el('p','form-error');error.id='option-error-'+index;error.hidden=true;
+    error.setAttribute('role','status');
+    group.append(hint);
     g.options.forEach(o=>{
       const label=el('label','option-row');const input=el('input');input.type='checkbox';input.name='group-'+index;input.value=o.id;
+      input.setAttribute('aria-describedby',hint.id);
       const name=el('span','',o.name);const price=el('small','',o.price==='0.00'?guestCopy("بدون زيادة", "Included"):'+'+money(o.price)+guestCopy(" ج.م", " EGP"));label.append(input,name,price);group.append(label);
-    });form.append(group);
+    });
+    group.append(error);
+    group.addEventListener('change', () => {
+      const count=group.querySelectorAll('input:checked').length;
+      if (count < g.min || count > g.max) return;
+      group.removeAttribute('aria-invalid');
+      error.hidden=true;error.textContent='';
+      group.querySelectorAll('input').forEach(input => input.setAttribute('aria-describedby',hint.id));
+    });
+    optionGroups.push({group,error,hint});form.append(group);
   });
   const quantityControl = el('div', 'qty-control');
   const minus = quantityButton('minus');
@@ -334,8 +379,6 @@ function openItem(id){
   minus.setAttribute('aria-label', guestCopy('تقليل الكمية', 'Decrease quantity'));
   plus.setAttribute('aria-label', guestCopy('زيادة الكمية', 'Increase quantity'));
   quantityControl.append(minus, quantity, plus);
-  const err = el('p', 'form-error');
-  err.setAttribute('role', 'status');
   const submit = el('button', 'btn btn-primary btn-full');
   submit.type = 'submit';
   let count = 1;
@@ -356,11 +399,24 @@ function openItem(id){
   }
   minus.onclick = () => { count = Math.max(1, count - 1); updatePrice(); };
   plus.onclick = () => { count = Math.min(30, count + 1); updatePrice(); };
-  form.append(quantityControl, err, submit);
+  form.append(quantityControl, submit);
   form.addEventListener('change', updatePrice);
   updatePrice();
   form.onsubmit=e=>{e.preventDefault();const selected=[];let extra=0;
-    for(let index=0;index<current.groups.length;index++){const group=current.groups[index];const checked=[...form.querySelectorAll(`input[name="group-${index}"]:checked`)];if(checked.length<group.min||checked.length>group.max){err.textContent=guestCopy(`اختر العدد المناسب من ${group.name}.`, `Check the selection count for ${group.name}.`);return}checked.forEach(input=>{const option=group.options.find(o=>o.id===Number(input.value));selected.push(option.id);extra+=Number(option.price)})}
+    for (let index=0; index<current.groups.length; index++) {
+      const group=current.groups[index];
+      const checked=[...form.querySelectorAll(`input[name="group-${index}"]:checked`)];
+      if (checked.length<group.min || checked.length>group.max) {
+        const field=optionGroups[index];
+        field.error.textContent=guestCopy(`اختر من ${group.min} إلى ${group.max} من ${group.name}.`, `Choose ${group.min} to ${group.max} options for ${group.name}.`);
+        field.error.hidden=false;field.group.setAttribute('aria-invalid','true');
+        field.group.querySelectorAll('input').forEach(input=>input.setAttribute('aria-describedby',field.hint.id+' '+field.error.id));
+        field.group.tabIndex=-1;
+        (field.group.querySelector('input') || field.group).focus();
+        return;
+      }
+      checked.forEach(input=>{const option=group.options.find(o=>o.id===Number(input.value));selected.push(option.id);extra+=Number(option.price)});
+    }
     const sizeId=form.querySelector('input[name="size"]:checked')?.value||null;
     const size=current.sizes?.find(x=>String(x.id)===sizeId);
     cart.push({item:current,quantity:count,options:selected,sizeId:size?.id||null,sizeName:size?.name||'',unit:Number(size?.price??current.price)+extra});updateCart();hide();};
@@ -375,7 +431,7 @@ function renderCartBar() {
   document.getElementById('cartTotal').textContent = money(pendingOrder?.reviewed_total ?? cartTotal());
 }
 document.getElementById('openCart').onclick=openCart;
-function openCart(){
+function openCart(focusLine){
   if (submitting) return;
   if (pendingOrder) { showPendingOrder(); return; }
   const editing=!!window.SAFRA.editMode;
@@ -383,7 +439,26 @@ function openCart(){
   wrap.append(el('h2', '', editing ? guestCopy("تفاصيل الطلب بعد التعديل", "Review order changes") : guestCopy("راجع طلبك", "Review your order")));
   if(!cart.length&&!existingRows.length){wrap.append(el('p','muted',guestCopy("السلة فارغة.", "Your cart is empty.")));show(wrap);return}
   const list=el('div','cart-list');
-  existingRows.forEach((row,index)=>{const line=el('div','cart-line');const summary=el('span');summary.append(el('strong','',row.item_name+(row.size_name?' · '+row.size_name:'')),el('small','muted',row.modifiers.join(guestCopy("، ", ", "))||guestCopy("السعر الأصلي محفوظ", "Original price retained")));const controls=el('span','edit-line-controls');const qty=el('input');qty.type='number';qty.min='1';qty.max='30';qty.value=row.quantity;qty.setAttribute('aria-label',guestCopy("كمية ", "Quantity for ")+row.item_name);qty.onchange=()=>{const value=Number(qty.value);if(!Number.isInteger(value)||value<1||value>30){qty.value=row.quantity;return}row.quantity=value;updateCart();openCart()};const remove=el('button','remove-item',guestCopy("حذف", "Remove"));remove.type='button';remove.onclick=()=>{existingRows.splice(index,1);updateCart();openCart()};controls.append(qty,remove);line.append(summary,controls);list.append(line)});
+  existingRows.forEach((row,index)=>{
+    const line=el('div','cart-line');
+    const summary=el('span');
+    summary.append(el('strong','',row.item_name+(row.size_name?' · '+row.size_name:'')),
+      el('small','muted',row.modifiers.join(guestCopy('، ', ', '))||guestCopy('السعر الأصلي محفوظ', 'Original price retained')));
+    const controls=el('span','edit-line-controls');
+    const qty=el('input');
+    qty.type='number';qty.min='1';qty.max='30';qty.value=row.quantity;
+    qty.setAttribute('aria-label',guestCopy('كمية ', 'Quantity for ')+row.item_name);
+    qty.onchange=()=>{
+      const value=Number(qty.value);
+      if (!Number.isInteger(value)||value<1||value>30) {qty.value=row.quantity;return;}
+      row.quantity=value;updateCart();refreshTotal();
+    };
+    const remove=el('button','remove-item',guestCopy('حذف', 'Remove'));
+    remove.type='button';
+    remove.setAttribute('aria-label',guestCopy('احذف ', 'Remove ')+row.item_name);
+    remove.onclick=()=>{existingRows.splice(index,1);updateCart();openCart(index);};
+    controls.append(qty,remove);line.append(summary,controls);list.append(line);
+  });
   const totalAmount = el('strong', '', money(cartTotal()) + guestCopy(" ج.م", " EGP"));
   let subtotalAmount, deliveryAmount;
   function refreshTotal() {
@@ -428,7 +503,7 @@ function openCart(){
     remove.onclick = () => {
       cart.splice(index, 1);
       updateCart();
-      openCart();
+      openCart(existingRows.length+index);
     };
     end.append(amount, remove);
     line.append(summary, end);
@@ -467,6 +542,8 @@ function openCart(){
     if(!editing)wrap.append(el('p','allergy-note',guestCopy("لو عندك حساسية غذائية، أخبر فريق المطعم مباشرة.", "Please tell the venue team directly about food allergies.")));
   }
   const total = el('div', 'cart-total');
+  total.setAttribute('role','status');
+  total.setAttribute('aria-atomic','true');
   const priceRows = [];
   if (onlineMode || window.SAFRA.fixedDeliveryFee) {
     const subtotalRow = el('div', 'online-price-row');
@@ -578,6 +655,10 @@ function openCart(){
   footer.append(...priceRows, total, error, send);
   wrap.append(footer);
   show(wrap);
+  if (Number.isInteger(focusLine)) {
+    const line=list.children[Math.min(focusLine,list.children.length-1)];
+    line?.querySelector('.remove-item')?.focus();
+  }
 }
 
 function showDemoConfirmation(total) {

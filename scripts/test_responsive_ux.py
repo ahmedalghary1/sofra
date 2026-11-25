@@ -16,7 +16,7 @@ from playwright.sync_api import expect, sync_playwright
 
 from core.guidebook import GUIDES
 from core.marketing import META
-from core.models import Branch, Category, DemoRequest, DiningTable, Membership, MenuItem, Plan, Restaurant, StaffInvitation, Subscription
+from core.models import Branch, Category, DemoRequest, DiningTable, Membership, MenuItem, ModifierGroup, ModifierOption, Plan, Restaurant, StaffInvitation, Subscription
 from core.online import create_online_order
 from core.services import create_order, create_service_call
 from core.showcase_data import SOLUTIONS, TOPICS
@@ -291,5 +291,142 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
                 exercise_pricing(page,self.live_server_url,language)
                 for width in (360,1440):
                     exercise_billing_period(page,self.live_server_url,language,width)
+                context.close()
+            browser.close()
+
+    def test_item_errors_and_cart_removal_keep_keyboard_focus_in_the_dialog(self):
+        item=MenuItem.objects.get(category__branch=self.branch)
+        group=ModifierGroup.objects.create(item=item,name='الصلصة · Sauce',min_select=1,max_select=1)
+        ModifierOption.objects.create(group=group,name='ليمون · Lemon',price='2.50')
+        ModifierOption.objects.create(group=group,name='حار · Hot',price='0.00')
+        output=Path('tmp/responsive-ux/interactions')
+        output.mkdir(parents=True,exist_ok=True)
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='chrome',headless=True)
+            for language in ('ar','en'):
+                for width in (360,1366):
+                    for role in (None,'owner'):
+                        context=self.context(browser,role,width=width,height=800)
+                        page=context.new_page()
+                        path=reverse('staff_order',args=[self.venue.slug]) if role else reverse('public_menu',args=[self.table.public_token])
+                        page.goto(self.live_server_url+path+'?lang='+language)
+                        page.evaluate('''() => {
+                            const button=document.createElement('button');button.id='ux-preexisting-inert';
+                            button.inert=true;document.body.append(button);
+                        }''')
+                        add=page.locator('.menu-add,.add-item').first
+                        outside=page.locator('#staffTable' if role else '#menuSearch')
+                        for attempt in range(2):
+                            add.click()
+                            heading=page.locator('#guestModalTitle')
+                            expect(heading).to_be_focused()
+                            outside.evaluate('el=>el.focus()')
+                            expect(heading).to_be_focused()
+                            self.assertTrue(outside.evaluate('el=>Boolean(el.closest("[inert]"))'))
+                            submit=page.locator('#itemOptions button[type=submit]')
+                            choices=page.locator('#itemOptions input[type=checkbox]')
+                            if attempt==0:
+                                submit.click()
+                                expect(choices.first).to_be_focused()
+                                expect(page.locator('#option-error-0')).to_contain_text('اختر من 1 إلى 1' if language=='ar' else 'Choose 1 to 1')
+                                choices.first.check()
+                                expect(page.locator('#option-error-0')).not_to_be_visible()
+                                choices.last.check()
+                                submit.click()
+                                expect(choices.first).to_be_focused()
+                                expect(page.locator('#option-error-0')).to_be_visible()
+                                self.assertFalse(page.evaluate(LAYOUT_AUDIT)['clipped'])
+                                page.locator('.guest-modal').screenshot(path=str(output/f'option-error-{role or "guest"}-{language}-{width}.png'))
+                                choices.last.uncheck()
+                                expect(page.locator('#option-error-0')).not_to_be_visible()
+                                if role and width==1366:
+                                    page.set_viewport_size({'width':900,'height':800})
+                                    self.assertTrue(page.locator('#sidebar').evaluate('el=>el.inert'))
+                            else:
+                                choices.first.check()
+                            submit.click()
+                            expect(page.locator('#modalBackdrop')).not_to_be_visible()
+                            expect(add).to_be_focused()
+                            self.assertFalse(outside.evaluate('el=>Boolean(el.closest("[inert]"))'))
+                            self.assertTrue(page.locator('#ux-preexisting-inert').evaluate('el=>el.inert'))
+                            if role:
+                                if width==1366 and attempt==0:
+                                    self.assertTrue(page.locator('#sidebar').evaluate('el=>el.inert'))
+                                page.set_viewport_size({'width':width,'height':800})
+                        page.locator('#openCart').click()
+                        page.locator('.cart-list .remove-item').first.click()
+                        expect(page.locator('.cart-list .remove-item')).to_be_focused()
+                        expect(page.locator('.cart-line')).to_have_count(1)
+                        page.keyboard.press('Shift+Tab')
+                        self.assertTrue(page.evaluate('Boolean(document.activeElement.closest(".guest-modal"))'))
+                        page.locator('.cart-list .remove-item').click()
+                        expect(page.locator('#guestModalTitle')).to_be_focused()
+                        page.keyboard.press('Escape')
+                        expect(page.locator('#modalBackdrop')).not_to_be_visible()
+                        expect(outside if not role else add).to_be_focused()
+                        self.assertFalse(outside.evaluate('el=>Boolean(el.closest("[inert]"))'))
+                        if role and width==360:
+                            page.locator('#menuToggle').click()
+                            expect(page.locator('#sidebar')).to_have_attribute('aria-modal','true')
+                            page.keyboard.press('Escape')
+                        context.close()
+            browser.close()
+
+    def test_order_edit_quantity_keeps_focus_and_does_not_save_until_confirmed(self):
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='chrome',headless=True)
+            for language in ('ar','en'):
+                context=self.context(browser,'owner',width=360,height=800)
+                page=context.new_page()
+                page.goto(self.live_server_url+reverse('order_edit',args=[self.venue.slug,self.qr_order.pk])+'?lang='+language)
+                page.locator('#openCart').click()
+                quantity=page.locator('.edit-line-controls input')
+                quantity.fill('3')
+                page.keyboard.press('Tab')
+                expect(page.locator('.cart-list .remove-item')).to_be_focused()
+                expect(quantity).to_have_value('3')
+                expect(page.locator('.cart-total')).to_contain_text('377.25')
+                quantity.press('ArrowUp')
+                expect(quantity).to_be_focused()
+                expect(quantity).to_have_value('4')
+                page.keyboard.press('Escape')
+                expect(page.locator('#openCart')).to_be_focused()
+                context.close()
+            browser.close()
+        self.assertEqual(self.qr_order.lines.get().quantity,2)
+
+    def test_field_errors_follow_the_current_problem_and_skip_links_move_focus(self):
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='chrome',headless=True)
+            for language in ('ar','en'):
+                context=self.context(browser,width=360,height=800)
+                page=context.new_page()
+                page.goto(self.live_server_url+reverse('contact')+'?lang='+language)
+                email=page.locator('input[type=email]')
+                email.evaluate('el=>el.reportValidity()')
+                error=page.locator('#'+email.get_attribute('data-ux-error'))
+                expect(error).to_contain_text('هذا الحقل مطلوب' if language=='ar' else 'This field is required')
+                email.fill('invalid')
+                expect(error).to_contain_text('بريدًا إلكترونيًا صالحًا' if language=='ar' else 'valid email address')
+                email.fill('guest@example.org')
+                expect(error).to_have_count(0)
+                expect(email).not_to_have_attribute('aria-invalid','true')
+                for name,path,target in (
+                    ('online',reverse('online_menu',args=[self.venue.slug]),'#onlineContent'),
+                    ('qr',reverse('public_menu',args=[self.table.public_token]),'#guest-menu'),
+                    ('demo',reverse('demo_menu'),'#menu')):
+                    page.goto(self.live_server_url+path+'?lang='+language)
+                    page.keyboard.press('Tab')
+                    expect(page.locator('.ops-skip')).to_be_focused()
+                    page.keyboard.press('Enter')
+                    expect(page.locator(target)).to_be_focused()
+                context.close()
+                context=self.context(browser,'operator',width=1366,height=900)
+                page=context.new_page()
+                page.goto(self.live_server_url+reverse('platform_dashboard')+'?lang='+language)
+                page.keyboard.press('Tab')
+                expect(page.locator('.ops-skip')).to_be_focused()
+                page.keyboard.press('Enter')
+                expect(page.locator('#platformMain')).to_be_focused()
                 context.close()
             browser.close()

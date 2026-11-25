@@ -11,7 +11,7 @@
     {% include '_ops_language.html' %}
     <span class="guest-table">{% symbol 'qr-code' %} {{ table.name }}</span>
   </header>
-  <div class="guest-main catalog-main" id="guest-menu">
+  <div class="guest-main catalog-main" id="guest-menu" tabindex="-1">
     <div class="guest-hero menu-heading">
       {% if accepting and items_json %}
         <div><h1>{% bi 'اطلب من هنا لطاولتك' 'Order here for your table' %}</h1><p>{% bi 'اختار أكلك، أضفه للسلة، ثم راجع وأرسل طلبك للمطعم. من غير حساب.' 'Choose your food, add it to your cart, then review and send your order to the restaurant. No account needed.' %}</p></div>

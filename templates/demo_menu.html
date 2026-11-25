@@ -3,13 +3,14 @@
 {% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}">{% endblock %}
 {% block bodyclass %}catalog-body{% endblock %}
 {% block body %}
+<a class="ops-skip" href="#menu">{% bi 'انتقل إلى أصناف المنيو' 'Skip to menu items' %}</a>
 <div class="menu-shell demo-menu-shell">
   <header class="sample-header">
     <a href="{% public_url 'home' %}">{% include '_brand_logo.html' with sizes='140px' only %}</a>
     <nav><a class="sample-demo-link" href="{% public_url 'demo' %}">{% bi 'تجربة الخدمة' 'Service demo' %}</a>
       <a class="sample-language" href="{{ language_switch_url }}">{% symbol 'globe' %} {% bi 'English' 'العربية' %}</a></nav>
   </header>
-  <main class="catalog-main" id="menu">
+  <main class="catalog-main" id="menu" tabindex="-1">
     {% include 'marketing/_breadcrumbs.html' %}
     <section class="sample-cover" aria-labelledby="restaurant-name">
       <div><p>{% bi 'منيو تجريبية · طلبات للعرض فقط' 'Sample menu · Demo orders only' %}</p>

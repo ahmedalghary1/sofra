@@ -60,7 +60,7 @@
       toggle.setAttribute('aria-expanded', String(open));
       main.inert = open;
       document.body.classList.toggle('nav-open', open);
-      sidebar.inert = !open && narrow.matches;
+      sidebar.inert = (!open && narrow.matches) || Boolean(document.querySelector('#modalBackdrop:not([hidden])'));
       if (open) {
         sidebar.setAttribute('role', 'dialog');
         sidebar.setAttribute('aria-modal', 'true');
@@ -91,6 +91,9 @@
       }
     });
     narrow.addEventListener('change', () => setOpen(false, false));
+    document.addEventListener('guestmodalclosed', () => {
+      sidebar.inert = narrow.matches && !sidebar.classList.contains('open');
+    });
     setOpen(false, false);
   }
   document.querySelectorAll('form[data-confirm]').forEach(form => {

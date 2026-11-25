@@ -8,12 +8,13 @@
 {% endblock %}
 {% block bodyclass %}guest-body catalog-body menu-theme restaurant-menu{% endblock %}
 {% block body %}
+<a class="ops-skip" href="#onlineContent">{% bi 'انتقل إلى المحتوى' 'Skip to content' %}</a>
 <main class="guest-shell menu-shell online-shell">
   <header class="guest-header">
     <a class="guest-brand" href="{% url 'online_menu' restaurant.slug %}">{% if restaurant.logo %}<img class="restaurant-logo" src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" width="64" height="64">{% else %}<span class="restaurant-avatar">{{ restaurant.name|slice:':1' }}</span>{% endif %}<span>{{ restaurant.name }}<small>{% bi 'اطلب أونلاين' 'Order online' %}{% if branch %} · {{ branch.name }}{% endif %}</small></span></a>
     {% include '_ops_language.html' %}
   </header>
-  <div class="guest-main catalog-main">{% block online_content %}{% endblock %}</div>
+  <div class="guest-main catalog-main" id="onlineContent" tabindex="-1">{% block online_content %}{% endblock %}</div>
   {% include '_powered_by.html' only %}
 </main>
 {% block online_scripts %}{% endblock %}

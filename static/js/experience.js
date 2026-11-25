@@ -20,6 +20,14 @@
   labelFields(document);
   const modalContent = document.getElementById('modalContent');
   if (modalContent) new MutationObserver(() => labelFields(modalContent)).observe(modalContent,{childList:true,subtree:true});
+  function validationMessage(field) {
+    const validity=field.validity;
+    return validity.valueMissing ? copy('هذا الحقل مطلوب.','This field is required.')
+      : validity.typeMismatch && field.type==='email' ? copy('اكتب بريدًا إلكترونيًا صالحًا.','Enter a valid email address.')
+      : validity.tooShort ? copy('أكمل هذا الحقل بالعدد المطلوب من الحروف.','Use the required number of characters.')
+      : validity.rangeUnderflow || validity.rangeOverflow || validity.stepMismatch ? copy('راجع الرقم والحدود الموضحة لهذا الحقل.','Check the number and the allowed range for this field.')
+      : copy('راجع هذا الحقل قبل المتابعة.','Check this field before continuing.');
+  }
   function clearError(field) {
     if (!field.dataset.uxError) return;
     const id = field.dataset.uxError;
@@ -39,22 +47,23 @@
       const error = document.createElement('small');
       error.className='ux-field-error';
       error.id=identifier('field-error');
-      const validity=field.validity;
-      error.textContent = validity.valueMissing ? copy('هذا الحقل مطلوب.','This field is required.')
-        : validity.typeMismatch && field.type==='email' ? copy('اكتب بريدًا إلكترونيًا صالحًا.','Enter a valid email address.')
-        : validity.tooShort ? copy('أكمل هذا الحقل بالعدد المطلوب من الحروف.','Use the required number of characters.')
-        : validity.rangeUnderflow || validity.rangeOverflow || validity.stepMismatch ? copy('راجع الرقم والحدود الموضحة لهذا الحقل.','Check the number and the allowed range for this field.')
-        : copy('راجع هذا الحقل قبل المتابعة.','Check this field before continuing.');
       const password=field.closest('.ops-password');
       const target=password || field.closest('label') || field;
       target.after(error);
       field.dataset.uxError=error.id;
       field.setAttribute('aria-describedby',[field.getAttribute('aria-describedby'),error.id].filter(Boolean).join(' '));
     }
+    document.getElementById(field.dataset.uxError).textContent=validationMessage(field);
     field.setAttribute('aria-invalid','true');
   },true);
-  document.addEventListener('input',event=>{if(event.target.validity?.valid)clearError(event.target);});
-  document.addEventListener('change',event=>{if(event.target.validity?.valid)clearError(event.target);});
+  function updateError(event) {
+    const field=event.target;
+    if (!field.dataset?.uxError) return;
+    if (field.validity.valid) clearError(field);
+    else document.getElementById(field.dataset.uxError).textContent=validationMessage(field);
+  }
+  document.addEventListener('input',updateError);
+  document.addEventListener('change',updateError);
   const tables = [...document.querySelectorAll('.table-scroll')].map(container => {
     const hint=document.createElement('p');
     hint.className='ux-table-hint';hint.id=identifier('table-help');hint.hidden=true;
