@@ -28,8 +28,9 @@ Detail route `/features/digital-menu/`. Implementation references include `Categ
 | `#browse` | available | Mobile browsing without an account or app, with search, categories, photos, descriptions and Arabic or English interface labels. |
 | `#choices` | available | Branch-specific prices, size availability, and free or paid extras with selection limits. |
 | `#publish` | available | Category visibility and ordering, featured-item flags, and previewed CSV and Excel imports. |
+| `#branding` | available | Owner/manager uploads a verified, optimized logo and chooses menu button, background and text colors, with live preview and contrast validation. Applies to every branch of that restaurant; other venues and saved orders retain their data. |
 | `#editorial` | planned | Subcategories, manual item sorting, structured allergens and ingredients, and per-item translations. |
-| `#themes` | planned | Venue layouts, themes, optional branding removal, banners, meal schedules and guest-facing best sellers. |
+| `#themes` | planned | Additional menu layouts, optional branding removal, banners, meal schedules and guest-facing best sellers. |
 
 ### QR ordering
 

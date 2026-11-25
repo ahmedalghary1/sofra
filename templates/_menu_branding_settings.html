@@ -1,0 +1,35 @@
+{% load static i18n showroom %}
+<section class="panel spaced-panel" id="menuBranding">
+  <div class="panel-head"><div><h2>{% bi 'هوية المنيو' 'Menu branding' %}</h2><p>{% bi 'لوجو وألوان مطعمك في منيو الضيف، لكل الفروع. تُنشر التغييرات عند الحفظ.' 'Your restaurant logo and colors on every branch guest menu. Changes are published when saved.' %}</p></div></div>
+  <div class="branding-layout">
+    <form method="post" enctype="multipart/form-data" class="stack-form compact" id="menuBrandingForm">
+      {% csrf_token %}<input type="hidden" name="action" value="branding">
+      {% if branding_form.errors %}<div class="form-errors" role="alert">{% bi 'لم تُحفظ الهوية. راجع الأخطاء، وأعد اختيار ملف اللوجو إن كنت قد رفعته.' 'Branding was not saved. Check the errors and reselect the logo file if you uploaded one.' %}{{ branding_form.non_field_errors }}</div>{% endif %}
+      <label for="{{ branding_form.logo.id_for_label }}">{{ branding_form.logo.label }}{{ branding_form.logo }}</label>
+      {% if branding_form.logo.errors %}<div class="form-errors">{{ branding_form.logo.errors }}</div>{% endif %}
+      <p class="form-hint">{% bi 'PNG أو JPG أو WebP، حتى 3 ميجابايت و5000 × 5000 بكسل. يُحفظ اللوجو بحجم مناسب مع الحفاظ على الشفافية ونسبة الأبعاد.' 'PNG, JPG or WebP, up to 3 MB and 5000 × 5000 pixels. Logos are optimized while preserving transparency and proportions.' %}</p>
+      <label class="check-row">{{ branding_form.remove_logo }} {{ branding_form.remove_logo.label }}</label>
+      <div class="branding-colors">
+        {% for field in branding_form %}{% if field.name != 'logo' and field.name != 'remove_logo' %}
+          <div class="branding-color"><label for="{{ field.id_for_label }}">{{ field.label }}</label><div>{{ field }}<output for="{{ field.id_for_label }}" data-color-value="{{ field.name }}" dir="ltr">{{ field.value }}</output></div>{% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}</div>
+        {% endif %}{% endfor %}
+      </div>
+      <p class="form-hint" id="menuContrastHint" role="status">{% bi 'اختر نصًا واضحًا على الخلفية. لون الكتابة على الأزرار يتحدد تلقائيًا.' 'Choose readable text on the background. Button text color is selected automatically.' %}</p>
+      <div class="branding-actions"><button class="btn btn-primary" type="submit">{% bi 'حفظ هوية المنيو' 'Save menu branding' %}</button><button class="btn btn-outline" type="button" id="resetMenuColors">{% bi 'الألوان الافتراضية' 'Default colors' %}</button></div>
+      <p class="form-hint">{% bi 'تغيير الهوية يحافظ على الأصناف والأسعار والطلبات المحفوظة.' 'Branding changes preserve menu items, prices and saved orders.' %}</p>
+    </form>
+    <div class="branding-preview-wrap">
+      <p class="eyebrow">{% bi 'معاينة مباشرة قبل الحفظ' 'Live preview before saving' %}</p>
+      <div class="menu-theme branding-preview" id="menuBrandingPreview">
+        <div class="guest-brand"><img class="restaurant-logo" id="brandingPreviewLogo" {% if restaurant.logo %}src="{{ restaurant.logo.url }}"{% else %}hidden{% endif %} alt="{{ restaurant.name }}" width="64" height="64"><span class="restaurant-avatar" id="brandingPreviewFallback" {% if restaurant.logo %}hidden{% endif %}>{{ restaurant.name|slice:':1' }}</span><span>{{ restaurant.name }}<small>{{ branch.name }}</small></span></div>
+        <h3>{% bi 'قائمة الطعام' 'Menu' %}</h3>
+        <div class="catalog-pills"><span class="active branding-category">{% bi 'كل الأصناف' 'All items' %}</span><span class="branding-category">{% bi 'المشروبات' 'Drinks' %}</span></div>
+        <div class="menu-grid"><article class="menu-product"><div class="menu-product-copy"><h2>{% bi 'مثال لشكل الصنف' 'Sample menu item' %}</h2><p>{% bi 'معاينة للألوان فقط' 'Color preview only' %}</p><div class="menu-product-bottom"><strong>{% bi 'السعر' 'Price' %}</strong><span class="menu-add" aria-hidden="true">{% symbol 'plus' %}</span></div></div></article></div>
+        <div class="branding-preview-cart"><span>{% bi 'سلتك' 'Your basket' %}</span><span class="branding-preview-button">{% bi 'راجع الطلب' 'Review order' %}</span></div>
+      </div>
+      {% if preview_table and branch.active and restaurant.active %}<a class="text-button" href="{% url 'public_menu' preview_table.public_token %}" target="_blank" rel="noopener">{% bi 'فتح المنيو المحفوظ' 'Open saved menu' %} {% symbol 'external-link' %}</a>{% endif %}
+    </div>
+  </div>
+</section>
+{{ branding_defaults|json_script:'menu-branding-defaults' }}
+<script src="{% static 'js/menu-branding.js' %}" defer></script>

@@ -1,12 +1,12 @@
 {% extends 'base.html' %}{% load static i18n showroom %}
 {% block title %}{% translate 'منيو' %} {{ table.branch.restaurant.name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}">{% endblock %}
-{% block bodyclass %}guest-body catalog-body{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>.restaurant-menu { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
+{% block bodyclass %}guest-body catalog-body menu-theme restaurant-menu{% endblock %}
 {% block body %}
 <main class="guest-shell menu-shell">
   <a class="ops-skip" href="#guest-menu">{% bi 'انتقل إلى أصناف المنيو' 'Skip to menu items' %}</a>
   <header class="guest-header">
-    <a class="guest-brand" href="{% url 'public_menu' table.public_token %}"><span class="restaurant-avatar">{{ table.branch.restaurant.name|slice:':1' }}</span>
+    <a class="guest-brand" href="{% url 'public_menu' table.public_token %}">{% if table.branch.restaurant.logo %}<img class="restaurant-logo" src="{{ table.branch.restaurant.logo.url }}" alt="{{ table.branch.restaurant.name }}" width="64" height="64">{% else %}<span class="restaurant-avatar">{{ table.branch.restaurant.name|slice:':1' }}</span>{% endif %}
       <span>{{ table.branch.restaurant.name }}<small>{% translate 'منيو' %} {{ table.branch.name }}</small></span></a>
     {% include '_ops_language.html' %}
     <span class="guest-table">{% symbol 'qr-code' %} {{ table.name }}</span>

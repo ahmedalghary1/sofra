@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import get_language
+from .branding import validate_menu_color
 
 def token(): return secrets.token_urlsafe(24)
 
@@ -56,6 +57,10 @@ class Restaurant(models.Model):
     name_en = models.CharField(max_length=120, blank=True)
     slug = models.SlugField(unique=True)
     description = models.CharField(max_length=240, blank=True)
+    logo = models.ImageField(upload_to='restaurant-logos/', blank=True)
+    menu_primary_color = models.CharField(max_length=7, default='#1d6150', validators=[validate_menu_color])
+    menu_background_color = models.CharField(max_length=7, default='#f8f8f4', validators=[validate_menu_color])
+    menu_text_color = models.CharField(max_length=7, default='#193b34', validators=[validate_menu_color])
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name

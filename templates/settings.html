@@ -1,5 +1,6 @@
-{% extends 'app_base.html' %}{% load i18n showroom %}
+{% extends 'app_base.html' %}{% load static i18n showroom %}
 {% block title %}{% translate 'الإعدادات' %}{% endblock %}{% block crumb %}{% translate 'الإعدادات' %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>#menuBrandingPreview { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">{% translate 'إعدادات المطعم' %}</span><h1>{% translate 'الإعدادات' %}</h1><p>{% translate 'بيانات المطعم وحالة استقبال الطلبات في' %} {{ branch.name }}.</p></div></div>
 {% if not restaurant.active %}<div class="account-notice"><strong>{% translate 'المطعم معلق حاليًا' %}</strong><p>{% translate 'البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة.' %}</p></div>{% elif not subscription.valid %}<div class="account-notice"><strong>{% translate 'انتهت فترة الاشتراك أو التجربة' %}</strong><p>{% translate 'يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة.' %}</p></div>{% elif over_limit %}<div class="account-notice"><strong>{% translate 'الاستخدام أعلى من حدود الباقة الحالية' %}</strong><p>{% translate 'بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام.' %}</p></div>{% endif %}
@@ -26,6 +27,7 @@
     <div class="plan-limits"><span>{% translate 'الفروع' %} <b>{{ usage.branches }} / {{ limits.branches }}</b></span><span>{% translate 'طاولات هذا الفرع' %} <b>{{ usage.tables }} / {{ limits.tables }}</b></span><span>{% translate 'أصناف هذا الفرع' %} <b>{{ usage.items }} / {{ limits.items }}</b></span><span>{% translate 'محطات هذا الفرع' %} <b>{{ usage.stations }} / {{ limits.stations }}</b></span><span>{% bi 'إجمالي حسابات الفريق، شاملة المالك' 'Total team accounts, including the owner' %} <b>{{ usage.staff }} / {{ limits.staff }}</b></span></div>
   </section>
 </div>
+{% include '_menu_branding_settings.html' %}
 {% if membership.role == 'owner' %}<section class="panel plan-preview"><div class="panel-head"><div><h2>{% translate 'معاينة حدود باقة أخرى' %}</h2><p>{% translate 'اختر باقة لمعرفة أثر حدودها على موارد مطعمك وفروعه قبل طلب التغيير.' %}</p></div></div>
 <form method="get" class="inline-form"><label for="preview-plan">{% translate 'الباقة' %}</label><select id="preview-plan" name="preview_plan" required>{% for plan in available_plans %}<option value="{{ plan.pk }}" {% if plan_preview and plan_preview.plan.pk == plan.pk %}selected{% endif %}>{{ plan.name }}</option>{% endfor %}</select><button class="btn btn-dark">{% translate 'عرض المعاينة' %}</button></form>
 {% if plan_preview %}<div class="plan-limits"><span>{% translate 'الفروع الكلية' %} <b>{{ plan_preview.branch_count }} / {{ plan_preview.plan.max_branches }}</b></span><span>{% bi 'إجمالي حسابات الفريق، شاملة المالك' 'Total team accounts, including the owner' %} <b>{{ plan_preview.staff_count }} / {{ plan_preview.plan.max_staff }}</b></span></div>

@@ -40,7 +40,7 @@ from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, order_edit_allowed, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
-from .validation import identifier, load_json_payload, money
+from .validation import identifier, load_json_payload, money, localized
 from .images import prepare_menu_image
 from .accounts import account_for_email, new_login_email
 from .security import client_address, consume_limits, limited_response
@@ -50,7 +50,8 @@ from .resources import archive_resource, lock_resource
 from .reporting import collection_activity, collection_csv, csv_safe
 from .models import CollectionCorrection
 from .models import DemoRequest
-from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
+from .forms import MenuBrandingForm, OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
+from .branding import MENU_COLOR_DEFAULTS, menu_theme, restaurant_menu_theme
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx, validate_existing_menu
 from .plan_preview import preview_plan_usage
 from .showcase_catalog import public_tier_records
@@ -1673,8 +1674,31 @@ def restaurant_settings(request, slug):
                'kitchen_delay_minutes': branch.kitchen_delay_minutes,
                'show_contact_on_menu': branch.show_contact_on_menu,
                'accepting_orders': branch.accepting_orders}
-    profile_form = RestaurantProfileForm(request.POST if request.method == 'POST' else None, initial=initial)
-    if request.method == 'POST' and profile_form.is_valid():
+    action = request.POST.get('action', 'profile')
+    branding_initial = {key: getattr(restaurant, key) for key in MENU_COLOR_DEFAULTS}
+    branding_post = request.method == 'POST' and action == 'branding'
+    branding_form = MenuBrandingForm(request.POST if branding_post else None,
+                                    request.FILES if branding_post else None, initial=branding_initial,
+                                    prefix='branding')
+    profile_post = request.method == 'POST' and action == 'profile'
+    profile_form = RestaurantProfileForm(request.POST if profile_post else None, initial=initial)
+    if branding_post and branding_form.is_valid():
+        data = branding_form.cleaned_data
+        with transaction.atomic():
+            venue = Restaurant.objects.select_for_update().get(pk=restaurant.pk)
+            fields = ['logo', *MENU_COLOR_DEFAULTS]
+            before = {key: str(getattr(venue, key)) for key in fields}
+            for key in MENU_COLOR_DEFAULTS:
+                setattr(venue, key, data[key])
+            if data.get('remove_logo'):
+                venue.logo = ''
+            elif data.get('logo'):
+                venue.logo = data['logo']
+            venue.save(update_fields=fields)
+            audit_change(venue, request.user, 'restaurant.branding', venue, before, fields)
+        messages.success(request, localized('تم حفظ هوية المنيو.', 'Menu branding saved.'))
+        return redirect('restaurant_settings', slug=slug)
+    if profile_post and profile_form.is_valid():
         data = profile_form.cleaned_data
         with transaction.atomic():
             restaurant.name = data['name']
@@ -1721,6 +1745,8 @@ def restaurant_settings(request, slug):
         if selected_plan:
             plan_preview = preview_plan_usage(restaurant, selected_plan)
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
+                 branding_form=branding_form, branding_defaults=MENU_COLOR_DEFAULTS,
+                 menu_theme=menu_theme({key: branding_form[key].value() for key in MENU_COLOR_DEFAULTS}),
                  subscription_agreements=subscription.agreements.select_related('payment', 'actor').order_by('-created_at', '-pk')[:20],
                  preview_table=branch.tables.filter(active=True).first(),
                  subscription_payments=SubscriptionPayment.objects.filter(restaurant=restaurant)[:20],
@@ -1747,6 +1773,7 @@ def public_menu(request, token):
     return render(request, 'public_menu.html', {
         'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,
         'illustrative_photos': any(not item['image'] for item in items),
+        'menu_theme': restaurant_menu_theme(table.branch.restaurant),
         'cart_session': hashlib.sha256(table.session_token.bytes).hexdigest(),
     })
 

@@ -1,4 +1,4 @@
-"""Convert uploaded menu images to fresh raster files with generated names."""
+"""Convert uploaded menu images and logos to fresh raster files with generated names."""
 from .validation import localized
 from io import BytesIO
 from uuid import uuid4
@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 
 
-def prepare_menu_image(upload):
+def prepare_menu_image(upload, *, max_dimension=None):
     if not upload:
         return None
     if upload.size > 3_000_000:
@@ -22,6 +22,8 @@ def prepare_menu_image(upload):
         with Image.open(upload) as source:
             # Rebuild pixels instead of copying EXIF, comments, trailing data or filename.
             picture = ImageOps.exif_transpose(source).convert('RGBA' if source.mode in ('RGBA', 'LA', 'P') else 'RGB')
+            if max_dimension:
+                picture.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
             clean = Image.new(picture.mode, picture.size)
             clean.paste(picture)
             output = BytesIO()

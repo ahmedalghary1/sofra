@@ -1,0 +1,48 @@
+/* Restaurant colors are scoped to the guest menu or its settings preview. */
+.menu-theme {
+  --ink:var(--menu-text);--navy:var(--menu-text);--ops-ink:var(--menu-text);
+  --teal-ink:var(--menu-primary);--muted:var(--menu-muted);--line:var(--menu-border);
+  --ops-canvas:var(--menu-background);--ops-line:var(--menu-border);
+  background:var(--menu-background);color:var(--menu-text);
+}
+.menu-theme :is(.guest-brand,.menu-product-copy h2,.menu-product-bottom strong,.menu-kind,.guest-venue-details summary,.service-spark) {color:var(--menu-text)}
+.menu-theme :is(.guest-brand small,.menu-product-copy p,.menu-photo-note,.guest-service small,.menu-search-field) {color:var(--menu-muted)}
+.menu-theme .menu-search-field input::placeholder,.menu-theme .guest-modal textarea::placeholder {color:var(--menu-muted);opacity:1}
+.menu-theme .catalog-main .guest-hero.menu-heading h1 {color:var(--menu-text)}
+.menu-theme :is(.menu-filter-bar,.option-row,.modal-close) {background:var(--menu-background);color:var(--menu-text)}
+.menu-theme :is(.menu-grid .menu-product,.menu-kind,.menu-search-field,.guest-table,.guest-modal,.cart-bar,.qty-control button,.note-label textarea,.guest-contact span) {background:var(--menu-surface);color:var(--menu-text);border-color:var(--menu-border)}
+.menu-theme :is(.catalog-pills button,.branding-category,.menu-category-picker,.service-buttons button) {background:var(--menu-surface);color:var(--menu-text);border-color:var(--menu-border)}
+.menu-theme :is(.catalog-pills button.active,.branding-category.active,.menu-product .menu-add,.cart-bar button,.guest-modal .btn-primary,.branding-preview-button) {background:var(--menu-primary);color:var(--menu-on-primary);border:1px solid var(--menu-text)}
+.menu-theme :is(.menu-product .menu-add,.cart-bar button,.guest-modal .btn-primary):hover {filter:brightness(.92)}
+.menu-theme :is(.catalog-pills button:hover:not(.active),.guest-service,.service-spark,.restaurant-avatar,.cart-bar b,.ops-language:hover) {background:var(--menu-surface);color:var(--menu-text)}
+.menu-theme :is(.menu-search-field input,.guest-modal input,.guest-modal textarea) {color:var(--menu-text);accent-color:var(--menu-primary)}
+.menu-theme :is(.menu-filter-bar,.option-group,.cart-line,.cart-total) {border-color:var(--menu-border)}
+.menu-theme .catalog-pills {scrollbar-color:var(--menu-border) transparent}
+.menu-theme :is(.menu-search-field:focus-within,.menu-category-picker:focus-within,:focus-visible) {outline-color:var(--menu-text)}
+.menu-theme .guest-attribution {color:var(--menu-text)}
+.menu-theme .guest-modal .remove-item {color:var(--menu-text);text-decoration:underline}
+.menu-theme .form-error {color:var(--menu-text);font-weight:700}
+.menu-theme .allergy-note {color:#6e4c1e}
+.menu-theme .powered-by {background:#fff;border-radius:9px;padding:4px 8px;color:#193b34}
+.restaurant-logo {display:block;width:64px;height:64px;flex:none;object-fit:contain;border-radius:10px;background:#fff;padding:3px}
+.restaurant-logo[hidden],.branding-preview .restaurant-avatar[hidden] {display:none}
+.branding-layout {display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(18px,3vw,36px);align-items:start}
+.branding-layout>* {min-width:0}
+.branding-layout input[type=file] {width:100%;max-width:100%;font:inherit}
+.branding-colors {display:grid;gap:15px}
+.branding-color>label {display:block;font-weight:700;margin-block-end:5px}
+.branding-color>div:not(.form-errors) {display:flex;align-items:center;gap:12px}
+.branding-color input[type=color] {width:64px;min-width:64px;min-height:44px;padding:4px;cursor:pointer}
+.branding-color output {font-variant-numeric:tabular-nums}
+.branding-actions {display:flex;flex-wrap:wrap;gap:10px}
+.branding-preview {padding:clamp(14px,2vw,24px);border:1px solid var(--menu-border);border-radius:18px;overflow:hidden}
+.branding-preview .guest-brand {font-size:1.1rem;overflow-wrap:anywhere}
+.branding-preview h3 {color:var(--menu-text);margin-block:20px 12px}
+.branding-preview .catalog-pills {margin-block:12px}
+.branding-category {border:1px solid;border-radius:99px;padding:8px 12px;font-size:.9rem;white-space:nowrap}
+.branding-preview .menu-grid {grid-template-columns:1fr}
+.branding-preview .menu-product-copy {padding:15px}
+.branding-preview-cart {display:flex;align-items:center;justify-content:space-between;gap:10px;margin-block-start:20px;border-block-start:1px solid var(--menu-border);padding-block-start:15px}
+.branding-preview-button {padding:9px 13px;border-radius:10px;font-weight:700}
+.branding-preview-wrap>.text-button {display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-block-start:8px}
+@media (max-width:800px) {.branding-layout {grid-template-columns:1fr}.restaurant-logo {width:52px;height:52px}}

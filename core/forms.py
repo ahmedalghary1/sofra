@@ -8,6 +8,9 @@ from django.utils.translation import get_language, gettext_lazy as _
 
 from .models import Plan, SubscriptionPayment
 from .accounts import account_for_email, new_login_email
+from .branding import MENU_COLOR_DEFAULTS, validate_menu_color, validate_menu_contrast
+from .images import prepare_menu_image
+from .validation import localized
 
 
 class PlatformPlanForm(forms.ModelForm):
@@ -140,6 +143,54 @@ class PlatformRestaurantForm(forms.Form):
 class PlatformBranchForm(forms.Form):
     name = forms.CharField(label='اسم الفرع', max_length=120)
     address = forms.CharField(label='عنوان الفرع', max_length=240, required=False)
+
+
+class MenuBrandingForm(forms.Form):
+    logo = forms.FileField(required=False, widget=forms.FileInput(attrs={
+        'accept': 'image/png,image/jpeg,image/webp', 'data-menu-logo': ''}))
+    remove_logo = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'data-menu-remove-logo': ''}))
+    menu_primary_color = forms.CharField(validators=[validate_menu_color])
+    menu_background_color = forms.CharField(validators=[validate_menu_color])
+    menu_text_color = forms.CharField(validators=[validate_menu_color])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        labels = {
+            'logo': ('لوجو المطعم', 'Restaurant logo'),
+            'remove_logo': ('إزالة اللوجو الحالي', 'Remove current logo'),
+            'menu_primary_color': ('لون الأزرار والتصنيف المختار', 'Buttons and selected category color'),
+            'menu_background_color': ('لون خلفية المنيو', 'Menu background color'),
+            'menu_text_color': ('لون النص', 'Text color'),
+        }
+        for key, label in labels.items():
+            self.fields[key].label = localized(*label)
+        for key in MENU_COLOR_DEFAULTS:
+            self.fields[key].widget = forms.TextInput(attrs={
+                'type': 'color', 'dir': 'ltr', 'data-menu-color': key,
+                'aria-describedby': 'menuContrastHint'})
+
+    def clean_logo(self):
+        upload = self.cleaned_data.get('logo')
+        try:
+            return prepare_menu_image(upload, max_dimension=512)
+        except forms.ValidationError:
+            raise forms.ValidationError(localized(
+                'ارفع صورة PNG أو JPG أو WebP صحيحة، بحد أقصى 3 ميجابايت و5000 × 5000 بكسل.',
+                'Upload a valid PNG, JPG or WebP image, up to 3 MB and 5000 × 5000 pixels.'))
+
+    def clean(self):
+        data = super().clean()
+        if data.get('logo') and data.get('remove_logo'):
+            self.add_error('logo', localized('اختر رفع لوجو أو إزالته في المرة الواحدة.', 'Choose either uploading or removing a logo at a time.'))
+        for key in MENU_COLOR_DEFAULTS:
+            if key in data:
+                data[key] = data[key].lower()
+        if data.get('menu_text_color') and data.get('menu_background_color'):
+            try:
+                validate_menu_contrast(data['menu_text_color'], data['menu_background_color'])
+            except forms.ValidationError as exc:
+                self.add_error('menu_text_color', exc)
+        return data
 
 
 class RestaurantProfileForm(forms.Form):
