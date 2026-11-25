@@ -1,7 +1,7 @@
 {% extends 'platform_base.html' %}{% load i18n showroom %}{% block mainclass %}platform-form-page{% endblock %}{% block workspace %}
     <div class="page-head"><div><span class="eyebrow">{% bi 'باقات الاشتراك' 'Subscription plans' %}</span>
       <h1>{% if plan %}{{ plan.name }}{% else %}{% bi 'إضافة باقة' 'Add plan' %}{% endif %}</h1>
-      {% if plan %}<p>{% bi 'تسري الحدود الجديدة على جميع المطاعم المشتركة في هذه الباقة.' 'Updated limits apply to every restaurant on this plan.' %}</p>{% endif %}</div>
+      {% if plan %}<p>{% bi 'تخص الحدود والأسعار الجديدة العروض الجديدة. تبقى شروط الاشتراكات الحالية محفوظة حتى تسجيل اتفاق جديد صريح لها.' 'New prices and limits apply to new offers. Existing subscription terms remain captured until an explicit new agreement is recorded.' %}</p>{% endif %}</div>
       <a class="btn btn-outline" href="{% url 'platform_dashboard' %}?status=plans">{% bi 'العودة للباقات' 'Back to plans' %}</a></div>
     <form method="post" class="panel platform-create-form">{% csrf_token %}{{ form.non_field_errors }}
       <section class="platform-form-grid">{% for field in form %}<div class="platform-field">

@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
 from django import forms
+from .subscriptions import freeze_plan_subscribers
 from .models import DemoRequest
 from .models import AuditLog, Branch, Category, DiningTable, KitchenStation, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderRevision, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 
@@ -53,6 +54,8 @@ class PlanAdmin(admin.ModelAdmin):
     form = PlanForm
     def save_model(self, request, obj, form, change):
         request._plan_change_reason = form.cleaned_data.get('change_reason', '')[:120]
+        if change:
+            freeze_plan_subscribers(obj.pk, request.user)
         super().save_model(request, obj, form, change)
     def log_change(self, request, obj, message):
         return super().log_change(request, obj, f'{message}; reason={getattr(request, "_plan_change_reason", "")}')
@@ -85,6 +88,8 @@ class AuditAdmin(ReadOnlyAdmin):
     list_filter = ('action',)
     readonly_fields = ('restaurant','actor','action','detail','created_at')
 
-for model in (Branch,Category,DiningTable,KitchenStation,MenuImportBatch,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,OrderRevision,ServiceCall,StaffInvitation):
+from .models import CollectionCorrection, SubscriptionAgreement
+
+for model in (Branch,Category,DiningTable,KitchenStation,MenuImportBatch,MenuItem,MenuSize,ModifierGroup,ModifierOption,OrderHistory,OrderLine,OrderRevision,ServiceCall,StaffInvitation,CollectionCorrection,SubscriptionAgreement):
     if not admin.site.is_registered(model):
         admin.site.register(model, ReadOnlyAdmin)

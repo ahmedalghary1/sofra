@@ -16,6 +16,14 @@
 
 **الحالة:** إصدار تجريبي تشغيلي، وليس جاهزًا للإطلاق التجاري. تفاصيل المؤجل والمخاطر في [خطة التنفيذ](docs/IMPLEMENTATION_PLAN.md).
 
+## إصلاح مراجعة 25 نوفمبر 2026
+
+نُفذت إصلاحات المراجعة وأضيفت اختبارات انحدار، وحماية الصور والمحاولات والإرسال المجهول، وحفظ الاتفاقات والأرشفة والتصحيح وتقرير حركة القبض ومقارنة الفروع. الحالة التفصيلية في [خطة الإصلاح](docs/REMEDIATION_PLAN_2026-11-25.md) و[نتائج التحقق](docs/REPAIR_RESULTS_2026-11-25.md). يبقى الإصدار تجريبيًا حتى اعتماد بوابات الاستضافة وPostgreSQL والبريد والوردية والقرارات التجارية.
+
+للاختبارات بالمتصفح ثبت `pip install -r requirements-dev.txt` و`python -m playwright install chrome`. يشغّل `.github/workflows/verify.yml` SQLite وPostgreSQL والمتصفح، ويتبع صياغة [checkout](https://github.com/actions/checkout) و[setup-python](https://github.com/actions/setup-python) الرسمية. لا يتطلب ذلك نشر التطبيق ولا يحتوي مفاتيح حسابات فعلية.
+
+أدوات التشغيل الجديدة: `audit_release_data` للفحص فقط، و`backup_application --output <new-file>` للنسخ، و`restore_application_backup --source <backup> --destination <empty-folder>` للتحقق والاستعادة المستقلة. التفاصيل وحدود PostgreSQL وحماية النسخ في [دليل النشر](docs/DEPLOYMENT.md).
+
 ## التشغيل المحلي
 
 يتطلب Python 3.12+.

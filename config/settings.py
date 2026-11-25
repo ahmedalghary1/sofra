@@ -47,8 +47,8 @@ TEMPLATES[0]['OPTIONS']['context_processors'].append('core.presentation.presenta
 ASGI_APPLICATION = 'config.asgi.application'
 db_url = os.getenv('DATABASE_URL', '').strip()
 if db_url.startswith(('postgres://', 'postgresql://')):
-    db = urlparse(db_url)
-    DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': db.path.lstrip('/'), 'USER': db.username, 'PASSWORD': db.password, 'HOST': db.hostname, 'PORT': db.port or 5432}}
+    from .database import postgres_database
+    DATABASES = {'default': postgres_database(db_url)}
 elif db_url:
     raise RuntimeError('DATABASE_URL must be a PostgreSQL URL. Leave it unset to use SQLite.')
 elif DEBUG or os.getenv('DJANGO_ALLOW_SQLITE', '0') == '1':
@@ -91,3 +91,17 @@ mail_mode = os.getenv('DJANGO_EMAIL_BACKEND') or ('smtp' if EMAIL_HOST_USER or n
 if mail_mode not in ('smtp', 'console'):
     raise ValueError('DJANGO_EMAIL_BACKEND must be smtp or console.')
 EMAIL_BACKEND = f'django.core.mail.backends.{mail_mode}.EmailBackend'
+TRUSTED_PROXY_NETWORKS = [network.strip() for network in os.getenv('DJANGO_TRUSTED_PROXY_NETWORKS', '').split(',') if network.strip()]
+TRUSTED_UNIX_PROXY = os.getenv('DJANGO_TRUST_UNIX_PROXY_IP', '0') == '1'
+import ipaddress
+for trusted_network in TRUSTED_PROXY_NETWORKS:
+    ipaddress.ip_network(trusted_network)
+MIDDLEWARE.append('core.security.authentication_limits_middleware')
+MIDDLEWARE.insert(0, 'core.observability.request_timing_middleware')
+LOGGING = {
+    'version': 1, 'disable_existing_loggers': False,
+    'formatters': {'request_json': {'()': 'core.observability.RequestFormatter'}},
+    'handlers': {'request_console': {'class': 'logging.StreamHandler', 'formatter': 'request_json'}},
+    'loggers': {'serveza.requests': {'handlers': ['request_console'],
+                                  'level': 'WARNING' if DEBUG else 'INFO', 'propagate': False}},
+}

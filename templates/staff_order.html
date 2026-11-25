@@ -10,5 +10,5 @@
 <div class="cart-bar" id="cartBar" hidden><span><b id="cartCount">0</b> {% translate 'أصناف في سلتك' %}</span><button id="openCart">{% translate 'راجع الطلب' %} <span id="cartTotal">0</span> {% bi 'ج.م' 'EGP' %} {% symbol 'arrow-right' %}</button></div>
 <div class="modal-backdrop" id="modalBackdrop" hidden><div class="guest-modal" role="dialog" aria-modal="true" aria-labelledby="guestModalTitle"><button class="modal-close" id="closeModal" aria-label="{% translate 'إغلاق' %}">{% symbol 'x' %}</button><div id="modalContent"></div></div></div>
 {{ items_json|json_script:'menu-data' }}
-<script>window.SAFRA={orderUrl:'{% url "staff_order" restaurant.slug %}',csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},staffMode:true};</script><script src="{% static 'js/guest.js' %}"></script>
+<script>window.SAFRA={orderUrl:'{% url "staff_order" restaurant.slug %}',csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},staffMode:true,cartSession:'staff-{{ branch.pk }}-{{ request.user.pk }}',cartTable:'{{ branch.pk }}-{{ request.user.pk }}'};</script><script src="{% static 'js/guest.js' %}"></script>
 {% endblock %}

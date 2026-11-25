@@ -3,6 +3,8 @@ import uuid
 from typing import ClassVar
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import get_language
@@ -29,13 +31,16 @@ class DemoRequest(models.Model):
 
 class Plan(models.Model):
     name = models.CharField(max_length=80, unique=True)
-    price_monthly = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    price_monthly = models.DecimalField(max_digits=9, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
     max_tables = models.PositiveIntegerField(default=10)
     max_items = models.PositiveIntegerField(default=50)
     max_staff = models.PositiveIntegerField(default=5)
     max_branches = models.PositiveIntegerField(default=1)
     max_stations = models.PositiveIntegerField(default=1)
     staff_example = models.JSONField(default=dict, blank=True, editable=False)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(price_monthly__gte=0), name='plan_price_nonnegative')]
 
     def clean(self):
         super().clean()
@@ -68,6 +73,7 @@ class Branch(models.Model):
     show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     def __str__(self): return f'{self.restaurant.name} · {self.name}'
 
 class Membership(models.Model):
@@ -76,6 +82,7 @@ class Membership(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='memberships')
     role = models.CharField(max_length=12, choices=ROLES)
     active = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     branches = models.ManyToManyField(Branch, blank=True, related_name='staff_memberships')
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user','restaurant'], name='unique_restaurant_member')]
@@ -112,6 +119,7 @@ class Subscription(models.Model):
     ends_at = models.DateTimeField(null=True, blank=True)
     activation_requested_at = models.DateTimeField(null=True, blank=True)
     grandfathered_limits = models.JSONField(default=dict, blank=True, editable=False)
+    agreed_terms = models.JSONField(default=dict, blank=True, editable=False)
 
     class Meta:
         constraints = [models.CheckConstraint(
@@ -126,7 +134,7 @@ class Subscription(models.Model):
         allowances = self.grandfathered_limits
         if branch is not None:
             allowances = allowances.get('branches', {}).get(str(branch.pk), {})
-        return max(getattr(self.plan, field), allowances.get(field, 0))
+        return max(self.agreed_terms.get('limits', {}).get(field, getattr(self.plan, field)), allowances.get(field, 0))
 
 class SubscriptionPayment(models.Model):
     METHODS = [('cash', 'نقدًا'), ('bank', 'تحويل بنكي'), ('other', 'وسيلة أخرى')]
@@ -157,6 +165,7 @@ class KitchenStation(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='stations')
     name = models.CharField(max_length=80)
     active = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     class Meta:
         constraints = [models.UniqueConstraint(fields=['branch', 'name'], name='unique_branch_station_name')]
         ordering = ['id']
@@ -170,6 +179,7 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=9, decimal_places=2)
     image = models.ImageField(upload_to='menu/', blank=True)
     available = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name
@@ -212,6 +222,7 @@ class DiningTable(models.Model):
     public_token = models.CharField(max_length=48, unique=True, default=token)
     session_token = models.UUIDField(default=uuid.uuid4)
     active = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [models.UniqueConstraint(fields=['branch','name'], name='unique_branch_table')]
@@ -301,6 +312,7 @@ class AuditLog(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     action = models.CharField(max_length=80)
     detail = models.CharField(max_length=240, blank=True)
+    changes = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 class LoginAttempt(models.Model):
@@ -308,3 +320,36 @@ class LoginAttempt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         indexes = [models.Index(fields=['key','created_at'])]
+
+
+class RateLimitBucket(models.Model):
+    key = models.CharField(max_length=64, primary_key=True)
+    started_at = models.DateTimeField()
+    count = models.PositiveIntegerField(default=0)
+
+
+class CollectionCorrection(models.Model):
+    """An immutable reversal of a mistaken manual entry, never a payment gateway refund."""
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='collection_corrections')
+    key = models.UUIDField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    original_paid_at = models.DateTimeField()
+    reason = models.CharField(max_length=240)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['order', 'key'], name='unique_collection_correction'),
+                       models.CheckConstraint(condition=models.Q(amount__gt=0), name='correction_amount_positive')]
+
+
+class SubscriptionAgreement(models.Model):
+    subscription = models.ForeignKey(Subscription, on_delete=models.PROTECT, related_name='agreements')
+    terms = models.JSONField()
+    status = models.CharField(max_length=12)
+    starts_on = models.DateField()
+    ends_at = models.DateTimeField()
+    payment = models.ForeignKey(SubscriptionPayment, null=True, blank=True, on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    reason = models.CharField(max_length=240)
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods, require_safe
 
 from .guidebook import FAQ, FLOW, GUIDES
 from .models import DemoRequest
+from .security import consume_limits, limited_response
 from .presentation import localized_url, site_metadata
 from .seo import AVAILABLE, MARKET, PRODUCT, UNAVAILABLE, WHATSAPP, monthly_price_text, public_metadata
 from .showcase_catalog import LIMITS, PRICING_NOTE, public_plans, starter_price
@@ -240,6 +241,10 @@ def contact(request):
     )
     status = 200
     if request.method == "POST" and form.is_valid():
+        if (not DemoRequest.objects.filter(submission_key=form.cleaned_data['key']).exists()
+                and not consume_limits(request, 'contact', limit=10, seconds=3600,
+                                       identity=form.cleaned_data['email'])):
+            return limited_response(request, retry_after=3600)
         data = {field: form.cleaned_data[field] for field in ContactForm.Meta.fields}
         try:
             lead, _ = DemoRequest.objects.get_or_create(

@@ -15,6 +15,7 @@ from datetime import timedelta
 from .limits import check_creation_limit
 from .models import Category, MenuImportBatch, MenuItem
 from .services import audit
+from .validation import money
 
 
 HEADERS = ('category', 'name', 'price', 'description')
@@ -36,10 +37,8 @@ def validate_menu_rows(sources):
             errors.append(gettext('السطر {number}: الاسم أو التصنيف أو الوصف يتجاوز الحد المسموح.').format(number=number))
             continue
         try:
-            price = Decimal(str(source['price'] or '').strip())
-            if not price.is_finite() or price < 0 or price > 9999999 or price.as_tuple().exponent < -2:
-                raise InvalidOperation
-        except InvalidOperation:
+            price = money(source['price'])
+        except ValidationError:
             errors.append(gettext('السطر {number}: السعر يجب أن يكون رقمًا موجبًا بدقتين عشريتين.').format(number=number))
             continue
         signature = (category.casefold(), name.casefold())
@@ -64,6 +63,7 @@ def parse_menu_csv(upload):
         reader = csv.DictReader(io.StringIO(content, newline=''))
         if not reader.fieldnames or tuple(name.strip() for name in reader.fieldnames) != HEADERS:
             raise ValidationError('الأعمدة المطلوبة بالترتيب: category,name,price,description.')
+        reader.fieldnames = list(HEADERS)
         return validate_menu_rows(reader)
     except (UnicodeDecodeError, csv.Error):
         raise ValidationError('تعذر قراءة الملف. استخدم CSV بترميز UTF-8.')
@@ -116,10 +116,11 @@ def commit_menu_import(batch, actor):
     if not restaurant.active or not branch.active:
         raise ValidationError('هذا الفرع لا يقبل استيرادًا حاليًا.')
     subscription = check_creation_limit(restaurant, 'item', branch)
-    current_count = MenuItem.objects.filter(category__branch=branch).count()
+    current_count = MenuItem.objects.filter(category__branch=branch, archived=False).count()
     limit = subscription.limit('max_items', branch)
     if current_count + len(batch.rows) > limit:
         raise ValidationError(gettext('الملف يتجاوز حد الأصناف في الباقة ({limit}).').format(limit=limit))
+    validate_existing_menu(branch, batch.rows)
     categories = {category.name: category for category in Category.objects.filter(branch=branch)}
     items = []
     for row in batch.rows:
@@ -134,3 +135,13 @@ def commit_menu_import(batch, actor):
     batch.save(update_fields=['committed_at'])
     audit(restaurant, actor, 'menu.import', f'branch={branch.pk}; items={len(items)}; batch={batch.pk}')
     return len(items)
+
+
+def validate_existing_menu(branch, rows):
+    existing = {(category.casefold(), name.casefold()) for category, name in MenuItem.objects.filter(
+        category__branch=branch, archived=False).values_list('category__name', 'name')}
+    for row in rows:
+        if (row['category'].casefold(), row['name'].casefold()) in existing:
+            from django.utils.translation import get_language
+            raise ValidationError(('An item with this category and name already exists. Review the menu before importing.'
+                if get_language() == 'en' else 'يوجد صنف بالاسم والتصنيف نفسيهما بالفعل. راجع المنيو قبل الاستيراد.'))

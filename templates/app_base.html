@@ -34,10 +34,12 @@
       <a {% if page == 'branches' %}class="active" aria-current="page"{% endif %} href="{% url 'manage_branches' restaurant.slug %}">{% symbol 'store' %} {% translate 'الفروع' %}</a>
       <a {% if page == 'reports' %}class="active" aria-current="page"{% endif %} href="{% url 'reports' restaurant.slug %}">{% symbol 'chart-no-axes-column' %} {% translate 'التقارير' %}</a>
       <a {% if page == 'staff' %}class="active" aria-current="page"{% endif %} href="{% url 'staff' restaurant.slug %}">{% symbol 'users' %} {% translate 'فريق العمل' %}</a>
+      <a {% if page == 'resource_archive' %}class="active" aria-current="page"{% endif %} href="{% url 'resource_archive_list' restaurant.slug %}">{% symbol 'book-open' %} {% bi 'أرشيف الموارد' 'Resource archive' %}</a>
       <a {% if page == 'settings' %}class="active" aria-current="page"{% endif %} href="{% url 'restaurant_settings' restaurant.slug %}">{% symbol 'settings' %} {% translate 'الإعدادات' %}</a>
     </nav>
     {% endif %}
     <div class="sidebar-bottom">
+      <a class="workspace-support" href="{% whats_app_url %}" target="_blank" rel="noopener noreferrer">{% symbol 'concierge-bell' %} {% bi 'تواصل مع Serveza' 'Contact Serveza' %}</a>
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout" type="submit">{% symbol 'log-out' %} {% translate 'تسجيل الخروج' %}</button></form>
     </div>
   </aside>

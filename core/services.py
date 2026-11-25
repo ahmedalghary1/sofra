@@ -1,3 +1,4 @@
+from .validation import localized
 from django.utils.translation import gettext
 import hashlib
 import json
@@ -7,13 +8,22 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .models import AuditLog, MenuItem, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OrderRevision, ServiceCall
+from django.utils.dateparse import parse_datetime
+from .models import AuditLog, Branch, CollectionCorrection, Membership, MenuItem, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OrderRevision, ServiceCall
+from .validation import TOTAL_MAX, identifier, money
 
 ORDER_NEXT = {'new': 'accepted', 'accepted': 'preparing', 'preparing': 'ready', 'ready': 'served'}
 CALL_NEXT = {'open': 'acknowledged', 'acknowledged': 'in_progress', 'in_progress': 'done'}
 
-def audit(restaurant, actor, action, detail=''):
-    AuditLog.objects.create(restaurant=restaurant, actor=actor, action=action, detail=detail[:240])
+def audit(restaurant, actor, action, detail='', *, changes=None):
+    AuditLog.objects.create(restaurant=restaurant, actor=actor, action=action, detail=detail[:240],
+                            changes=changes or {})
+
+
+def audit_change(restaurant, actor, action, obj, before, fields):
+    after = {field: str(getattr(obj, field)) for field in fields}
+    audit(restaurant, actor, action, str(obj.pk), changes={'model': obj._meta.label_lower,
+          'id': obj.pk, 'before': before, 'after': after})
 
 def order_quantity(value):
     if isinstance(value, str) and len(value) <= 2 and value.isascii() and value.isdecimal():
@@ -33,35 +43,36 @@ def order_edit_allowed(order, has_started_preparation):
 def normalize_order_lines(table, raw_lines, allow_empty=False):
     if not isinstance(raw_lines, list) or len(raw_lines) > 40 or (not raw_lines and not allow_empty):
         raise ValidationError('أضف صنفًا واحدًا على الأقل للسلة.')
-    normalized, total = [], Decimal('0.00')
+    parsed = []
     for line in raw_lines:
         try:
-            item_id = int(line['item_id'])
+            item_id = identifier(line['item_id'])
             quantity = order_quantity(line['quantity'])
             selected = line.get('options', [])
             size_id = line.get('size_id')
         except (KeyError, ValueError, TypeError, AttributeError):
             raise ValidationError('توجد بيانات غير صالحة في السلة.')
-        if not isinstance(selected, list):
+        if not isinstance(selected, list) or len(selected) > 800:
             raise ValidationError('كمية أو خيارات غير صالحة.')
-        item = MenuItem.objects.select_related('category').prefetch_related('sizes', 'modifier_groups__options').filter(pk=item_id, category__branch=table.branch, category__visible=True, available=True).first()
+        chosen = {identifier(option) for option in selected}
+        if len(chosen) != len(selected):
+            raise ValidationError('لا يمكن اختيار الإضافة نفسها مرتين.')
+        parsed.append((item_id, quantity, chosen, identifier(size_id) if size_id not in (None, '') else None))
+    items = {item.pk: item for item in MenuItem.objects.select_related('category', 'station')
+             .prefetch_related('sizes', 'modifier_groups__options').filter(
+                 pk__in={row[0] for row in parsed}, category__branch_id=table.branch_id,
+                 category__visible=True, available=True, archived=False)}
+    normalized, total = [], Decimal('0.00')
+    for item_id, quantity, chosen, size_id in parsed:
+        item = items.get(item_id)
         if not item:
             raise ValidationError('أحد الأصناف لم يعد متاحًا. حدّث المنيو.')
         size_name, base_price = '', item.price
-        if size_id not in (None, ''):
-            if isinstance(size_id, bool) or len(str(size_id)) > 18 or not str(size_id).isdigit():
-                raise ValidationError('حجم الصنف غير صالح.')
-            chosen_size_id = int(size_id)
-            size = next((s for s in item.sizes.all() if s.pk == chosen_size_id and s.available), None)
+        if size_id is not None:
+            size = next((s for s in item.sizes.all() if s.pk == size_id and s.available), None)
             if not size:
                 raise ValidationError('حجم الصنف لم يعد متاحًا. حدّث المنيو.')
             size_name, base_price = size.name, size.price
-        try:
-            chosen = {int(x) for x in selected}
-        except (ValueError, TypeError):
-            raise ValidationError('أحد الخيارات غير صالح.')
-        if len(chosen) != len(selected):
-            raise ValidationError('لا يمكن اختيار الإضافة نفسها مرتين.')
         snapshot, extra = [], Decimal('0.00')
         for group in item.modifier_groups.all():
             group_options = {o.id: o for o in group.options.all() if o.available}
@@ -75,8 +86,9 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
             chosen -= found
         if chosen:
             raise ValidationError('أحد الخيارات لا يخص الصنف المحدد.')
-        unit = base_price + extra
-        line_total = unit * quantity
+        base_price = money(base_price)
+        unit = money(base_price + extra)
+        line_total = money(unit * quantity, TOTAL_MAX)
         normalized.append((item, quantity, size_name, base_price, snapshot, unit, line_total))
         total += line_total
     if total > Decimal('99999999.99'):
@@ -84,16 +96,14 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
     return normalized, total
 
 def create_order(table, payload, user=None, require_session=False):
-    if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
-        raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
-    subscription = getattr(table.branch.restaurant, 'subscription', None)
-    if not subscription or not subscription.valid():
-        raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
     if not isinstance(payload, dict):
         raise ValidationError('توجد بيانات غير صالحة في السلة.')
     try:
         key = uuid.UUID(str(payload['idempotency_key']))
     except (KeyError, ValueError, TypeError):
+        subscription = getattr(table.branch.restaurant, 'subscription', None)
+        if not subscription or not subscription.valid():
+            raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
         raise ValidationError('تعذر التحقق من الطلب. حدّث الصفحة وحاول مجددًا.')
     raw_lines = payload.get('lines', [])
     if not isinstance(raw_lines, list) or not 1 <= len(raw_lines) <= 40:
@@ -101,28 +111,38 @@ def create_order(table, payload, user=None, require_session=False):
     note = str(payload.get('note', '')).strip()
     if len(note) > 500:
         raise ValidationError('الملاحظة طويلة جدًا.')
-    digest = hashlib.sha256(json.dumps({'lines': raw_lines, 'note': note}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    try:
+        digest = hashlib.sha256(json.dumps({'lines': raw_lines, 'note': note}, sort_keys=True,
+                                          ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    except (ValueError, TypeError, RecursionError):
+        raise ValidationError('توجد بيانات غير صالحة في السلة.')
     existing = Order.objects.filter(table=table, idempotency_key=key).first()
     if existing:
         if existing.request_hash != digest:
             raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
         return existing
+    if not table.active or table.archived or not table.branch.active or table.branch.archived or not table.branch.accepting_orders or not table.branch.restaurant.active:
+        raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
+    subscription = getattr(table.branch.restaurant, 'subscription', None)
+    if not subscription or not subscription.valid():
+        raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
     if require_session and str(payload.get('session_token', '')) != str(table.session_token):
         raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
     try:
         with transaction.atomic():
-            locked_table = type(table).objects.select_for_update().select_related('branch__restaurant').get(pk=table.pk)
-            if (not locked_table.active or not locked_table.branch.active or
-                    not locked_table.branch.accepting_orders or not locked_table.branch.restaurant.active):
-                raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
-            current_subscription = getattr(locked_table.branch.restaurant, 'subscription', None)
-            if not current_subscription or not current_subscription.valid():
-                raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
+            locked_table = type(table).objects.select_for_update(of=('self',)).get(pk=table.pk)
+            locked_table.branch = Branch.objects.select_related('restaurant').get(pk=locked_table.branch_id)
             prior = Order.objects.filter(table=locked_table, idempotency_key=key).first()
             if prior:
                 if prior.request_hash != digest:
                     raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
                 return prior
+            if (not locked_table.active or locked_table.archived or not locked_table.branch.active or locked_table.branch.archived or
+                    not locked_table.branch.accepting_orders or not locked_table.branch.restaurant.active):
+                raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
+            current_subscription = getattr(locked_table.branch.restaurant, 'subscription', None)
+            if not current_subscription or not current_subscription.valid():
+                raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
             if require_session and str(payload.get('session_token', '')) != str(locked_table.session_token):
                 raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
             if Order.objects.filter(table=locked_table,
@@ -189,7 +209,7 @@ def edit_order(order, actor, payload):
         if not isinstance(row, dict) or isinstance(row.get('id'), bool) or isinstance(row.get('quantity'), bool):
             raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
         try:
-            line_id, quantity = int(row['id']), order_quantity(row['quantity'])
+            line_id, quantity = identifier(row['id']), order_quantity(row['quantity'])
         except (KeyError, ValueError, TypeError):
             raise ValidationError('تفاصيل العنصر الموجود غير صالحة.')
         if line_id not in current or line_id in chosen:
@@ -292,6 +312,43 @@ def record_manual_payment(order, actor):
     audit(order.branch.restaurant, actor, 'order.payment.manual', str(order.pk))
     return order
 
+
+@transaction.atomic
+def correct_manual_collection(order, actor, key, reason, *, expected_paid_at):
+    """Reverse a mistaken manual record, preserving its original date and amount."""
+    try:
+        key = uuid.UUID(str(key))
+    except (ValueError, TypeError, AttributeError):
+        raise ValidationError(localized('مفتاح تصحيح التحصيل غير صالح.', 'Invalid collection correction key.'))
+    reason = str(reason).strip()
+    if not 3 <= len(reason) <= 240:
+        raise ValidationError('اكتب سبب التصحيح بين 3 و240 حرفًا.')
+    order = Order.objects.select_for_update().select_related('branch__restaurant').get(pk=order.pk)
+    if not Membership.objects.filter(user=actor, restaurant=order.branch.restaurant,
+                                     role__in=('owner', 'manager'), active=True, archived=False).exists():
+        raise ValidationError(localized('لا تملك صلاحية تصحيح التحصيل.', 'You are not allowed to correct collection entries.'))
+    prior = CollectionCorrection.objects.filter(order=order, key=key).first()
+    if prior:
+        if prior.reason != reason:
+            raise ValidationError(localized('مفتاح التصحيح مستخدم لسبب مختلف.', 'This correction key was used with a different reason.'))
+        return prior
+    if order.payment_status != 'paid' or order.paid_at is None or order.total <= 0:
+        raise ValidationError(localized('لا يوجد تحصيل مسجل قابل للتصحيح.', 'No recorded collection can be corrected.'))
+    try:
+        expected = parse_datetime(str(expected_paid_at)) if len(str(expected_paid_at)) <= 40 else None
+    except ValueError:
+        expected = None
+    if expected is None or timezone.is_naive(expected) or expected != order.paid_at:
+        raise ValidationError(localized('تغير قيد التحصيل منذ فتح الصفحة. حدّث السجل وراجعه مجددًا.', 'The collection entry changed. Refresh and review it again.'))
+    correction = CollectionCorrection.objects.create(order=order, key=key, reason=reason,
+        amount=order.total, original_paid_at=order.paid_at, actor=actor)
+    order.payment_status, order.paid_at = 'unpaid', None
+    order.save(update_fields=['payment_status', 'paid_at', 'updated_at'])
+    audit(order.branch.restaurant, actor, 'order.payment.correct', str(order.pk), changes={
+        'order_id': order.pk, 'correction_id': correction.pk, 'amount': str(correction.amount),
+        'original_paid_at': correction.original_paid_at.isoformat(), 'reason': reason})
+    return correction
+
 @transaction.atomic
 def advance_call(call, actor, status):
     call = ServiceCall.objects.select_for_update().get(pk=call.pk)
@@ -311,7 +368,8 @@ def advance_call(call, actor, status):
 def create_service_call(table, kind, session_token=None):
     if kind not in ('waiter', 'bill'):
         raise ValidationError('نوع الاستدعاء غير صالح.')
-    table = type(table).objects.select_for_update().select_related('branch__restaurant').get(pk=table.pk)
+    table = type(table).objects.select_for_update(of=('self',)).get(pk=table.pk)
+    table.branch = Branch.objects.select_related('restaurant').get(pk=table.branch_id)
     if session_token is not None and str(session_token) != str(table.session_token):
         raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.')
     if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:

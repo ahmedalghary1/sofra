@@ -169,6 +169,7 @@ def account(request, pk=None):
                     if user.is_superuser and data['access'] == 'member':
                         user.is_staff = False
                     user.is_superuser = data['access'] == 'operator'
+                    user.is_staff = user.is_superuser
                     if data['password']:
                         user.set_password(data['password'])
                     user.save()

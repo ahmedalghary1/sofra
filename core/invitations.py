@@ -8,8 +8,9 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .limits import check_creation_limit
-from .models import Membership, StaffInvitation
+from .models import Membership, StaffInvitation, Subscription
 from .services import audit
+from .accounts import account_for_email, new_login_email
 
 
 def invitation_for_token(raw_token):
@@ -19,11 +20,11 @@ def invitation_for_token(raw_token):
     return StaffInvitation.objects.select_related('restaurant', 'branch').filter(token_hash=digest).first()
 
 def invited_account(email, *, english=False):
-    matches = list(User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).order_by('pk')[:2])
-    if len(matches) > 1 or (matches and matches[0].email and matches[0].email.casefold() != email.casefold()):
+    try:
+        return account_for_email(email)
+    except ValidationError:
         raise ValidationError('This email conflicts with existing login accounts. Contact the platform administrator.'
                               if english else 'يتعارض هذا البريد مع حسابات دخول قائمة. تواصل مع مسؤول المنصة.')
-    return matches[0] if matches else None
 
 
 @transaction.atomic
@@ -31,6 +32,7 @@ def accept_staff_invitation(raw_token, name='', password='', authenticated_user=
     invitation = invitation_for_token(raw_token)
     if not invitation:
         raise ValidationError('رابط الدعوة غير صالح.')
+    Subscription.objects.select_for_update().get(restaurant=invitation.restaurant)
     invitation = StaffInvitation.objects.select_for_update().select_related('restaurant', 'branch').get(pk=invitation.pk)
     if not invitation.pending():
         raise ValidationError('انتهت صلاحية الدعوة أو استُخدمت سابقًا.')
@@ -52,11 +54,12 @@ def accept_staff_invitation(raw_token, name='', password='', authenticated_user=
         name = name.strip()
         if not name:
             raise ValidationError('أدخل اسمك.')
-        user = User(username=invitation.email, email=invitation.email, first_name=name[:150])
+        email = new_login_email(invitation.email)
+        user = User(username=email, email=email, first_name=name[:150])
         validate_password(password, user=user)
     if existing_user and Membership.objects.filter(user=user, restaurant=invitation.restaurant).exists():
         raise ValidationError('هذا الحساب عضو في المطعم بالفعل.')
-    check_creation_limit(invitation.restaurant, 'staff')
+    check_creation_limit(invitation.restaurant, 'staff', invitation=invitation)
     if not existing_user:
         user.set_password(password)
         user.save()

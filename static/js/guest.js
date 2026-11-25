@@ -21,7 +21,7 @@ let editReason = '';
 let submittedTableId = null;
 let submitting = false;
 let modalOpener = null;
-const draftKey = window.SAFRA.cartSession ? 'serveza:table-cart:' + window.SAFRA.cartTable : null;
+const draftKey = window.SAFRA.cartSession ? (window.SAFRA.staffMode ? 'serveza:staff-cart:' : 'serveza:table-cart:') + window.SAFRA.cartTable : null;
 let pendingOrder = null;
 const money = v => Number(v).toLocaleString(guestEnglish ? 'en-EG' : 'ar-EG-u-nu-latn', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!==undefined)n.textContent=txt; return n; };
@@ -86,8 +86,13 @@ function restoreDraft() {
     if (/^[a-f0-9-]{36}$/i.test(draft.requestKey)) requestKey = draft.requestKey;
     if (draft.pending?.idempotency_key === requestKey && Array.isArray(draft.pending.lines)) {
       pendingOrder = draft.pending;
+      if (window.SAFRA.staffMode && pendingOrder.table_id) {
+        const select = document.getElementById('staffTable');
+        select.value = String(pendingOrder.table_id);
+        select.disabled = true;
+      }
     }
-    if (changed) document.getElementById('cartMenuChange').hidden = false;
+    if (changed && document.getElementById('cartMenuChange')) document.getElementById('cartMenuChange').hidden = false;
     saveDraft();
   } catch { /* Ignore invalid or unavailable session storage. */ }
   renderCartBar();
@@ -126,6 +131,7 @@ async function sendGuestOrder(status, button) {
       location.assign(result.order_url);
     } else if (response.status === 400 && result.ok === false) {
       pendingOrder = null;
+      if (window.SAFRA.staffMode) document.getElementById('staffTable').disabled = false;
       saveDraft();
       renderCartBar();
       submitting = false;
@@ -441,7 +447,16 @@ function openCart(){
     if (submitting) return;
     const newLines = orderLines();
     if (draftKey) {
+      const chosen = window.SAFRA.staffMode ? document.getElementById('staffTable')?.value : null;
+      if (window.SAFRA.staffMode && !chosen) {
+        error.textContent = guestCopy('اختر الطاولة قبل إرسال الطلب.', 'Choose a table before sending the order.');
+        return;
+      }
       pendingOrder = {idempotency_key: requestKey, note: cartNote, lines: newLines, reviewed_total: cartTotal().toFixed(2)};
+      if (window.SAFRA.staffMode) {
+        pendingOrder.table_id = Number(chosen);
+        document.getElementById('staffTable').disabled = true;
+      }
       saveDraft();
       await sendGuestOrder(error, send);
       return;

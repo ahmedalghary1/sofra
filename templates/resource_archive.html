@@ -1,0 +1,17 @@
+{% extends 'app_base.html' %}{% load i18n showroom %}
+{% block title %}{% bi 'أرشيف الموارد' 'Resource archive' %}{% endblock %}
+{% block crumb %}{% bi 'أرشيف الموارد' 'Resource archive' %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% bi 'أرشيف الموارد' 'Resource archive' %}</h1><p>{% bi 'الأرشفة تحرر السعة وتحفظ الطلبات والسجلات. التعطيل المؤقت وحده لا يحرر السعة.' 'Archiving frees capacity and preserves orders and history. Temporarily disabling a resource does not free capacity.' %}</p></div></div>
+<form method="get" class="panel report-filter">
+  <label>{% bi 'نوع المورد' 'Resource type' %}<select name="resource">{% for key, label in resource_choices %}<option value="{{ key }}" {% if resource == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>{% bi 'العرض' 'Show' %}<select name="state"><option value="current" {% if not show_archived %}selected{% endif %}>{% bi 'موارد غير مؤرشفة' 'Current resources' %}</option><option value="archived" {% if show_archived %}selected{% endif %}>{% bi 'الأرشيف' 'Archived resources' %}</option></select></label>
+  <button class="btn btn-primary">{% bi 'عرض' 'Show' %}</button>
+</form>
+<p class="form-hint">{% bi 'الطاولات والأصناف والمحطات تخص الفرع المختار. استعادة المورد تحجز سعته ويظل معطلًا حتى تفعيله، عدا محطة التحضير التي تستعاد نشطة.' 'Tables, items and stations belong to the selected branch. Restoring reserves capacity and leaves the resource disabled until activation, except a prep station, which is restored active.' %}</p>
+<section class="panel"><div class="report-list">{% for row in archive_rows %}<div><span>{% if resource == 'staff' %}{{ row.user.username }}{% else %}{{ row.name }}{% endif %} <small>{% if row.archived %}{% bi 'مؤرشف' 'Archived' %}{% endif %}</small></span>
+{% if resource != 'staff' or row.role != 'owner' and row.user_id != request.user.pk %}{% if membership.role == 'owner' or resource != 'staff' or row.role != 'manager' %}
+<form method="post" action="{% url 'resource_archive' restaurant.slug resource row.pk %}" data-confirm="{% bi 'تأكيد تغيير أرشيف هذا المورد مع الحفاظ على تاريخه؟' 'Update this resource archive while preserving its history?' %}">{% csrf_token %}<input type="hidden" name="action" value="{% if row.archived %}restore{% else %}archive{% endif %}"><button class="btn btn-outline btn-sm">{% if row.archived %}{% bi 'استعادة' 'Restore' %}{% else %}{% bi 'أرشفة' 'Archive' %}{% endif %}</button></form>
+{% endif %}{% endif %}</div>{% empty %}<p>{% bi 'لا توجد موارد مطابقة.' 'No matching resources.' %}</p>{% endfor %}</div></section>
+{% if archive_rows.has_other_pages %}<nav class="pagination"><span>{{ archive_rows.number }} / {{ archive_rows.paginator.num_pages }}</span>{% if archive_rows.has_previous %}<a href="?resource={{ resource }}&amp;state={{ archive_state }}&amp;page={{ archive_rows.previous_page_number }}">{% bi 'السابق' 'Previous' %}</a>{% endif %}{% if archive_rows.has_next %}<a href="?resource={{ resource }}&amp;state={{ archive_state }}&amp;page={{ archive_rows.next_page_number }}">{% bi 'التالي' 'Next' %}</a>{% endif %}</nav>{% endif %}
+{% endblock %}

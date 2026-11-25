@@ -11,9 +11,9 @@ The public guide contains 18 product categories. Each entry below maps to a bili
 
 The pricing view reads only configured public tiers with the explicit Starter, Growth or Business names or the listed Arabic equivalents. The Plan model has no public visibility field. Custom internal, local demo, and negotiated plans can contain private commercial terms and are omitted. Nothing on the public routes creates or alters plans, subscriptions, pricing or entitlements.
 
-When no matching tier exists, the page labels the figures as proposed. The redesign brief proposes 600, 1300 and 2500 EGP monthly. The earlier product specification proposes 399, 799 and negotiated pricing, with some different resource counts. The newer proposal supplies illustrative fallback values. A configured matching record supplies all five limits and the actual monthly price, including zero. The checked local development database holds a trial and a local demonstration plan. Neither is a configured public tier.
+The catalog reads configured public tiers and does not invent fallback plans when none exist. Migrations seed Starter, Growth and Business at illustrative monthly prices of 600, 1300 and 2500 EGP when missing. The earlier product specification proposed 399, 799 and negotiated pricing; those are historical hypotheses, not the current catalog. Configured Plan records supply all five limits and the displayed monthly price, including zero. Subscription agreements capture customer terms independently of later edits to the public offer.
 
-Branch capacity and staff count apply per restaurant. Table, menu item and kitchen station limits apply per branch. The catalog can filter to configured public tiers or to currently available common tools. Multiple branches require capacity above one and kitchen station setup requires positive station capacity. There is no commercial module-per-tier feature flag, annual contract or checkout API. Demo illustrations and ROI assumptions do not add live product entitlements.
+Branch capacity and staff count apply per restaurant. Table, menu item and kitchen station limits apply per branch. Pending invitations reserve seats across creation paths. Disabled resources still count; explicit archival frees capacity and preserves history, and restoration checks capacity. Multiple branches require capacity above one and station setup requires positive station capacity. Agreements can record a manual monthly or annual price basis and receipt, but there is no automated checkout, charging or renewal API. An explicitly started initial trial runs for 14 days without collection. Demo illustrations and ROI assumptions do not add live entitlements.
 
 The home and pricing pages render the monthly price and limits directly from the public Plan records. The comparison includes an example allocation across waiters, administration (including the owner), kitchen and cashier roles. Each tier lists the available capabilities that fit its capacity. Owners can review their effective limits in restaurant settings.
 
@@ -94,6 +94,8 @@ Detail route `/features/billing/`. Implementation references include `record_man
 | --- | --- | --- |
 | `#collection` | available | Printable current-session summary with order totals, recorded collections and balance, plus per-order manual settlement. |
 | `#export` | available | Payment state, settlement time and CSV export of branch orders. |
+| `#cash-ledger` | available | Collection activity and CSV export by collection and correction timestamp, independently of order creation. |
+| `#correction` | available | Owner or venue-manager correction of a mistaken manual entry, with a reason and the original entry preserved. Does not refund funds. |
 | `#split` | planned | Whole-session settlement, tax, service, authorized discounts, equal or item splits and multiple tenders. |
 | `#payments` | not-supported | Online processing, stored cards, certified tax invoices and direct accounting integrations. |
 
@@ -127,7 +129,8 @@ Detail route `/features/analytics/`. Implementation references include `reports,
 | `#orders` | available | Order counts, sources, statuses, cancellations, value, collections and top items. |
 | `#activity` | available | Daily order counts over 7 or 14 days and average non-cancelled order value for owners and managers. |
 | `#times` | available | Date filters, CSV exports and average acceptance, readiness, service response and station prep times. |
-| `#comparison` | planned | Period and branch comparisons, peak hours, slow items, table utilization and turnover, scheduled PDF and Excel reports. |
+| `#branch-summary` | available | Owner and venue-manager aggregation and comparison of venue branches for a selected period. |
+| `#comparison` | planned | Period comparisons, peak hours, slow items, table utilization and turnover, scheduled PDF and Excel reports. |
 | `#intelligence` | planned | Cost-based profitability, average session bill, offer and upsell attribution, ROI, retention, forecasting and custom reports. |
 
 ### Guest experience and CRM

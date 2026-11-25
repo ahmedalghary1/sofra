@@ -1,3 +1,4 @@
+from .validation import localized
 import csv
 import hashlib
 import io
@@ -39,9 +40,18 @@ from django.views.decorators.cache import never_cache
 from .models import Branch, Category, DiningTable, KitchenStation, LoginAttempt, Membership, MenuImportBatch, MenuItem, MenuSize, ModifierGroup, ModifierOption, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OwnerEmailVerification, Plan, Restaurant, ServiceCall, StaffInvitation, Subscription, SubscriptionPayment
 from .services import advance_call, advance_order, advance_order_line, audit, correct_order_status, create_order, create_service_call, edit_order, order_edit_allowed, record_manual_payment
 from .limits import check_activation_limit, check_creation_limit
+from .validation import identifier, load_json_payload, money
+from .images import prepare_menu_image
+from .accounts import account_for_email, new_login_email
+from .security import client_address, consume_limits, limited_response
+from .services import audit_change, correct_manual_collection
+from .subscriptions import freeze_plan_subscribers, record_agreement
+from .resources import archive_resource, lock_resource
+from .reporting import collection_activity, collection_csv, csv_safe
+from .models import CollectionCorrection
 from .models import DemoRequest
 from .forms import OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
-from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx
+from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx, validate_existing_menu
 from .plan_preview import preview_plan_usage
 from .showcase_catalog import public_tier_records
 from .presentation import localized_url
@@ -69,7 +79,7 @@ def home(request):
     if request.user.is_authenticated:
         if request.user.is_superuser:
             return redirect('platform_dashboard')
-        membership = request.user.memberships.filter(active=True).select_related('restaurant').first()
+        membership = request.user.memberships.filter(active=True, archived=False).select_related('restaurant').first()
         if membership: return redirect('dashboard', slug=membership.restaurant.slug)
     from .marketing import public_page
     return public_page(request, 'home')
@@ -93,7 +103,7 @@ def demo_menu(request):
 def place_demo_order(request):
     english = request.LANGUAGE_CODE == 'en'
     try:
-        total = demo_order_total(json.loads(request.body), english=english)
+        total = demo_order_total(load_json_payload(request.body), english=english)
     except ValueError:
         error = 'Invalid cart data.' if english else 'توجد بيانات غير صالحة في السلة.'
         return JsonResponse({'ok': False, 'error': error}, status=400)
@@ -116,6 +126,8 @@ def send_owner_activation(request, user, token, *, resend=False):
 
 
 def register(request):
+    if request.method == 'POST' and not consume_limits(request, 'registration', limit=5, seconds=3600, identity=request.POST.get('email', '')):
+        return limited_response(request, retry_after=3600)
     form = OwnerRegistrationForm(request.POST if request.method == 'POST' else None)
     if form.is_valid():
         name = form.cleaned_data['name']
@@ -173,7 +185,7 @@ def verify_owner_email(request, token):
 def resend_owner_verification(request):
     email = request.POST.get('email', '').strip().lower()
     password = request.POST.get('password', '')
-    key = hashlib.sha256(f"verify:{request.META.get('REMOTE_ADDR','')}:{email}".encode()).hexdigest()
+    key = hashlib.sha256(f"verify:{client_address(request)}:{email}".encode()).hexdigest()
     attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(hours=1))
     if attempts.count() < 3:
         LoginAttempt.objects.create(key=key)
@@ -219,7 +231,7 @@ def login_view(request):
     context = {'mode': 'login', 'login_next': login_next, 'login_identifier': identifier}
     if request.method == 'POST':
         username = login_username(identifier)
-        key = hashlib.sha256(f"{request.META.get('REMOTE_ADDR','')}:{username.lower()}".encode()).hexdigest()
+        key = hashlib.sha256(f"{client_address(request)}:{username.lower()}".encode()).hexdigest()
         attempts = LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(minutes=15))
         if attempts.count() >= 8:
             messages.error(request, 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.')
@@ -241,7 +253,7 @@ def login_view(request):
                         invitation_login = invited_account(invitation.email) == user
                     except ValidationError:
                         pass
-        if user and (user.is_superuser or user.memberships.filter(active=True).exists() or invitation_login):
+        if user and (user.is_superuser or user.memberships.filter(active=True, archived=False).exists() or invitation_login):
             LoginAttempt.objects.filter(key=key).delete()
             login(request, user)
             if user.is_superuser:
@@ -260,7 +272,7 @@ def login_view(request):
 class LimitedPasswordResetView(PasswordResetView):
     def form_valid(self, form):
         email = form.cleaned_data['email'].strip().lower()
-        key = hashlib.sha256(f"reset:{self.request.META.get('REMOTE_ADDR','')}:{email}".encode()).hexdigest()
+        key = hashlib.sha256(f"reset:{client_address(self.request)}:{email}".encode()).hexdigest()
         if LoginAttempt.objects.filter(key=key, created_at__gte=timezone.now()-timedelta(hours=1)).count() >= 5:
             return redirect('password_reset_done')
         LoginAttempt.objects.create(key=key)
@@ -337,12 +349,15 @@ def platform_member_update(request, restaurant_id, member_id):
     branch_id = request.POST.get('branch')
     try:
         with transaction.atomic():
+            Subscription.objects.select_for_update().filter(restaurant_id=restaurant_id).first()
             member = get_object_or_404(Membership.objects.select_for_update(), pk=member_id, restaurant_id=restaurant_id)
             if member.role == 'owner' or member.user.is_superuser:
                 return render(request, '403.html', status=403)
             if role not in dict(StaffInvitation.ROLES) or state not in ('active', 'paused') or not reason:
                 raise ValidationError('Review the role, status and reason.' if request.LANGUAGE_CODE == 'en' else 'راجع الدور والحالة وسبب التعديل.')
             enabled = state == 'active'
+            if member.archived:
+                raise ValidationError(localized('استعد العضوية من الأرشيف أولًا.', 'Restore the membership from the archive first.'))
             if enabled and not member.active:
                 ensure_active_subscription(member.restaurant)
                 check_activation_limit(member.restaurant, 'staff')
@@ -370,11 +385,13 @@ def platform_plan_form(request, plan_id=None):
         return denied
     english = request.LANGUAGE_CODE == 'en'
     with transaction.atomic():
-        plan = get_object_or_404(Plan.objects.select_for_update(), pk=plan_id) if plan_id else None
+        plan = get_object_or_404(Plan.objects.select_for_update(no_key=True), pk=plan_id) if plan_id else None
         form = PlatformPlanForm(request.POST if request.method == 'POST' else None, instance=plan, english=english)
         if request.method == 'POST' and form.is_valid():
             try:
                 with transaction.atomic():
+                    if plan_id:
+                        freeze_plan_subscribers(plan_id, request.user)
                     plan = form.save()
             except IntegrityError:
                 form.add_error('name', 'Plan name already exists.' if english else 'اسم الباقة مستخدم بالفعل.')
@@ -395,7 +412,9 @@ def platform_create_restaurant(request):
         data = form.cleaned_data
         try:
             with transaction.atomic():
-                owner = User.objects.select_for_update().filter(username__iexact=data['owner_email']).first()
+                owner = account_for_email(data['owner_email'])
+                if owner:
+                    owner = User.objects.select_for_update().get(pk=owner.pk)
                 if owner:
                     if not owner.is_active or owner.is_superuser or owner.last_name == 'SOFRA_LOCAL_DEMO' or data['owner_password']:
                         raise ValidationError('تعذر ربط حساب المالك؛ حدّث الصفحة وراجع البريد وكلمة المرور.')
@@ -413,8 +432,9 @@ def platform_create_restaurant(request):
                     restaurant=restaurant, name=data['branch_name'], address=data['branch_address'])
                 Membership.objects.create(user=owner, restaurant=restaurant, role='owner')
                 if plan:
-                    Subscription.objects.create(restaurant=restaurant, plan=plan, status='active',
+                    subscription = Subscription.objects.create(restaurant=restaurant, plan=plan, status='active',
                         ends_at=timezone.make_aware(datetime.combine(data['ends_at'], time.max)))
+                    record_agreement(subscription, request.user, 'Created by platform after reviewing external terms')
                 else:
                     Subscription.objects.create(restaurant=restaurant, status='pending')
                 audit(restaurant, request.user, 'platform.restaurant.create',
@@ -450,11 +470,14 @@ def platform_branch_change(request, restaurant_id):
                                                address=form.cleaned_data['address'])
                 audit(restaurant, request.user, 'platform.branch.create', f'branch={branch.pk}')
             elif action == 'toggle':
+                Subscription.objects.select_for_update().filter(restaurant=restaurant).first()
                 branch = get_object_or_404(Branch.objects.select_for_update(),
-                                           pk=request.POST.get('branch_id'), restaurant=restaurant)
+                                           pk=valid_pk(request.POST.get('branch_id')), restaurant=restaurant)
                 reason = request.POST.get('reason', '').strip()[:120]
                 if not reason:
                     raise ValidationError('اكتب سبب تغيير حالة الفرع.')
+                if branch.archived:
+                    raise ValidationError(localized('استعد الفرع من الأرشيف أولًا.', 'Restore the branch from the archive first.'))
                 if not branch.active:
                     if not Subscription.objects.filter(restaurant=restaurant).exists():
                         raise ValidationError('اضبط اشتراك المطعم قبل تفعيل الفرع.')
@@ -495,7 +518,7 @@ def platform_update_restaurant(request, restaurant_id):
                 needs_activation = subscription is None or subscription.status == 'pending'
                 plans = public_tier_records() if needs_activation else Plan.objects.all()
                 try:
-                    plan = plans.get(pk=request.POST.get('plan_id'))
+                    plan = plans.get(pk=identifier(request.POST.get('plan_id')))
                 except (Plan.DoesNotExist, ValueError, OverflowError):
                     raise ValidationError('Choose an available plan.' if request.LANGUAGE_CODE == 'en' else 'اختر باقة متاحة لهذا المطعم.')
                 status = request.POST.get('status')
@@ -520,6 +543,8 @@ def platform_update_restaurant(request, restaurant_id):
                 subscription.status = status
                 subscription.ends_at = timezone.make_aware(datetime.combine(end_date, time.max))
                 subscription.save()
+                record_agreement(subscription, request.user, reason, payment_reference=request.POST.get('payment_reference', ''),
+                    billing=request.POST.get('billing', 'manual'), agreed_price=request.POST.get('agreed_price'))
                 audit(restaurant, request.user, 'platform.subscription.update',
                       f'{old} → {plan.pk}/{status}/{end_date}; reason={reason}')
             else:
@@ -546,18 +571,69 @@ def platform_record_payment(request, restaurant_id):
                 restaurant=restaurant, amount=data['amount'], currency='EGP',
                 period_start=data['period_start'], period_end=data['period_end'],
                 method=data['method'], reference=data['reference'], recorded_by=request.user)
+            if request.POST.get('activate') == '1':
+                if data['period_start'] > timezone.localdate() or data['period_end'] < timezone.localdate():
+                    raise ValidationError(localized('لا يمكن التفعيل الفوري لإيصال لا يغطي اليوم.', 'Immediate activation requires a receipt covering today.'))
+                subscription = Subscription.objects.select_for_update().filter(restaurant=restaurant).first()
+                plans = public_tier_records() if subscription is None or subscription.status == 'pending' else Plan.objects.all()
+                plan = get_object_or_404(plans, pk=identifier(request.POST.get('activation_plan')))
+                subscription = subscription or Subscription(restaurant=restaurant)
+                if subscription.plan_id != plan.pk:
+                    subscription.grandfathered_limits = {}
+                subscription.plan, subscription.status = plan, 'active'
+                subscription.ends_at = timezone.make_aware(datetime.combine(data['period_end'], time.max))
+                subscription.save()
+                record_agreement(subscription, request.user, 'Activated against manual receipt ' + payment.reference,
+                                 payment_reference=payment.reference, agreed_price=payment.amount)
             audit(restaurant, request.user, 'platform.subscription.payment',
                   f'payment={payment.pk}; amount={payment.amount} EGP; reference={payment.reference}')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+        return redirect('platform_dashboard')
     except IntegrityError:
         messages.error(request, 'مرجع التحصيل مسجل بالفعل لهذا المطعم.')
         return redirect('platform_dashboard')
-    messages.success(request, 'سُجل التحصيل اليدوي. صلاحية الاشتراك لا تتغير تلقائيًا.')
+    if request.POST.get('activate') == '1':
+        messages.success(request, 'Receipt recorded and subscription activated.' if request.LANGUAGE_CODE == 'en'
+                         else 'سُجل الإيصال وفُعل الاشتراك المرتبط به.')
+    else:
+        messages.success(request, 'سُجل التحصيل اليدوي. صلاحية الاشتراك لا تتغير تلقائيًا.')
+    return redirect('platform_dashboard')
+
+
+@require_POST
+def platform_start_trial(request, restaurant_id):
+    denied = platform_scope(request)
+    if denied:
+        return denied
+    restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
+    reason = request.POST.get('reason', '').strip()
+    try:
+        if not 3 <= len(reason) <= 120:
+            raise ValidationError(localized('اكتب سبب بدء التجربة بين 3 و120 حرفًا.', 'Enter a reason for starting the trial using 3 to 120 characters.'))
+        with transaction.atomic():
+            subscription = get_object_or_404(Subscription.objects.select_for_update(), restaurant=restaurant)
+            if subscription.status == 'trial' and subscription.agreements.filter(status='trial').exists():
+                return redirect('platform_dashboard')
+            if subscription.status != 'pending' or subscription.agreements.filter(status='trial').exists():
+                raise ValidationError(localized('التجربة الأولى متاحة مرة واحدة للحساب المنتظر فقط.', 'The initial trial is available once for a pending subscription.'))
+            plan = get_object_or_404(public_tier_records(), pk=identifier(request.POST.get('plan_id')))
+            from .showcase_catalog import FREE_TRIAL_DAYS
+            subscription.plan, subscription.status = plan, 'trial'
+            subscription.ends_at = timezone.now() + timedelta(days=FREE_TRIAL_DAYS)
+            subscription.save()
+            record_agreement(subscription, request.user, reason, billing='trial')
+            audit(restaurant, request.user, 'platform.subscription.trial', reason)
+        messages.success(request, 'تم بدء التجربة المجانية لمدة 14 يومًا.' if request.LANGUAGE_CODE != 'en'
+                         else 'The free 14-day trial has started.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
     return redirect('platform_dashboard')
 
 def scope(request, slug, roles=None, *, allow_pending=False):
     if not request.user.is_authenticated: return None, None, redirect('login')
     restaurant = get_object_or_404(Restaurant.objects.select_related('subscription'), slug=slug)
-    membership = Membership.objects.filter(user=request.user, restaurant=restaurant, active=True).first()
+    membership = Membership.objects.filter(user=request.user, restaurant=restaurant, active=True, archived=False).first()
     if not membership or (roles and membership.role not in roles):
         return None, None, render(request, '403.html', status=403)
     subscription = getattr(restaurant, 'subscription', None)
@@ -587,7 +663,7 @@ def subscription_activation(request, slug):
             if requested:
                 audit(restaurant, request.user, 'subscription.activation.request', 'Customer service callback requested')
         return redirect('subscription_activation', slug=slug)
-    other_memberships = Membership.objects.filter(user=request.user, active=True).exclude(
+    other_memberships = Membership.objects.filter(user=request.user, active=True, archived=False).exclude(
         restaurant=restaurant).select_related('restaurant').order_by('restaurant__name')
     return render(request, 'subscription_activation.html', {'restaurant': restaurant,
         'membership': membership, 'subscription': subscription, 'other_memberships': other_memberships})
@@ -614,25 +690,22 @@ def ensure_active_subscription(restaurant):
         raise ValidationError('انتهت فترة التجربة أو الاشتراك. البيانات متاحة للعرض، لكن الإضافة متوقفة.')
 
 def validate_menu_image(image):
-    if not image:
-        return
-    if image.size > 3_000_000 or image.content_type not in ('image/jpeg','image/png','image/webp'):
-        raise ValidationError('الصورة يجب أن تكون JPG أو PNG أو WebP وأقل من 3 ميجابايت.')
+    return prepare_menu_image(image)
+
+
+def valid_pk(value):
     try:
-        with Image.open(image) as picture:
-            if picture.format not in ('JPEG','PNG','WEBP') or picture.width > 5000 or picture.height > 5000:
-                raise ValidationError('صيغة الصورة أو أبعادها غير مدعومة.')
-            picture.verify()
-        image.seek(0)
-    except (UnidentifiedImageError, OSError):
-        raise ValidationError('ملف الصورة غير صالح.')
+        return identifier(value)
+    except ValidationError:
+        raise Http404
+
 
 def shell(request, restaurant, membership, page, **extra):
     branches = Branch.objects.filter(restaurant=restaurant, active=True)
     if membership.role not in ('owner','manager'):
         branches = branches.filter(staff_memberships=membership)
     ctx = {'restaurant': restaurant, 'membership': membership, 'branch': branch_for(request, restaurant, membership),
-           'available_restaurants': Membership.objects.filter(user=request.user, active=True)
+           'available_restaurants': Membership.objects.filter(user=request.user, active=True, archived=False)
                .select_related('restaurant').order_by('restaurant__name'),
            'available_branches': branches, 'page': page}
     ctx.update(extra)
@@ -705,61 +778,66 @@ def manage_menu(request, slug):
                     station = KitchenStation.objects.create(branch=branch, name=name)
                 audit(restaurant, request.user, 'station.create', str(station.pk))
             elif action == 'station_assign':
-                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
+                item = get_object_or_404(MenuItem, pk=valid_pk(request.POST.get('item_id')), category__branch=branch)
                 station_id = request.POST.get('station_id')
-                station = (get_object_or_404(KitchenStation, pk=station_id, branch=branch, active=True)
+                station = (get_object_or_404(KitchenStation, pk=valid_pk(station_id), branch=branch, active=True)
                            if station_id else None)
                 item.station = station
                 item.save(update_fields=['station'])
                 audit(restaurant, request.user, 'station.assign', f'item={item.pk}; station={station_id or "none"}')
             elif action == 'category_toggle':
-                category = get_object_or_404(Category, pk=request.POST.get('category_id'), branch=branch)
+                category = get_object_or_404(Category, pk=valid_pk(request.POST.get('category_id')), branch=branch)
                 category.visible = not category.visible
                 category.save(update_fields=['visible'])
                 audit(restaurant, request.user, 'category.toggle', str(category.pk))
             elif action == 'item':
-                category = get_object_or_404(Category, pk=request.POST.get('category'), branch=branch)
-                price = Decimal(request.POST.get('price', ''))
-                if price < 0 or price > 9999999: raise ValidationError('السعر غير صالح.')
+                category = get_object_or_404(Category, pk=valid_pk(request.POST.get('category')), branch=branch)
+                price = money(request.POST.get('price', ''))
+
                 name = request.POST.get('name','').strip()[:120]
                 if not name: raise ValidationError('أدخل اسم الصنف.')
                 image = request.FILES.get('image')
-                validate_menu_image(image)
+                image = validate_menu_image(image)
                 with transaction.atomic():
                     check_creation_limit(restaurant, 'item', branch)
                     item = MenuItem.objects.create(category=category, name=name, description=request.POST.get('description','').strip()[:300], price=price, image=image)
                 audit(restaurant, request.user, 'item.create', str(item.pk))
             elif action == 'item_edit':
-                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
-                category = get_object_or_404(Category, pk=request.POST.get('category'), branch=branch)
+                item = get_object_or_404(MenuItem, pk=valid_pk(request.POST.get('item_id')), category__branch=branch)
+                category = get_object_or_404(Category, pk=valid_pk(request.POST.get('category')), branch=branch)
                 name = request.POST.get('name', '').strip()[:120]
                 if not name: raise ValidationError('أدخل اسم الصنف.')
-                price = Decimal(request.POST.get('price', ''))
-                if price < 0 or price > 9999999: raise ValidationError('السعر غير صالح.')
+                price = money(request.POST.get('price', ''))
+
                 image = request.FILES.get('image')
-                validate_menu_image(image)
+                image = validate_menu_image(image)
+                before = {key: str(getattr(item, key)) for key in ('name', 'description', 'price', 'category_id')}
                 item.name = name
                 item.description = request.POST.get('description', '').strip()[:300]
                 item.price = price
                 item.category = category
                 if image: item.image = image
                 item.save()
-                audit(restaurant, request.user, 'item.edit', str(item.pk))
+                audit_change(restaurant, request.user, 'item.edit', item, before, ('name', 'description', 'price', 'category_id'))
             elif action in ('toggle','price'):
-                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
+                item = get_object_or_404(MenuItem, pk=valid_pk(request.POST.get('item_id')), category__branch=branch)
+                before = {key: str(getattr(item, key)) for key in ('price', 'available')}
                 if action == 'toggle':
                     with transaction.atomic():
+                        item = lock_resource(restaurant, MenuItem, item.pk)
+                        if item.archived:
+                            raise ValidationError(localized('استعد الصنف من الأرشيف أولًا.', 'Restore the item from the archive first.'))
                         if not item.available:
                             check_activation_limit(restaurant, 'item', branch)
                         item.available = not item.available
                         item.save(update_fields=['available'])
                 else:
-                    item.price = Decimal(request.POST.get('price',''))
-                    if item.price < 0 or item.price > 9999999: raise ValidationError('السعر غير صالح.')
+                    item.price = money(request.POST.get('price', ''))
+
                     item.save(update_fields=['price'])
-                audit(restaurant, request.user, 'item.update', str(item.pk))
+                audit_change(restaurant, request.user, 'item.update', item, before, ('price', 'available'))
             elif action == 'modifier':
-                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
+                item = get_object_or_404(MenuItem, pk=valid_pk(request.POST.get('item_id')), category__branch=branch)
                 group_name = request.POST.get('group','').strip()[:80]
                 option_name = request.POST.get('option','').strip()[:80]
                 if not group_name or not option_name: raise ValidationError('أدخل المجموعة والإضافة.')
@@ -767,8 +845,8 @@ def manage_menu(request, slug):
                 maximum = int(request.POST.get('max_select','5'))
                 if not 0 <= minimum <= maximum <= 20:
                     raise ValidationError('حدود اختيار الإضافات غير صالحة.')
-                price = Decimal(request.POST.get('price','0'))
-                if price < 0 or price > 9999999: raise ValidationError('السعر غير صالح.')
+                price = money(request.POST.get('price', '0'))
+
                 with transaction.atomic():
                     group, _ = ModifierGroup.objects.get_or_create(
                         item=item, name=group_name,
@@ -781,14 +859,14 @@ def manage_menu(request, slug):
                     ModifierOption.objects.create(group=group, name=option_name, price=price)
                 audit(restaurant, request.user, 'modifier.create', str(item.pk))
             elif action == 'modifier_toggle':
-                option = get_object_or_404(ModifierOption, pk=request.POST.get('option_id'), group__item__category__branch=branch)
+                option = get_object_or_404(ModifierOption, pk=valid_pk(request.POST.get('option_id')), group__item__category__branch=branch)
                 if option.available and option.group.options.filter(available=True).count() <= option.group.min_select:
                     raise ValidationError('لا يمكن إيقاف هذا الخيار قبل تقليل الحد الأدنى للمجموعة.')
                 option.available = not option.available
                 option.save(update_fields=['available'])
                 audit(restaurant, request.user, 'modifier.toggle', str(option.pk))
             elif action == 'modifier_group_edit':
-                group = get_object_or_404(ModifierGroup, pk=request.POST.get('group_id'),
+                group = get_object_or_404(ModifierGroup, pk=valid_pk(request.POST.get('group_id')),
                                           item__category__branch=branch)
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم المجموعة.')
@@ -798,24 +876,26 @@ def manage_menu(request, slug):
                     raise ValidationError('حدود اختيار الإضافات غير صالحة.')
                 if minimum > group.options.filter(available=True).count():
                     raise ValidationError('الحد الأدنى أكبر من عدد الخيارات المتاحة.')
+                before = {key: str(getattr(group, key)) for key in ('name', 'min_select', 'max_select')}
                 group.name, group.min_select, group.max_select = name, minimum, maximum
                 group.save(update_fields=['name', 'min_select', 'max_select'])
-                audit(restaurant, request.user, 'modifier.group.edit', str(group.pk))
+                audit_change(restaurant, request.user, 'modifier.group.edit', group, before, ('name', 'min_select', 'max_select'))
             elif action == 'modifier_option_edit':
-                option = get_object_or_404(ModifierOption, pk=request.POST.get('option_id'),
+                option = get_object_or_404(ModifierOption, pk=valid_pk(request.POST.get('option_id')),
                                            group__item__category__branch=branch)
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم الإضافة.')
-                price = Decimal(request.POST.get('price', ''))
-                if not 0 <= price <= 9999999: raise ValidationError('السعر غير صالح.')
+                price = money(request.POST.get('price', ''))
+
                 sort_order = int(request.POST.get('sort_order', option.sort_order))
                 if not 0 <= sort_order <= 999:
                     raise ValidationError('ترتيب الإضافة يجب أن يكون بين 0 و999.')
+                before = {key: str(getattr(option, key)) for key in ('name', 'price', 'sort_order')}
                 option.name, option.price, option.sort_order = name, price, sort_order
                 option.save(update_fields=['name', 'price', 'sort_order'])
-                audit(restaurant, request.user, 'modifier.option.edit', str(option.pk))
+                audit_change(restaurant, request.user, 'modifier.option.edit', option, before, ('name', 'price', 'sort_order'))
             elif action == 'modifier_option_delete':
-                option = get_object_or_404(ModifierOption, pk=request.POST.get('option_id'),
+                option = get_object_or_404(ModifierOption, pk=valid_pk(request.POST.get('option_id')),
                                            group__item__category__branch=branch)
                 if option.available and option.group.options.filter(available=True).count() <= option.group.min_select:
                     raise ValidationError('قلل الحد الأدنى للمجموعة قبل حذف هذا الخيار.')
@@ -823,25 +903,26 @@ def manage_menu(request, slug):
                 option.delete()
                 audit(restaurant, request.user, 'modifier.option.delete', str(option_id))
             elif action == 'size':
-                item = get_object_or_404(MenuItem, pk=request.POST.get('item_id'), category__branch=branch)
+                item = get_object_or_404(MenuItem, pk=valid_pk(request.POST.get('item_id')), category__branch=branch)
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم الحجم.')
-                price = Decimal(request.POST.get('price', ''))
-                if not 0 <= price <= 9999999: raise ValidationError('السعر غير صالح.')
+                price = money(request.POST.get('price', ''))
+
                 if item.sizes.count() >= 12: raise ValidationError('الحد الأقصى 12 حجمًا للصنف.')
                 size = MenuSize.objects.create(item=item, name=name, price=price)
                 audit(restaurant, request.user, 'size.create', str(size.pk))
             elif action == 'size_edit':
-                size = get_object_or_404(MenuSize, pk=request.POST.get('size_id'), item__category__branch=branch)
+                size = get_object_or_404(MenuSize, pk=valid_pk(request.POST.get('size_id')), item__category__branch=branch)
                 name = request.POST.get('name', '').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم الحجم.')
-                price = Decimal(request.POST.get('price', ''))
-                if not 0 <= price <= 9999999: raise ValidationError('السعر غير صالح.')
+                price = money(request.POST.get('price', ''))
+
+                before = {key: str(getattr(size, key)) for key in ('name', 'price')}
                 size.name, size.price = name, price
                 size.save(update_fields=['name', 'price'])
-                audit(restaurant, request.user, 'size.edit', str(size.pk))
+                audit_change(restaurant, request.user, 'size.edit', size, before, ('name', 'price'))
             elif action == 'size_toggle':
-                size = get_object_or_404(MenuSize, pk=request.POST.get('size_id'), item__category__branch=branch)
+                size = get_object_or_404(MenuSize, pk=valid_pk(request.POST.get('size_id')), item__category__branch=branch)
                 size.available = not size.available
                 size.save(update_fields=['available'])
                 audit(restaurant, request.user, 'size.toggle', str(size.pk))
@@ -852,7 +933,7 @@ def manage_menu(request, slug):
     categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options')
     return shell(request, restaurant, membership, 'menu_manage', categories=categories,
                  stations=KitchenStation.objects.filter(branch=branch, active=True),
-                 item_count=MenuItem.objects.filter(category__branch=branch).count(), limit=restaurant.subscription.limit('max_items', branch))
+                 item_count=MenuItem.objects.filter(category__branch=branch, archived=False).count(), limit=restaurant.subscription.limit('max_items', branch))
 
 def menu_import(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
@@ -886,6 +967,7 @@ def menu_import(request, slug):
                 if not errors and len(rows) > remaining:
                     errors.append(gettext('الملف يحتوي {row_count} صنفًا، والمتاح في الباقة {remaining}.').format(row_count=len(rows), remaining=remaining))
                 if not errors:
+                    validate_existing_menu(branch, rows)
                     batch = MenuImportBatch.objects.create(branch=branch, user=request.user, rows=rows)
             elif action == 'commit':
                 try:
@@ -922,9 +1004,12 @@ def manage_tables(request, slug):
                     DiningTable.objects.create(branch=branch, name=name)
                 audit(restaurant, request.user, 'table.create', name)
             else:
-                table = get_object_or_404(DiningTable, pk=request.POST.get('table_id'), branch=branch)
+                table = get_object_or_404(DiningTable, pk=valid_pk(request.POST.get('table_id')), branch=branch)
                 if action == 'toggle':
                     with transaction.atomic():
+                        table = lock_resource(restaurant, DiningTable, table.pk)
+                        if table.archived:
+                            raise ValidationError(localized('استعد الطاولة من الأرشيف أولًا.', 'Restore the table from the archive first.'))
                         if not table.active:
                             check_activation_limit(restaurant, 'table', branch)
                         table.active = not table.active
@@ -948,7 +1033,7 @@ def manage_tables(request, slug):
             messages.success(request, 'تم حفظ التغيير بنجاح.')
         except (ValidationError, IntegrityError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_tables', slug=slug)
-    return shell(request, restaurant, membership, 'tables', tables=branch.tables.all(), limit=restaurant.subscription.limit('max_tables', branch))
+    return shell(request, restaurant, membership, 'tables', tables=branch.tables.filter(archived=False), limit=restaurant.subscription.limit('max_tables', branch))
 
 def table_qr(request, slug, table_id):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
@@ -990,8 +1075,8 @@ def manage_orders(request, slug):
         return render(request, '403.html', status=403)
     if request.method == 'POST':
         try:
-            table = get_object_or_404(DiningTable, pk=request.POST.get('table_id'), branch=branch)
-            order = create_order(table, json.loads(request.POST.get('payload','{}')), request.user)
+            table = get_object_or_404(DiningTable, pk=valid_pk(request.POST.get('table_id')), branch=branch)
+            order = create_order(table, load_json_payload(request.POST.get('payload','{}')), request.user)
             messages.success(request, gettext('تم إنشاء الطلب #{number}.').format(number=order.pk))
         except (ValidationError, json.JSONDecodeError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_orders', slug=slug)
@@ -1012,6 +1097,7 @@ def manage_orders(request, slug):
                        .annotate(has_started_preparation=Exists(preparation)).order_by('-created_at', '-pk'),
                        25).get_page(request.GET.get('page'))
     for order in orders:
+        order.collection_key = str(uuid.uuid4())
         order.branch = branch
         order.can_edit = membership.role in ('owner', 'manager', 'cashier', 'waiter') and order_edit_allowed(
             order, order.has_started_preparation)
@@ -1032,10 +1118,10 @@ def staff_order(request, slug):
                       if table_key else None)
     if request.method == 'POST':
         try:
-            payload = json.loads(request.body)
+            payload = load_json_payload(request.body)
             if not isinstance(payload, dict):
                 raise ValidationError('بيانات الطلب غير صالحة.')
-            table = get_object_or_404(DiningTable, pk=payload.get('table_id'), branch=branch)
+            table = get_object_or_404(DiningTable, pk=identifier(payload.get('table_id')), branch=branch)
             order = create_order(table, payload, request.user)
             return JsonResponse({'ok': True, 'order_url': reverse('manage_orders', args=[slug]), 'order_number': order.pk})
         except (json.JSONDecodeError, ValidationError) as exc:
@@ -1054,7 +1140,7 @@ def order_edit(request, slug, order_id):
                               pk=order_id, branch=branch)
     if request.method == 'POST':
         try:
-            updated = edit_order(order, request.user, json.loads(request.body))
+            updated = edit_order(order, request.user, load_json_payload(request.body))
             return JsonResponse({'ok': True, 'order_url': reverse('manage_orders', args=[slug]),
                                  'version': updated.version})
         except (json.JSONDecodeError, ValidationError) as exc:
@@ -1079,9 +1165,9 @@ def kitchen(request, slug):
         if Branch.objects.filter(pk=branch.pk, kitchen_opened_at__isnull=True).update(kitchen_opened_at=timezone.now()):
             audit(restaurant, request.user, 'kitchen.opened', f'branch={branch.pk}')
     station_key = request.GET.get('station', '')
-    if station_key and station_key != 'unassigned' and not station_key.isdigit():
+    if station_key and station_key != 'unassigned' and (not station_key.isascii() or not station_key.isdecimal() or len(station_key) > 19):
         raise Http404
-    station = (get_object_or_404(KitchenStation, pk=station_key, branch=branch, active=True)
+    station = (get_object_or_404(KitchenStation, pk=valid_pk(station_key), branch=branch, active=True)
                if station_key and station_key != 'unassigned' else None)
     orders = list(Order.objects.filter(branch=branch, status__in=['new','accepted','preparing','ready']).select_related('table').prefetch_related('lines'))
     if station_key:
@@ -1114,13 +1200,13 @@ def kitchen_feed(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     station_key = request.GET.get('station', '')
-    if station_key and station_key != 'unassigned' and not station_key.isdigit():
+    if station_key and station_key != 'unassigned' and (not station_key.isascii() or not station_key.isdecimal() or len(station_key) > 19):
         raise Http404
     orders = Order.objects.filter(branch=branch, status__in=['new','accepted','preparing','ready']).only('id','status','updated_at','created_at')
     if station_key == 'unassigned':
         orders = orders.filter(lines__station__isnull=True).distinct()
     elif station_key:
-        station = get_object_or_404(KitchenStation, pk=station_key, branch=branch, active=True)
+        station = get_object_or_404(KitchenStation, pk=valid_pk(station_key), branch=branch, active=True)
         orders = orders.filter(lines__station=station).distinct()
     response = JsonResponse({'signature': order_feed_signature(orders, branch.kitchen_delay_minutes), 'count': orders.count(),
                              'checked_at': timezone.localtime().isoformat()})
@@ -1153,9 +1239,9 @@ def order_line_status_change(request, slug, order_id, line_id):
     station_key = request.POST.get('station', '')
     if station_key == 'unassigned':
         if line.station_id is not None: raise Http404
-    elif station_key.isdigit():
+    elif station_key.isascii() and station_key.isdecimal() and len(station_key) <= 19:
         if line.station_id != int(station_key) or not KitchenStation.objects.filter(
-                pk=station_key, branch=branch, active=True).exists():
+                pk=valid_pk(station_key), branch=branch, active=True).exists():
             raise Http404
     else:
         raise Http404
@@ -1231,11 +1317,13 @@ def reports(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
-    orders = Order.objects.filter(branch=branch)
+    all_branches = request.GET.get('scope') == 'all'
+    scoped_orders = Order.objects.filter(branch__restaurant=restaurant) if all_branches else Order.objects.filter(branch=branch)
+    orders = scoped_orders
     station_key = request.GET.get('station', '')
-    if station_key and station_key != 'unassigned' and not station_key.isdigit():
+    if station_key and station_key != 'unassigned' and (not station_key.isascii() or not station_key.isdecimal() or len(station_key) > 19):
         raise Http404
-    selected_station = (get_object_or_404(KitchenStation, pk=station_key, branch=branch)
+    selected_station = (get_object_or_404(KitchenStation, pk=valid_pk(station_key), branch__restaurant=restaurant, **({} if all_branches else {'branch': branch}))
                         if station_key and station_key != 'unassigned' else None)
     start_raw, end_raw = request.GET.get('from', '').strip(), request.GET.get('to', '').strip()
     start_date, end_date, filter_error = None, None, ''
@@ -1244,7 +1332,7 @@ def reports(request, slug):
             start_date, end_date = parse_date(start_raw), parse_date(end_raw)
         except ValueError:
             start_date = end_date = None
-        if not start_date or not end_date:
+        if not start_date or not end_date or end_date >= datetime.max.date():
             filter_error = gettext('اختر تاريخ بداية ونهاية صالحين.')
         elif end_date < start_date or (end_date - start_date).days > 366:
             filter_error = gettext('نطاق التاريخ يجب أن يكون مرتبًا وألا يتجاوز 366 يومًا.')
@@ -1255,16 +1343,25 @@ def reports(request, slug):
             orders = orders.filter(created_at__gte=start_at, created_at__lt=end_at)
     if filter_error:
         start_date = end_date = None
-    calls = ServiceCall.objects.filter(table__branch=branch)
+    calls = ServiceCall.objects.filter(table__branch__restaurant=restaurant) if all_branches else ServiceCall.objects.filter(table__branch=branch)
     if start_date and end_date:
         calls = calls.filter(created_at__gte=start_at, created_at__lt=end_at)
     export_query = f'?export=csv&from={start_date.isoformat()}&to={end_date.isoformat()}' if start_date else '?export=csv'
+    if all_branches:
+        export_query += '&scope=all'
+    if request.GET.get('export') == 'collections':
+        if filter_error:
+            return HttpResponse(filter_error, status=400)
+        return collection_csv(collection_activity(scoped_orders, start_at if start_date else None,
+                                                 end_at if end_date else None), request.LANGUAGE_CODE == 'en')
     if request.GET.get('export') == 'csv':
         if filter_error:
             return HttpResponse(filter_error, status=400)
         headers = (['Order number', 'Table', 'Status', 'Payment status', 'Source', 'Order total', 'Created at']
                    if request.LANGUAGE_CODE == 'en' else
                    ['رقم الطلب', 'الطاولة', 'الحالة', 'حالة الدفع', 'المصدر', 'إجمالي الطلب', 'وقت الإنشاء'])
+        if all_branches:
+            headers.append('Branch' if request.LANGUAGE_CODE == 'en' else 'الفرع')
         labels = {}
         for field in ('status', 'payment_status', 'source'):
             labels[field] = {key: gettext(label) for key, label in Order._meta.get_field(field).choices}
@@ -1275,15 +1372,18 @@ def reports(request, slug):
             writer = csv.writer(buffer)
             writer.writerow(headers)
             yield buffer.getvalue()
-            for order in orders.select_related('table').order_by('pk').iterator(chunk_size=1000):
+            for order in orders.select_related('table', 'branch').order_by('pk').iterator(chunk_size=1000):
                 buffer.seek(0)
                 buffer.truncate(0)
                 name = str(order.table.name)
                 if name.lstrip().startswith(('=','+','-','@')):
                     name = "'" + name
-                writer.writerow([order.pk, name, labels['status'].get(order.status, order.status),
+                row = [order.pk, name, labels['status'].get(order.status, order.status),
                                  labels['payment_status'].get(order.payment_status, order.payment_status),
-                                 labels['source'].get(order.source, order.source), order.total, order.created_at.isoformat()])
+                                 labels['source'].get(order.source, order.source), order.total, order.created_at.isoformat()]
+                if all_branches:
+                    row.append(csv_safe(order.branch.name))
+                writer.writerow(row)
                 yield buffer.getvalue()
         response = StreamingHttpResponse(csv_rows(), content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="orders.csv"'
@@ -1314,7 +1414,18 @@ def reports(request, slug):
     station_avg = prepared_lines.aggregate(value=Avg(F('created_at') - F('started_at')))['value']
     collections = orders.filter(payment_status='paid')
     cancelled_collections = collections.filter(status='cancelled').aggregate(count=Count('pk'), total=Sum('total'))
+    activity = collection_activity(scoped_orders, start_at if start_date else None, end_at if end_date else None)
+    comparison = []
+    if all_branches:
+        totals = {row['branch_id']: row for row in orders.order_by().values('branch_id').annotate(
+            count=Count('pk'), value=Sum('total', filter=~Q(status='cancelled')))}
+        for row in Branch.objects.filter(restaurant=restaurant).order_by('pk'):
+            metrics = totals.get(row.pk, {})
+            comparison.append({'branch': row, 'count': metrics.get('count', 0),
+                'value': metrics.get('value') or Decimal('0'), 'net': activity['by_branch'].get(row.pk, Decimal('0'))})
     return shell(request, restaurant, membership, 'reports', total=orders.count(),
+                 all_branches=all_branches, branch_comparison=comparison, collection_activity=activity,
+                 collection_export_query=export_query.replace('export=csv', 'export=collections'),
                  by_status=by_status,
                  by_source=orders.values('source').annotate(count=Count('id')),
                  total_value=orders.exclude(status='cancelled').aggregate(sum=Sum('total'))['sum'] or 0,
@@ -1325,7 +1436,7 @@ def reports(request, slug):
                  call_response_time=format_duration(call_avg), accepted_samples=accepted.count(),
                  ready_samples=ready.count(), call_samples=responded.count(),
                  station_time=format_duration(station_avg), station_samples=prepared_lines.count(),
-                 station_key=station_key, stations=KitchenStation.objects.filter(branch=branch),
+                 station_key=station_key, stations=KitchenStation.objects.filter(branch__restaurant=restaurant) if all_branches else KitchenStation.objects.filter(branch=branch),
                  start_date=start_date, end_date=end_date, filter_error=filter_error,
                  start_raw=start_raw, end_raw=end_raw, export_query=export_query)
 
@@ -1348,7 +1459,7 @@ def staff(request, slug):
                 if role not in ('manager', 'cashier', 'kitchen', 'waiter') or (
                         role == 'manager' and membership.role != 'owner'):
                     raise ValidationError('الدور المختار غير مسموح.')
-                branch = get_object_or_404(Branch, pk=request.POST.get('branch_id'),
+                branch = get_object_or_404(Branch, pk=valid_pk(request.POST.get('branch_id')),
                                            restaurant=restaurant, active=True)
                 if len(email) > User._meta.get_field('username').max_length:
                     raise ValidationError('Email address is too long.' if request.LANGUAGE_CODE == 'en' else 'عنوان البريد طويل جدًا.')
@@ -1382,7 +1493,7 @@ def staff(request, slug):
                 messages.error(request, error_text(exc))
             return redirect('staff', slug=slug)
         if action == 'invite_revoke':
-            invitation = get_object_or_404(StaffInvitation, pk=request.POST.get('invitation_id'), restaurant=restaurant)
+            invitation = get_object_or_404(StaffInvitation, pk=valid_pk(request.POST.get('invitation_id')), restaurant=restaurant)
             if membership.role == 'manager' and invitation.role == 'manager':
                 return render(request, '403.html', status=403)
             if invitation.pending():
@@ -1392,7 +1503,7 @@ def staff(request, slug):
                 messages.success(request, 'أُلغيت الدعوة.')
             return redirect('staff', slug=slug)
         if action in ('role','toggle','branch'):
-            target = get_object_or_404(Membership, pk=request.POST.get('membership_id'), restaurant=restaurant)
+            target = get_object_or_404(Membership, pk=valid_pk(request.POST.get('membership_id')), restaurant=restaurant)
             if target.role == 'owner' or target.user_id == request.user.pk:
                 return render(request, '403.html', status=403)
             if membership.role == 'manager' and target.role == 'manager':
@@ -1413,6 +1524,9 @@ def staff(request, slug):
             elif action == 'toggle':
                 try:
                     with transaction.atomic():
+                        target = lock_resource(restaurant, Membership, target.pk)
+                        if target.archived:
+                            raise ValidationError(localized('استعد العضوية من الأرشيف أولًا.', 'Restore the membership from the archive first.'))
                         if not target.active:
                             check_activation_limit(restaurant, 'staff')
                         target.active = not target.active
@@ -1422,7 +1536,7 @@ def staff(request, slug):
                 except ValidationError as exc:
                     messages.error(request, error_text(exc))
             else:
-                branch = get_object_or_404(Branch, pk=request.POST.get('branch_id'), restaurant=restaurant, active=True)
+                branch = get_object_or_404(Branch, pk=valid_pk(request.POST.get('branch_id')), restaurant=restaurant, active=True)
                 target.branches.set([branch])
                 audit(restaurant, request.user, 'staff.branch', f'{target.user_id}: {branch.pk}')
                 messages.success(request, 'تم تحديث فرع العضو.')
@@ -1430,15 +1544,21 @@ def staff(request, slug):
         email = request.POST.get('email','').strip().lower()
         role = request.POST.get('role','')
         password = request.POST.get('password','')
+        try:
+            email = new_login_email(email)
+            existing_account = account_for_email(email)
+        except ValidationError as exc:
+            messages.error(request, error_text(exc))
+            return redirect('staff', slug=slug)
         if not restaurant.subscription.valid():
             messages.error(request, 'انتهت فترة التجربة أو الاشتراك. إضافة الموظفين متوقفة مؤقتًا.')
         elif role not in ('manager','cashier','kitchen','waiter') or (role == 'manager' and membership.role != 'owner') or not email:
             messages.error(request, 'تحقق من البريد والدور.')
-        elif User.objects.filter(username=email).exists():
+        elif existing_account:
             messages.error(request, 'البريد مستخدم بالفعل. تواصل مع مدير المنصة لإضافته.')
         else:
             try:
-                validate_email(email)
+                email = new_login_email(email)
                 validate_password(password, user=User(username=email, email=email))
             except ValidationError as exc:
                 messages.error(request, error_text(exc))
@@ -1456,7 +1576,7 @@ def staff(request, slug):
             messages.success(request, 'تم إنشاء حساب الموظف.')
         return redirect('staff', slug=slug)
     return shell(request, restaurant, membership, 'staff',
-        members=restaurant.memberships.select_related('user').prefetch_related('branches'),
+        members=restaurant.memberships.filter(archived=False).select_related('user').prefetch_related('branches'),
         invitations=restaurant.invitations.filter(accepted_at__isnull=True, revoked_at__isnull=True,
             expires_at__gt=timezone.now()).select_related('branch'),
         limit=restaurant.subscription.limit('max_staff'))
@@ -1508,8 +1628,11 @@ def manage_branches(request, slug):
                         address=request.POST.get('address', '').strip()[:240])
                     audit(restaurant, request.user, 'branch.create', str(branch.pk))
             elif action == 'toggle':
-                branch = get_object_or_404(Branch, pk=request.POST.get('branch_id'), restaurant=restaurant)
+                branch = get_object_or_404(Branch, pk=valid_pk(request.POST.get('branch_id')), restaurant=restaurant)
                 with transaction.atomic():
+                    branch = lock_resource(restaurant, Branch, branch.pk)
+                    if branch.archived:
+                        raise ValidationError(localized('استعد الفرع من الأرشيف أولًا.', 'Restore the branch from the archive first.'))
                     if not branch.active:
                         check_activation_limit(restaurant, 'branch')
                     branch.active = not branch.active
@@ -1524,7 +1647,7 @@ def manage_branches(request, slug):
             messages.error(request, error_text(exc))
         return redirect('manage_branches', slug=slug)
     return shell(request, restaurant, membership, 'branches',
-        branches=restaurant.branches.all(), limit=restaurant.subscription.limit('max_branches'))
+        branches=restaurant.branches.filter(archived=False), limit=restaurant.subscription.limit('max_branches'))
 
 @require_POST
 def select_branch(request, slug):
@@ -1533,7 +1656,7 @@ def select_branch(request, slug):
     branches = Branch.objects.filter(restaurant=restaurant, active=True)
     if membership.role not in ('owner','manager'):
         branches = branches.filter(staff_memberships=membership)
-    branch = get_object_or_404(branches, pk=request.POST.get('branch_id'))
+    branch = get_object_or_404(branches, pk=valid_pk(request.POST.get('branch_id')))
     request.session[f'safra_branch_{restaurant.pk}'] = branch.pk
     return redirect('dashboard', slug=slug)
 
@@ -1575,11 +1698,11 @@ def restaurant_settings(request, slug):
         return redirect('restaurant_settings', slug=slug)
     subscription = restaurant.subscription
     usage = {
-        'branches': restaurant.branches.count(),
-        'tables': branch.tables.count(),
-        'items': MenuItem.objects.filter(category__branch=branch).count(),
-        'staff': restaurant.memberships.count(),
-        'stations': KitchenStation.objects.filter(branch=branch).count(),
+        'branches': restaurant.branches.filter(archived=False).count(),
+        'tables': branch.tables.filter(archived=False).count(),
+        'items': MenuItem.objects.filter(category__branch=branch, archived=False).count(),
+        'staff': restaurant.memberships.filter(archived=False).count(),
+        'stations': KitchenStation.objects.filter(branch=branch, archived=False).count(),
     }
     limits = {
         'branches': subscription.limit('max_branches'),
@@ -1594,10 +1717,11 @@ def restaurant_settings(request, slug):
     if (membership.role == 'owner' and request.method == 'GET'
             and request.GET.get('preview_plan', '').isascii()
             and request.GET.get('preview_plan', '').isdigit()):
-        selected_plan = Plan.objects.filter(pk=request.GET['preview_plan']).first()
+        selected_plan = Plan.objects.filter(pk=valid_pk(request.GET['preview_plan'])).first()
         if selected_plan:
             plan_preview = preview_plan_usage(restaurant, selected_plan)
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
+                 subscription_agreements=subscription.agreements.select_related('payment', 'actor').order_by('-created_at', '-pk')[:20],
                  preview_table=branch.tables.filter(active=True).first(),
                  subscription_payments=SubscriptionPayment.objects.filter(restaurant=restaurant)[:20],
                  available_plans=Plan.objects.order_by('name') if membership.role == 'owner' else None,
@@ -1609,7 +1733,7 @@ def public_menu(request, token):
     subscription = getattr(table.branch.restaurant, 'subscription', None)
     if subscription is None or subscription.status == 'pending':
         return render(request, 'table_closed.html', status=404)
-    if not table.active or not table.branch.active or not table.branch.restaurant.active:
+    if not table.active or table.archived or not table.branch.active or table.branch.archived or not table.branch.restaurant.active:
         return render(request, 'table_closed.html', status=404)
     categories = Category.objects.filter(branch=table.branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
     items = serialize_menu_items(categories)
@@ -1630,7 +1754,7 @@ def serialize_menu_items(categories):
     items = []
     for category in categories:
         for item in category.items.all():
-            if item.available:
+            if item.available and not item.archived:
                 items.append({'id': item.pk, 'category': category.pk, 'name': item.name, 'description': item.description,
                               'price': str(item.price), 'image': item.image.url if item.image else '',
                               'sizes': [{'id': size.pk, 'name': size.name, 'price': str(size.price)}
@@ -1644,7 +1768,7 @@ def serialize_menu_items(categories):
 def place_order(request, token):
     table = get_object_or_404(DiningTable, public_token=token)
     try:
-        order = create_order(table, json.loads(request.body), require_session=True)
+        order = create_order(table, load_json_payload(request.body), require_session=True)
         return JsonResponse({'ok': True, 'order_url': reverse('track_order', args=[order.public_token]), 'order_number': order.pk})
     except (json.JSONDecodeError, ValidationError) as exc:
         return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
@@ -1669,3 +1793,62 @@ def track_order(request, token):
                      and table.active and branch.active and branch.accepting_orders
                      and branch.restaurant.active and subscription is not None and subscription.valid())
     return render(request, 'track.html', {'order': order, 'can_add_order': can_add_order})
+
+
+@require_POST
+def collection_correct(request, slug, order_id):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
+    if denied:
+        return denied
+    branch = branch_for(request, restaurant, membership)
+    order = get_object_or_404(Order, pk=order_id, branch=branch)
+    try:
+        correct_manual_collection(order, request.user, request.POST.get('key'), request.POST.get('reason', ''),
+                                  expected_paid_at=request.POST.get('expected_paid_at'))
+        messages.success(request, 'Manual collection entry corrected. No funds were refunded electronically.'
+                         if request.LANGUAGE_CODE == 'en' else 'صُحح قيد التحصيل اليدوي. لم يُنفذ رد أموال إلكتروني.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+    return redirect('manage_orders', slug=slug)
+
+
+@require_POST
+def resource_archive(request, slug, resource, pk):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
+    if denied:
+        return denied
+    if resource == 'staff' and membership.role != 'owner':
+        target = get_object_or_404(Membership, restaurant=restaurant, pk=pk)
+        if target.role in ('owner', 'manager'):
+            return render(request, '403.html', status=403)
+    try:
+        archive_resource(restaurant, request.user, resource, pk, restore=request.POST.get('action') == 'restore')
+        messages.success(request, 'Archive updated; historical records are preserved.' if request.LANGUAGE_CODE == 'en'
+                         else 'حُدث الأرشيف مع حفظ السجلات التاريخية.')
+    except ValidationError as exc:
+        messages.error(request, error_text(exc))
+    return redirect(reverse('resource_archive_list', args=[slug]) + '?' + urlencode({'resource': resource,
+        'state': 'current' if request.POST.get('action') == 'restore' else 'archived'}))
+
+
+@require_GET
+def resource_archive_list(request, slug):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager'])
+    if denied:
+        return denied
+    branch = branch_for(request, restaurant, membership)
+    resource = request.GET.get('resource', 'table')
+    queries = {'table': DiningTable.objects.filter(branch=branch),
+               'item': MenuItem.objects.filter(category__branch=branch),
+               'station': KitchenStation.objects.filter(branch=branch),
+               'staff': Membership.objects.filter(restaurant=restaurant).select_related('user'),
+               'branch': Branch.objects.filter(restaurant=restaurant)}
+    if resource not in queries:
+        raise Http404
+    show_archived = request.GET.get('state') == 'archived'
+    choices = [('table', ('الطاولات', 'Tables')), ('item', ('الأصناف', 'Menu items')),
+               ('station', ('المحطات', 'Stations')), ('staff', ('الفريق', 'Team')), ('branch', ('الفروع', 'Branches'))]
+    return shell(request, restaurant, membership, 'resource_archive', resource=resource,
+        archive_state='archived' if show_archived else 'current', show_archived=show_archived,
+        resource_choices=[(key, label[request.LANGUAGE_CODE == 'en']) for key, label in choices],
+        archive_rows=Paginator(queries[resource].filter(archived=show_archived).order_by('pk'), 25).get_page(request.GET.get('page')))

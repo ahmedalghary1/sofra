@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import get_language, gettext_lazy as _
 
 from .models import Plan, SubscriptionPayment
+from .accounts import account_for_email, new_login_email
 
 
 class PlatformPlanForm(forms.ModelForm):
@@ -48,8 +49,8 @@ class OwnerRegistrationForm(forms.Form):
                                                                  'placeholder': _('8 أحرف على الأقل')}))
 
     def clean_email(self):
-        email = self.cleaned_data['email'].lower()
-        if User.objects.filter(username=email).exists():
+        email = new_login_email(self.cleaned_data['email'])
+        if account_for_email(email):
             raise forms.ValidationError(_('هذا البريد مستخدم بالفعل. إذا لم يصلك رابط التفعيل، اطلب إعادة إرساله.'))
         return email
 
@@ -100,7 +101,9 @@ class PlatformRestaurantForm(forms.Form):
         self.fields['plan'].empty_label = 'Awaiting activation' if get_language() == 'en' else 'بانتظار التفعيل'
 
     def clean_owner_email(self):
-        return self.cleaned_data['owner_email'].strip().lower()
+        email = self.cleaned_data['owner_email'].strip().lower()
+        existing = account_for_email(email)
+        return email if existing else new_login_email(email)
 
     def clean(self):
         data = super().clean()
@@ -110,7 +113,7 @@ class PlatformRestaurantForm(forms.Form):
                            else 'اختر تاريخ انتهاء اليوم أو بعده لتفعيل الباقة.')
         if not email:
             return data
-        existing = User.objects.filter(username__iexact=email).first()
+        existing = account_for_email(email)
         if existing:
             if not existing.is_active or existing.is_superuser:
                 self.add_error('owner_email', _('لا يمكن ربط هذا الحساب كمالك. استخدم حسابًا نشطًا عاديًا.'))

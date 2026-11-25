@@ -1,0 +1,5 @@
+{% load showroom %}
+<label>{% bi 'فترة الاتفاق' 'Agreed billing period' %}<select name="billing"><option value="manual">{% bi 'مدة متفق عليها يدويًا' 'Manually agreed period' %}</option><option value="monthly">{% bi 'شهري' 'Monthly' %}</option><option value="annual">{% bi 'سنوي' 'Annual' %}</option></select></label>
+<label>{% bi 'سعر الفترة المتفق عليه بالجنيه اختياري' 'Agreed period price in EGP optional' %}<input name="agreed_price" type="number" min="0" max="99999999.99" step="0.01"></label>
+<label>{% bi 'مرجع إيصال الاشتراك اختياري' 'Subscription receipt reference optional' %}<input name="payment_reference" maxlength="80"></label>
+<p class="form-hint">{% bi 'حفظ الاشتراك يثبت السعر والحدود والفترة. تعديل تعريف الباقة لاحقًا لا يغير هذه الشروط. المرجع عند إدخاله يجب أن يخص المطعم ويغطي نهاية الفترة.' 'Saving captures the price, capacity and period. Later public plan edits do not alter these terms. A supplied receipt must belong to this venue and cover the period end.' %}</p>

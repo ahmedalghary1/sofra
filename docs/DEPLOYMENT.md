@@ -15,6 +15,46 @@
 
 إعداد Docker Compose الحالي للتطوير المحلي فقط. لا يشمل reverse proxy أو نسخًا احتياطية أو تخزين ملفات إنتاجيًا.
 
+## نشر إصلاحات مراجعة 25 نوفمبر
+
+1. أوقف الكتابة مؤقتًا، واحفظ نسخة مستقلة من قاعدة البيانات وmedia قبل `0026_audit_safety_and_records`. لا تعكس هذا الترحيل بعد وجود اتفاقات أو تصحيحات مالية دون خطة حفظ لها. يرفض الترحيل وجود سعر باقة سالب ولا يغيره بالتخمين. يضيف لقطة للإعداد الحالي موسومة كخط أساس؛ لا يغير أسماء المطاعم أو الأصناف أو الأسعار أو الطلبات القديمة.
+2. شغّل `python manage.py audit_release_data` وراجع أي نتائج قديمة دون دمج حسابات أو حذف ملفات تلقائيًا. يفضل أصل مستقل لصور المطعم. إذا قدمتها Nginx على النطاق نفسه، امنع أي امتداد غير PNG وJPEG وWebP، وطبّق `nosniff`، مثل الإعداد التالي بعد تعديل المسار وفحصه بـ`nginx -t`:
+
+```nginx
+location ^~ /media/ {
+    alias /srv/serveza/media/;
+    types { image/png png; image/jpeg jpg jpeg; image/webp webp; }
+    default_type application/octet-stream;
+    add_header X-Content-Type-Options nosniff always;
+    if ($uri !~* "\.(png|jpe?g|webp)$") { return 404; }
+}
+```
+
+3. لتحديد المعدل حسب العميل خلف Nginx، استبدل الترويسة الواردة بـ`proxy_set_header X-Real-IP $remote_addr;`. في اتصال loopback اضبط `DJANGO_TRUSTED_PROXY_NETWORKS=127.0.0.1/32,::1/128`، ولا تضم شبكات غير موثوقة. في اتصال Unix فقط، مع تقييد صلاحية المقبس ومنع الوصول المباشر إلى Django، يمكن ضبط `DJANGO_TRUST_UNIX_PROXY_IP=1`. الافتراضي لا يثق بأي ترويسة عنوان عميل. إعداد الثقة بـTLS مستقل عن إعداد عنوان العميل.
+4. تنقل خيارات `DATABASE_URL` مثل `sslmode=require` أو `verify-full` إلى PostgreSQL، مع فك ترميز بيانات الدخول. اختبر شروط الشهادة المطلوبة لدى مزود القاعدة. الإعداد لا يتجاهل الخيارات المجهولة بصمت.
+5. ثبت `requirements-dev.txt` في بيئة الاختبار فقط وشغّل الحزمة الأساسية والمتصفح. يجهز `.github/workflows/verify.yml` اختبار SQLite وPostgreSQL والمتصفح في الاتجاهين. كتابة الملف محليًا لا تثبت نجاح GitHub Actions؛ يلزم تشغيله على المستودع واعتماد نتيجته.
+
+## النسخ والاستعادة الآمنة
+
+الملف الناتج يحتوي بيانات مطاعم وحسابات خاصة؛ احفظه خارج Git وفي تخزين مستقل بصلاحية محدودة وتشفير التخزين المناسب. المجلدان `tmp` و`backups` مستبعدان. أوقف الكتابة أثناء النسخ كي تتطابق القاعدة والصور وبيان الأعداد.
+
+```powershell
+python manage.py backup_application --output backups/private-backup.zip
+python manage.py restore_application_backup --source backups/private-backup.zip --destination tmp/restore-verification
+```
+
+لا يستبدل الأمر ملفًا موجودًا أو مجلد استعادة غير فارغ. يفحص المسارات والبصمات والأعداد، وتفحص استعادة SQLite سلامة القاعدة. يتطلب نسخ PostgreSQL وجود `pg_dump` متوافقًا؛ لا يضع الأمر كلمة المرور في سطر الأوامر أو السجل. استعادة PostgreSQL هنا تتحقق من الملف وتستخرجه فقط: استخدم `pg_restore --no-owner --no-acl` إلى **قاعدة جديدة مستقلة** ببيانات اتصال محمية في البيئة أو `PGPASSFILE`، ثم قارن أعداد الجداول في `manifest.json` وبصمات الصور وشغّل فحص البيانات. لا تنفذ `--clean` على قاعدة التشغيل.
+
+## المراقبة والتحقق الخارجي
+
+تسجل `serveza.requests` اسم المسار والحالة والزمن ومعرف الطلب، ويعاد `X-Request-ID` للعميل. لا تتضمن هذه السجلات أجسام الطلبات أو رموز الروابط أو كلمات المرور. اجمعها في خدمة السجلات واضبط تنبيهًا خارجيًا للأخطاء وارتفاع الزمن وتعطل `/health/`، ثم جرب استجابة الفريق. نظف حدود المعدل القديمة بالأمر الدوري الموثق.
+
+```powershell
+python scripts/probe_service.py --base-url https://your-staging-domain.example --samples 10
+```
+
+هذا فحص صحة وتوقيت للقراءة فقط، وليس اختبار حمل طلبات المطعم. يجب قياس إرسال الطلب وظهوره في المطبخ والتحصيل خلال وردية فعلية، وفحص تسليم بريد التفعيل والدعوة والاستعادة إلى صندوق خارجي. [إجراءات التجربة والإقفال التجاري](OPERATING_AND_COMMERCIAL_RUNBOOK.md).
+
 ## النطاق الرئيسي وتهيئة Nginx
 
 1. اضبط `SITE_URL=https://servezaflow.com` و`DJANGO_DEBUG=0` و`DJANGO_SECURE_SSL_REDIRECT=1` و`DJANGO_SECURE_HSTS_SECONDS=300` في بيئة Gunicorn. يضيف Django النطاق الرئيسي ونسخة `www` تلقائيًا إلى المضيفين المسموحين وأصول CSRF الموثوقة. استخدم `DJANGO_ALLOWED_HOSTS` و`DJANGO_CSRF_TRUSTED_ORIGINS` لإضافات محددة عند الحاجة. احذف متغير النطاق القديم من بيئة النشر بعد نقل قيمته إلى `SITE_URL` إن كانت مطلوبة.
