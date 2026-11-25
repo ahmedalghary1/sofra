@@ -50,6 +50,6 @@ jobs:
       - name: Install test browser
         run: python -m playwright install --with-deps chrome
       - name: Browser regressions together
-        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux --noinput
+        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui --noinput
       - name: Browser regressions in reverse order
-        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux --noinput --reverse
+        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui --noinput --reverse
