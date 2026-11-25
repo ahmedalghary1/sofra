@@ -85,7 +85,7 @@ TOPICS = [
            'Service calls and bill requests appear separately. The floor team can see who acknowledged a request and when.'),
           'timeline', (('طاولة 04', 'Table 04', 'طلب الحساب', 'Bill requested'), ('طاولة 08', 'Table 08', 'تم الاستلام', 'Acknowledged'), ('طاولة 02', 'Table 02', 'مكتمل', 'Done')),
           (('افتح طلبات الخدمة في فرعك.', 'Open your branch service queue.'), ('استلم الاستدعاء وتوجّه للطاولة.', 'Acknowledge the call and visit the table.'), ('أغلقه عند التنفيذ.', 'Close it once the guest has been served.')),
-          (('calls', 'available', 'استدعاء أو طلب حساب، واستلام وتنفيذ وإغلاق مع موظف وتوقيت.', 'Waiter calls and bill requests, acknowledgement, progress, completion, actor and time.'),
+          (('calls', 'available', 'استدعاء الويتر وطلب الحساب من المنيو، مع تحديث تلقائي سريع لحسابات خدمة الفرع واستلام وتنفيذ وإغلاق مع الموظف والتوقيت. الديمو يحاكي الرحلة داخل المتصفح فقط.', 'Menu waiter calls and bill requests with fast automatic updates for branch service accounts, acknowledgement, progress, completion, actor and time. The demo simulates this in the browser only.'),
            ('floor', 'available', 'طلبات موظف للطاولة وتسجيل التقديم، وحد استجابة للويتر وآخر للحساب.', 'Staff table orders, marking orders served, and separate service and bill response thresholds.'),
            ('zones', 'planned', 'توزيع الويتر على مناطق وورديات، ورصيد الجلسة وقياس الأداء الفردي وتنبيه جاهزية مخصص.', 'Waiter zones and shifts, running table balances, individual performance and dedicated ready alerts.')),
           'ServiceCall, manage_calls, advance_call, staff_order, order_status_change'),

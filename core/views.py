@@ -1330,6 +1330,12 @@ def call_status_change(request, slug, call_id):
         advance_call(call, request.user, request.POST.get('status'))
         messages.success(request, 'تحدثت حالة الاستدعاء.')
     except ValidationError as exc: messages.error(request, error_text(exc))
+    queue = request.POST.get('queue')
+    if queue in ('all', 'open', 'bill'):
+        params = {'queue': queue}
+        if request.POST.get('page', '').isdigit(): params['page'] = request.POST['page'][:10]
+        if request.LANGUAGE_CODE == 'en': params['lang'] = 'en'
+        return redirect(reverse('manage_calls', args=[slug]) + '?' + urlencode(params))
     return redirect('manage_calls', slug=slug)
 
 def reports(request, slug):
@@ -1860,7 +1866,7 @@ def create_call(request, token):
     try:
         session_token = request.POST.get('session_token')
         if not session_token:
-            raise ValidationError('حدّث صفحة الطاولة قبل إرسال الاستدعاء.')
+            raise ValidationError(localized('حدّث صفحة الطاولة قبل إرسال الاستدعاء.', 'Refresh the table page before sending a service request.'))
         create_service_call(table, request.POST.get('kind'), session_token=session_token)
         message = localized('وصل طلبك لفريق الخدمة في الفرع.', 'Your request reached the branch service team.')
         if request.headers.get('Accept') == 'application/json':

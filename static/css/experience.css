@@ -27,7 +27,7 @@ body {text-rendering:optimizeLegibility}
 .service-panel .service-panel-heading p {font-size:.88rem;line-height:1.7;margin:0;color:inherit;max-width:70ch}
 .service-panel .service-buttons {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
 .service-panel .service-buttons form {min-width:0}
-.service-panel .service-buttons button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;white-space:normal;background:var(--menu-bg,#fff);color:inherit;border-color:var(--menu-border,#bdcfc5)}
+.service-panel .service-buttons button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;white-space:normal;background:var(--menu-background,#fff);color:inherit;border-color:var(--menu-border,#bdcfc5)}
 .service-panel .service-buttons button:disabled {opacity:.65;cursor:default}
 .service-panel [data-service-state],.service-panel-note {font-size:.85rem;line-height:1.7;margin:7px 0 0;overflow-wrap:anywhere}
 .service-panel [data-service-state]:empty,.service-panel-note:empty {display:none}
