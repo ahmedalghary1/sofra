@@ -1,0 +1,23 @@
+.online-branch {padding:18px;margin-block:12px 18px;border:1px solid var(--menu-border);border-radius:14px;background:var(--menu-surface)}
+.online-branch-form label,.online-customer-fields label {display:grid;gap:6px;font-weight:700}
+.online-branch-form>div {display:flex;gap:10px;flex-wrap:wrap;margin-block-start:7px}
+.online-branch-form select {flex:1 1 160px;min-width:0}
+.online-branch select,.online-customer-fields :is(input,select,textarea) {font:inherit;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--menu-border);border-radius:10px;background:var(--menu-background);color:var(--menu-text)}
+.online-branch p {color:var(--menu-muted);font-size:.9rem;margin-block:10px 0;line-height:1.7}
+.online-location,.online-fulfillment-options,.online-fulfillment-options>span {display:flex;align-items:center;gap:8px}
+.online-fulfillment-options {flex-wrap:wrap;margin-block-start:14px}
+.online-fulfillment-options>span {padding:6px 10px;border-radius:9px;background:var(--menu-background);color:var(--menu-text);font-size:.9rem}
+.online-customer-fields {display:grid;gap:14px;margin-block:18px;padding:16px;border:1px solid var(--menu-border);border-radius:12px}
+.online-customer-fields label {font-size:.95rem}
+.online-customer-fields p {margin:0;color:var(--menu-muted);font-size:.88rem;line-height:1.7}
+.online-checkout-branch>span {display:block}
+.online-customer-fields [hidden] {display:none}
+.online-price-row {display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:8px;color:var(--menu-text)}
+.online-track {max-width:640px;margin:12px auto;background:var(--menu-surface);border:1px solid var(--menu-border);color:var(--menu-text)}
+.online-track h1,.online-track .track-lines strong,.online-track .track-total strong {color:var(--menu-text)}
+.online-track :is(.track-status,.online-contact) {padding:14px;border-radius:10px;background:var(--menu-background);color:var(--menu-text)}
+.online-contact {display:grid;gap:6px;margin-block:16px;overflow-wrap:anywhere}
+.online-contact p {margin:0}
+.online-track .track-hint {color:var(--menu-muted)}
+.online-track .guest-order-start {width:100%}
+@media(max-width:560px) {.online-branch {padding:13px}.online-customer-fields {padding:12px}.online-track {padding:18px}}

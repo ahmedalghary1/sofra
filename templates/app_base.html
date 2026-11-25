@@ -36,6 +36,7 @@
       <a {% if page == 'staff' %}class="active" aria-current="page"{% endif %} href="{% url 'staff' restaurant.slug %}">{% symbol 'users' %} {% bi 'حسابات الفريق' 'Team accounts' %}</a>
       <a {% if page == 'resource_archive' %}class="active" aria-current="page"{% endif %} href="{% url 'resource_archive_list' restaurant.slug %}">{% symbol 'book-open' %} {% bi 'أرشيف الموارد' 'Resource archive' %}</a>
       <a {% if page == 'settings' %}class="active" aria-current="page"{% endif %} href="{% url 'restaurant_settings' restaurant.slug %}">{% symbol 'settings' %} {% bi 'الهوية والإعدادات' 'Branding and settings' %}</a>
+      <a href="{% url 'restaurant_settings' restaurant.slug %}#onlineOrdering">{% symbol 'package-open' %} {% bi 'الطلب أونلاين' 'Online ordering' %}</a>
     </nav>
     {% endif %}
     <div class="sidebar-bottom">

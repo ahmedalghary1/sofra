@@ -28,6 +28,7 @@
   </section>
 </div>
 {% include '_menu_branding_settings.html' %}
+{% include '_online_ordering_settings.html' %}
 {% if membership.role == 'owner' %}<section class="panel plan-preview"><div class="panel-head"><div><h2>{% translate 'معاينة حدود باقة أخرى' %}</h2><p>{% translate 'اختر باقة لمعرفة أثر حدودها على موارد مطعمك وفروعه قبل طلب التغيير.' %}</p></div></div>
 <form method="get" class="inline-form"><label for="preview-plan">{% translate 'الباقة' %}</label><select id="preview-plan" name="preview_plan" required>{% for plan in available_plans %}<option value="{{ plan.pk }}" {% if plan_preview and plan_preview.plan.pk == plan.pk %}selected{% endif %}>{{ plan.name }}</option>{% endfor %}</select><button class="btn btn-dark">{% translate 'عرض المعاينة' %}</button></form>
 {% if plan_preview %}<div class="plan-limits"><span>{% translate 'الفروع الكلية' %} <b>{{ plan_preview.branch_count }} / {{ plan_preview.plan.max_branches }}</b></span><span>{% bi 'إجمالي حسابات الفريق، شاملة المالك' 'Total team accounts, including the owner' %} <b>{{ plan_preview.staff_count }} / {{ plan_preview.plan.max_staff }}</b></span></div>

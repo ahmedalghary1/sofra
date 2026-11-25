@@ -12,6 +12,11 @@ const backdrop = document.getElementById('modalBackdrop');
 const content = document.getElementById('modalContent');
 const closeModal = document.getElementById('closeModal');
 const demoMode = window.SAFRA.demoMode;
+const onlineMode = !!window.SAFRA.onlineMode;
+const onlineDetails = {fulfillment: window.SAFRA.pickupEnabled ? 'pickup' : 'delivery',
+  customer_name: '', customer_phone: '', delivery_address: ''};
+const deliveryFee = () => onlineMode ? (onlineDetails.fulfillment === 'delivery' ? Number(window.SAFRA.deliveryFee) : 0)
+  : Number(window.SAFRA.fixedDeliveryFee || 0);
 const cart = [];
 const existingRows = window.SAFRA.editMode ? JSON.parse(document.getElementById('existing-data').textContent) : [];
 let current = null;
@@ -48,7 +53,8 @@ function saveDraft() {
       return;
     }
     sessionStorage.setItem(draftKey, JSON.stringify({session: window.SAFRA.cartSession, requestKey,
-      lines: orderLines(), prices: cart.map(row => row.unit.toFixed(2)), note: cartNote, pending: pendingOrder}));
+      lines: orderLines(), prices: cart.map(row => row.unit.toFixed(2)), note: cartNote, pending: pendingOrder,
+      fulfillment: onlineMode ? onlineDetails.fulfillment : null}));
   } catch { /* Ordering also works when browser storage is unavailable. */ }
 }
 
@@ -82,6 +88,8 @@ function restoreDraft() {
     const restored = draft.lines.map(restoreLine);
     const changed = restored.some((row, index) => !row || row.unit.toFixed(2) !== draft.prices?.[index]);
     cart.push(...restored.filter(Boolean));
+    if (onlineMode && ((draft.fulfillment === 'pickup' && window.SAFRA.pickupEnabled)
+        || (draft.fulfillment === 'delivery' && window.SAFRA.deliveryEnabled))) onlineDetails.fulfillment = draft.fulfillment;
     cartNote = typeof draft.note === 'string' ? draft.note.slice(0, 500) : '';
     if (/^[a-f0-9-]{36}$/i.test(draft.requestKey)) requestKey = draft.requestKey;
     if (draft.pending?.idempotency_key === requestKey && Array.isArray(draft.pending.lines)) {
@@ -129,7 +137,7 @@ async function sendGuestOrder(status, button) {
       saveDraft();
       renderCartBar();
       location.assign(result.order_url);
-    } else if (response.status === 400 && result.ok === false) {
+    } else if ((response.status === 400 || (onlineMode && response.status === 429)) && result.ok === false) {
       pendingOrder = null;
       if (window.SAFRA.staffMode) document.getElementById('staffTable').disabled = false;
       saveDraft();
@@ -356,7 +364,7 @@ function openItem(id){
     cart.push({item:current,quantity:count,options:selected,sizeId:size?.id||null,sizeName:size?.name||'',unit:Number(size?.price??current.price)+extra});updateCart();hide();};
   wrap.append(form);show(wrap);
 }
-function cartTotal(){return cart.reduce((s,x)=>s+x.quantity*x.unit,0)+existingRows.reduce((s,x)=>s+x.quantity*Number(x.unit_price),0)}
+function cartTotal(){return deliveryFee()+cart.reduce((s,x)=>s+x.quantity*x.unit,0)+existingRows.reduce((s,x)=>s+x.quantity*Number(x.unit_price),0)}
 function renderCartBar() {
   const rows = pendingOrder?.lines ?? [...cart, ...existingRows];
   const count = rows.reduce((sum, row) => sum + row.quantity, 0);
@@ -375,6 +383,12 @@ function openCart(){
   const list=el('div','cart-list');
   existingRows.forEach((row,index)=>{const line=el('div','cart-line');const summary=el('span');summary.append(el('strong','',row.item_name+(row.size_name?' · '+row.size_name:'')),el('small','muted',row.modifiers.join(guestCopy("، ", ", "))||guestCopy("السعر الأصلي محفوظ", "Original price retained")));const controls=el('span','edit-line-controls');const qty=el('input');qty.type='number';qty.min='1';qty.max='30';qty.value=row.quantity;qty.setAttribute('aria-label',guestCopy("كمية ", "Quantity for ")+row.item_name);qty.onchange=()=>{const value=Number(qty.value);if(!Number.isInteger(value)||value<1||value>30){qty.value=row.quantity;return}row.quantity=value;updateCart();openCart()};const remove=el('button','remove-item',guestCopy("حذف", "Remove"));remove.type='button';remove.onclick=()=>{existingRows.splice(index,1);updateCart();openCart()};controls.append(qty,remove);line.append(summary,controls);list.append(line)});
   const totalAmount = el('strong', '', money(cartTotal()) + guestCopy(" ج.م", " EGP"));
+  let subtotalAmount, deliveryAmount;
+  function refreshTotal() {
+    totalAmount.textContent = money(cartTotal()) + guestCopy(' ج.م', ' EGP');
+    if (subtotalAmount) subtotalAmount.textContent = money(cartTotal() - deliveryFee()) + guestCopy(' ج.م', ' EGP');
+    if (deliveryAmount) deliveryAmount.textContent = money(deliveryFee()) + guestCopy(' ج.م', ' EGP');
+  }
   cart.forEach((row, index) => {
     const line = el('div', 'cart-line');
     const summary = el('span');
@@ -398,7 +412,7 @@ function openCart(){
       row.quantity += delta;
       renderLine();
       updateCart();
-      totalAmount.textContent = money(cartTotal()) + guestCopy(" ج.م", " EGP");
+      refreshTotal();
     }
     decrease.onclick = () => changeQuantity(-1);
     increase.onclick = () => changeQuantity(1);
@@ -420,6 +434,27 @@ function openCart(){
   });
   wrap.append(list);
 
+  let onlineForm;
+  if (onlineMode) {
+    const fields = document.getElementById('onlineCustomerFields').content.cloneNode(true);
+    onlineForm = fields.querySelector('form');
+    for (const [name, value] of Object.entries(onlineDetails)) onlineForm.elements[name].value = value;
+    function updateOnlineDetails() {
+      for (const name of Object.keys(onlineDetails)) onlineDetails[name] = onlineForm.elements[name].value;
+      const delivery = onlineDetails.fulfillment === 'delivery';
+      onlineForm.querySelector('[data-delivery-address]').hidden = !delivery;
+      onlineForm.elements.delivery_address.required = delivery;
+      refreshTotal();
+      renderCartBar();
+      saveDraft();
+    }
+    onlineForm.addEventListener('input', updateOnlineDetails);
+    onlineForm.addEventListener('change', updateOnlineDetails);
+    onlineForm.addEventListener('submit', event => event.preventDefault());
+    updateOnlineDetails();
+    wrap.append(fields);
+  }
+
   let note;
   if (!demoMode) {
     note = el('textarea');
@@ -430,6 +465,16 @@ function openCart(){
     if(!editing)wrap.append(el('p','allergy-note',guestCopy("لو عندك حساسية غذائية، أخبر فريق المطعم مباشرة.", "Please tell the venue team directly about food allergies.")));
   }
   const total = el('div', 'cart-total');
+  if (onlineMode || window.SAFRA.fixedDeliveryFee) {
+    const subtotalRow = el('div', 'online-price-row');
+    subtotalAmount = el('strong');
+    subtotalRow.append(el('span', '', guestCopy('إجمالي الأصناف', 'Items subtotal')), subtotalAmount);
+    const feeRow = el('div', 'online-price-row');
+    deliveryAmount = el('strong');
+    feeRow.append(el('span', '', guestCopy('رسوم التوصيل', 'Delivery fee')), deliveryAmount);
+    wrap.append(subtotalRow, feeRow);
+    refreshTotal();
+  }
   total.append(el('span', '', guestCopy("الإجمالي", "Total")), totalAmount);
   const error = el('p', 'form-error');
   error.setAttribute('role', 'status');
@@ -447,12 +492,14 @@ function openCart(){
     if (submitting) return;
     const newLines = orderLines();
     if (draftKey) {
+      if (onlineMode && !onlineForm.reportValidity()) return;
       const chosen = window.SAFRA.staffMode ? document.getElementById('staffTable')?.value : null;
       if (window.SAFRA.staffMode && !chosen) {
         error.textContent = guestCopy('اختر الطاولة قبل إرسال الطلب.', 'Choose a table before sending the order.');
         return;
       }
       pendingOrder = {idempotency_key: requestKey, note: cartNote, lines: newLines, reviewed_total: cartTotal().toFixed(2)};
+      if (onlineMode) Object.assign(pendingOrder, onlineDetails, {reviewed_delivery_fee: deliveryFee().toFixed(2)});
       if (window.SAFRA.staffMode) {
         pendingOrder.table_id = Number(chosen);
         document.getElementById('staffTable').disabled = true;

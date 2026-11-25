@@ -74,4 +74,6 @@ urlpatterns = [
     path('t/<str:token>/order/', views.place_order, name='place_order'),
     path('t/<str:token>/call/', views.create_call, name='create_call'),
     path('track/<str:token>/', views.track_order, name='track_order'),
+    path('order/<slug:slug>/', views.online_menu, name='online_menu'),
+    path('order/<slug:slug>/<int:branch_id>/submit/', views.place_online_order, name='place_online_order'),
 ] + (static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) if settings.DEBUG else [])

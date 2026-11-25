@@ -18,7 +18,7 @@ class Command(BaseCommand):
         counts = {
             'negative_plan_prices': Plan.objects.filter(price_monthly__lt=0).count(),
             'duplicate_nonempty_emails': User.objects.exclude(email='').annotate(normalized=Lower('email')).values('normalized').annotate(n=Count('pk')).filter(n__gt=1).count(),
-            'order_table_branch_mismatch': Order.objects.exclude(branch_id=F('table__branch_id')).count(),
+            'order_table_branch_mismatch': Order.objects.filter(table__isnull=False).exclude(branch_id=F('table__branch_id')).count(),
             'item_station_branch_mismatch': MenuItem.objects.filter(station__isnull=False).exclude(category__branch_id=F('station__branch_id')).count(),
             'invitation_branch_mismatch': StaffInvitation.objects.exclude(restaurant_id=F('branch__restaurant_id')).count(),
             'membership_branch_mismatch': Membership.objects.filter(branches__isnull=False).exclude(restaurant_id=F('branches__restaurant_id')).distinct().count(),

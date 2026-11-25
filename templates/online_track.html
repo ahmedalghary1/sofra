@@ -1,0 +1,18 @@
+{% extends 'online_base.html' %}{% load i18n showroom %}
+{% block online_content %}
+<section class="track-card online-track">
+  <span class="eyebrow">{% bi 'تم تسجيل طلبك بنجاح' 'Your order has been saved' %}</span><h1>{% bi 'طلبك وصل للمطعم' 'Your order reached the restaurant' %}</h1>
+  <p>{% bi 'طلب رقم' 'Order' %} <bdi>#{{ order.pk }}</bdi> · {{ branch.name }} · {{ order.fulfillment_label }}</p>
+  <div class="track-status"><span>{% bi 'الحالة الحالية' 'Current status' %}</span><strong class="status status-{{ order.status }}">{{ order.service_status }}</strong></div>
+  {% if order.status == 'ready' %}<p>{% if order.fulfillment == 'pickup' %}{% bi 'طلبك جاهز للاستلام من الفرع.' 'Your order is ready for pickup at the branch.' %}{% else %}{% bi 'طلبك جاهز. يتولى المطعم ترتيب التوصيل والتواصل معك.' 'Your order is ready. The restaurant will arrange delivery and contact you.' %}{% endif %}</p>{% endif %}
+  <div class="track-lines">{% for line in order.lines.all %}<div><span>{{ line.quantity }}× {{ line.item_name }}{% if line.size_name %} · {{ line.size_name }}{% endif %}{% for mod in line.modifiers %}<small class="block">+ {{ mod.name }}</small>{% endfor %}</span><strong>{{ line.line_total }} {% bi 'ج.م' 'EGP' %}</strong></div>{% endfor %}
+    <div><span>{% bi 'إجمالي الأصناف' 'Items subtotal' %}</span><strong>{{ order.items_subtotal }} {% bi 'ج.م' 'EGP' %}</strong></div>
+    <div><span>{% bi 'رسوم التوصيل' 'Delivery fee' %}</span><strong>{{ order.delivery_fee }} {% bi 'ج.م' 'EGP' %}</strong></div>
+    <div class="track-total"><span>{% bi 'الإجمالي' 'Total' %}</span><strong>{{ order.total }} {% bi 'ج.م' 'EGP' %}</strong></div>
+  </div>
+  <div class="online-contact"><strong>{{ order.customer_name }}</strong><bdi>{{ order.customer_phone }}</bdi>{% if order.fulfillment == 'delivery' %}<p>{{ order.delivery_address }}</p>{% elif branch.address %}<p>{% bi 'عنوان الاستلام:' 'Pickup address:' %} {{ branch.address }}</p>{% endif %}</div>
+  {% if order.note %}<p>{{ order.note }}</p>{% endif %}
+  <p class="track-hint">{% bi 'السداد عند الاستلام. احتفظ بهذا الرابط لمتابعة الطلب؛ تتحدث الحالة كل ٢٠ ثانية.' 'Pay on pickup or delivery. Keep this private link to follow your order; status refreshes every 20 seconds.' %}</p>
+  <a class="guest-order-start" href="{% url 'online_menu' restaurant.slug %}?branch={{ branch.pk }}">{% bi 'العودة للمنيو' 'Back to menu' %}</a>
+</section><script>setTimeout(()=>location.reload(),20000)</script>
+{% endblock %}

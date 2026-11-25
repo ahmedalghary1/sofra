@@ -1,0 +1,9 @@
+{% load showroom %}
+{% if order.source == 'online' %}
+  <strong>{{ order.fulfillment_label }}</strong>
+  {% if details and membership.role != 'kitchen' %}
+    <small class="block">{{ order.customer_name }} · <bdi>{{ order.customer_phone }}</bdi></small>
+    {% if order.fulfillment == 'delivery' %}<small class="block">{{ order.delivery_address }}</small>{% endif %}
+    <small class="block muted">{% bi 'الأصناف' 'Items' %}: {{ order.items_subtotal }} + {% bi 'التوصيل' 'Delivery' %}: {{ order.delivery_fee }} {% bi 'ج.م' 'EGP' %}</small>
+  {% endif %}
+{% else %}<strong>{{ order.table.name }}</strong>{% endif %}

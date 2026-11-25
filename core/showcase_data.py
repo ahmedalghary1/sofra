@@ -42,7 +42,7 @@ TOPICS = [
           (('cart', 'available', 'هوية الطاولة، اختيار الحجم والإضافات، تعديل الكمية وملاحظة للطلب كله.', 'Table identity, sizes and extras, quantity controls and a note for the whole order.'),
            ('track', 'available', 'تأكيد ومتابعة، وطلب إضافي مستقل داخل الجلسة، واستدعاء الويتر أو طلب الحساب.', 'Confirmation, tracking, additional orders in the current session, waiter calls and bill requests.'),
            ('history', 'planned', 'حساب اختياري للضيف وسجل شخصي وإعادة سلة سابقة وملاحظات لكل صنف.', 'Optional guest profiles, personal history, repeat baskets and per-item notes.'),
-           ('takeaway', 'not-supported', 'طلب سفري خارج جلسة الطاولة.', 'Takeaway ordering outside a table session.')),
+           ('takeaway', 'available', 'رابط مستقل للمطعم بهويته، يفعّله المسؤول للاستلام من الفرع أو التوصيل برسوم ثابتة، مع اختيار الفرع ومراجعة الإجمالي والتحصيل عند الاستلام.', 'An owner-enabled branded restaurant link for branch pickup or delivery with a flat fee, branch selection, total review and payment on fulfillment.')),
           'public_menu, place_order, track_order, create_order, create_call'),
     Topic('tables', 'operations', 'owner manager waiter', ('الطاولات والجلسات', 'Tables and sessions'),
           ('كود للطاولة، وجلسة لكل زيارة', 'One table code, a fresh session for each visit'),

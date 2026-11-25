@@ -308,6 +308,11 @@
 .staff-invite-form {align-items:end}
 .menu-start-hint {margin-block:0 16px;color:#486357}
 #inviteStaff,#menuTools,#menuBranding {scroll-margin-block-start:90px}
+#onlineOrdering {scroll-margin-block-start:90px}
+.online-share-link {display:inline-flex;align-items:center;gap:8px;max-width:100%;color:#205e4e;font-weight:700}
+.online-share-link bdi {min-width:0;overflow-wrap:anywhere}
+.online-settings-form {margin-block-start:16px;max-width:42rem}
+.app-body .online-price-row {display:flex;justify-content:space-between;gap:10px;padding-block:8px}
 @media(max-width:560px) {
   .workspace-tasks,.team-role-guide {grid-template-columns:minmax(0,1fr)}
   .workspace-task {display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 12px;padding:13px}

@@ -41,7 +41,7 @@ Detail route `/features/qr-ordering/`. Implementation references include `public
 | `#cart` | available | Table identity, sizes and extras, quantity controls and a note for the whole order. |
 | `#track` | available | Confirmation, tracking, additional orders in the current session, waiter calls and bill requests. |
 | `#history` | planned | Optional guest profiles, personal history, repeat baskets and per-item notes. |
-| `#takeaway` | not-supported | Takeaway ordering outside a table session. |
+| `#takeaway` | available | Owner-enabled `/order/<restaurant-slug>/` storefront using the saved logo/colors. Branch-specific menus, pickup at no fee or delivery with a restaurant-wide flat fee, guest contact details, server-priced totals and immutable fee/item snapshots. Orders enter branch kitchen and staff queues. Payment and delivery are handled by the restaurant; no courier integration or custom-subdomain provisioning. Deployment validation remains separate. |
 
 ### Tables and sessions
 

@@ -61,6 +61,11 @@ class Restaurant(models.Model):
     menu_primary_color = models.CharField(max_length=7, default='#1d6150', validators=[validate_menu_color])
     menu_background_color = models.CharField(max_length=7, default='#f8f8f4', validators=[validate_menu_color])
     menu_text_color = models.CharField(max_length=7, default='#193b34', validators=[validate_menu_color])
+    online_ordering_enabled = models.BooleanField(default=False)
+    online_pickup_enabled = models.BooleanField(default=True)
+    online_delivery_enabled = models.BooleanField(default=False)
+    delivery_fee = models.DecimalField(max_digits=9, decimal_places=2, default=0,
+                                      validators=[MinValueValidator(Decimal('0'))])
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name
@@ -236,12 +241,19 @@ class DiningTable(models.Model):
 class Order(models.Model):
     STATUSES = [('new','جديد'),('accepted','تم الاستلام'),('preparing','قيد التحضير'),('ready','جاهز'),('served','تم التقديم'),('cancelled','ملغي')]
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='orders')
-    table = models.ForeignKey(DiningTable, on_delete=models.PROTECT, related_name='orders')
+    table = models.ForeignKey(DiningTable, on_delete=models.PROTECT, related_name='orders', null=True, blank=True)
     public_token = models.CharField(max_length=48, unique=True, default=token)
     idempotency_key = models.UUIDField()
     session_token = models.UUIDField(null=True, blank=True)
     request_hash = models.CharField(max_length=64)
-    source = models.CharField(max_length=8, choices=[('qr','QR'),('staff','موظف')], default='qr')
+    source = models.CharField(max_length=8, choices=[('qr','QR'),('staff','موظف'),('online','أونلاين')], default='qr')
+    fulfillment = models.CharField(max_length=10, choices=[('dine_in','داخل المطعم'),
+                                   ('pickup','استلام من الفرع'),('delivery','توصيل')], default='dine_in')
+    customer_name = models.CharField(max_length=100, blank=True)
+    customer_phone = models.CharField(max_length=24, blank=True)
+    delivery_address = models.CharField(max_length=500, blank=True)
+    delivery_fee = models.DecimalField(max_digits=9, decimal_places=2, default=0,
+                                      validators=[MinValueValidator(Decimal('0'))])
     status = models.CharField(max_length=12, choices=STATUSES, default='new')
     payment_status = models.CharField(max_length=10, choices=[('unpaid','غير مدفوع'),('paid','مدفوع')], default='unpaid')
     paid_at = models.DateTimeField(null=True, blank=True)
@@ -253,8 +265,37 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         ordering = ['-created_at']
-        constraints = [models.UniqueConstraint(fields=['table','idempotency_key'], name='unique_table_request')]
+        constraints = [models.UniqueConstraint(fields=['table','idempotency_key'], name='unique_table_request'),
+            models.UniqueConstraint(fields=['branch', 'idempotency_key'], condition=models.Q(source='online'),
+                                    name='unique_online_branch_request'),
+            models.CheckConstraint(condition=(models.Q(source='online', table__isnull=True,
+                session_token__isnull=True, fulfillment__in=['pickup', 'delivery']) |
+                models.Q(source__in=['qr', 'staff'], table__isnull=False, fulfillment='dine_in', delivery_fee=0)),
+                name='order_fulfillment_context'),
+            models.CheckConstraint(condition=models.Q(delivery_fee__gte=0, delivery_fee__lte=models.F('total')),
+                                   name='order_delivery_fee_valid')]
         indexes = [models.Index(fields=['branch','status','created_at'])]
+
+    @property
+    def items_subtotal(self):
+        return self.total - self.delivery_fee
+
+    @property
+    def fulfillment_label(self):
+        labels = {'pickup': ('استلام من الفرع', 'Branch pickup'), 'delivery': ('توصيل', 'Delivery')}
+        pair = labels.get(self.fulfillment, ('داخل المطعم', 'Dine in'))
+        return pair[get_language() == 'en']
+
+    @property
+    def service_status(self):
+        if self.source == 'online':
+            labels = {'ready': ('جاهز للاستلام' if self.fulfillment == 'pickup' else 'جاهز للتوصيل',
+                                'Ready for pickup' if self.fulfillment == 'pickup' else 'Ready for delivery'),
+                      'served': ('تم التسليم', 'Delivered')}
+            if self.status in labels:
+                return labels[self.status][get_language() == 'en']
+        from django.utils.translation import gettext
+        return gettext(self.get_status_display())
 
 class OrderLine(models.Model):
     PREP_STATUSES = [('new', 'لم يبدأ'), ('preparing', 'قيد التحضير'), ('ready', 'جاهز')]

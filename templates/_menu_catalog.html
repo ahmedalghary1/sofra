@@ -42,8 +42,8 @@
       <div class="menu-product-bottom">
         <strong><bdi>{{ item.price|floatformat:"-2" }}</bdi> <small>{% bi 'ج.م' 'EGP' %}</small></strong>
         <button type="button" class="menu-add {% if demo_menu %}demo-add-item{% else %}add-item{% endif %}"
-                data-id="{{ item.id }}" {% if table and not accepting %}disabled{% endif %} aria-label="{% if table and not accepting %}{% bi 'الطلب متوقف' 'Ordering paused' %} ·{% elif demo_menu %}{% bi 'أضف للسلة' 'Add to cart' %} ·{% else %}{% bi 'أضف' 'Add' %}{% endif %} {{ item.name }}">
-          {% if table and not accepting %}{% bi 'متوقف' 'Paused' %}{% else %}{% symbol 'plus' %}<span>{% bi 'أضف' 'Add' %}</span>{% endif %}
+                data-id="{{ item.id }}" {% if table and not accepting or online_store and not accepting %}disabled{% endif %} aria-label="{% if table and not accepting or online_store and not accepting %}{% bi 'الطلب متوقف' 'Ordering paused' %} ·{% elif demo_menu %}{% bi 'أضف للسلة' 'Add to cart' %} ·{% else %}{% bi 'أضف' 'Add' %}{% endif %} {{ item.name }}">
+          {% if table and not accepting or online_store and not accepting %}{% bi 'متوقف' 'Paused' %}{% else %}{% symbol 'plus' %}<span>{% bi 'أضف' 'Add' %}</span>{% endif %}
         </button>
       </div>
     </div>

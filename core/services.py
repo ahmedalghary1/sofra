@@ -40,7 +40,7 @@ def order_edit_allowed(order, has_started_preparation):
             and not has_started_preparation and branch.active and branch.restaurant.active
             and subscription is not None and subscription.valid())
 
-def normalize_order_lines(table, raw_lines, allow_empty=False):
+def normalize_order_lines(branch, raw_lines, allow_empty=False):
     if not isinstance(raw_lines, list) or len(raw_lines) > 40 or (not raw_lines and not allow_empty):
         raise ValidationError('أضف صنفًا واحدًا على الأقل للسلة.')
     parsed = []
@@ -60,7 +60,7 @@ def normalize_order_lines(table, raw_lines, allow_empty=False):
         parsed.append((item_id, quantity, chosen, identifier(size_id) if size_id not in (None, '') else None))
     items = {item.pk: item for item in MenuItem.objects.select_related('category', 'station')
              .prefetch_related('sizes', 'modifier_groups__options').filter(
-                 pk__in={row[0] for row in parsed}, category__branch_id=table.branch_id,
+                 pk__in={row[0] for row in parsed}, category__branch=branch,
                  category__visible=True, available=True, archived=False)}
     normalized, total = [], Decimal('0.00')
     for item_id, quantity, chosen, size_id in parsed:
@@ -148,7 +148,7 @@ def create_order(table, payload, user=None, require_session=False):
             if Order.objects.filter(table=locked_table,
                     created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
                 raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')
-            normalized, total = normalize_order_lines(locked_table, raw_lines)
+            normalized, total = normalize_order_lines(locked_table.branch, raw_lines)
             if 'reviewed_total' in payload and payload['reviewed_total'] != format(total, '.2f'):
                 raise ValidationError('تغيّر إجمالي الطلب. حدّث المنيو وراجع الأسعار قبل الإرسال.')
             order = Order.objects.create(branch=locked_table.branch, table=locked_table, idempotency_key=key,
@@ -193,7 +193,7 @@ def edit_order(order, actor, payload):
     digest = hashlib.sha256(json.dumps({'existing': retained, 'add': added, 'reason': reason,
                                         'expected_version': payload.get('expected_version')},
                                        sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    order = Order.objects.select_for_update().select_related('table__branch__restaurant').get(pk=order.pk)
+    order = Order.objects.select_for_update(of=('self',)).select_related('branch__restaurant').get(pk=order.pk)
     prior = OrderRevision.objects.filter(order=order, key=key).first()
     if prior:
         if prior.request_hash != digest:
@@ -217,8 +217,8 @@ def edit_order(order, actor, payload):
         chosen[line_id] = quantity
     if not chosen and not added:
         raise ValidationError('يجب أن يحتوي الطلب على صنف واحد على الأقل.')
-    normalized, added_total = normalize_order_lines(order.table, added, allow_empty=True)
-    new_total = added_total + sum((current[line_id].unit_price * qty for line_id, qty in chosen.items()), Decimal('0.00'))
+    normalized, added_total = normalize_order_lines(order.branch, added, allow_empty=True)
+    new_total = order.delivery_fee + added_total + sum((current[line_id].unit_price * qty for line_id, qty in chosen.items()), Decimal('0.00'))
     if new_total > Decimal('99999999.99'):
         raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
     before = revision_lines(order)

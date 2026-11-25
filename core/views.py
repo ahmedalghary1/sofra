@@ -52,6 +52,7 @@ from .models import CollectionCorrection
 from .models import DemoRequest
 from .forms import MenuBrandingForm, OwnerRegistrationForm, PlatformBranchForm, PlatformPlanForm, PlatformRestaurantForm, RestaurantProfileForm, SubscriptionPaymentForm
 from .branding import MENU_COLOR_DEFAULTS, menu_theme, restaurant_menu_theme
+from .online import OnlineOrderingForm, create_online_order
 from .menu_import import commit_menu_import, parse_menu_csv, parse_menu_xlsx, validate_existing_menu
 from .plan_preview import preview_plan_usage
 from .showcase_catalog import public_tier_records
@@ -1155,7 +1156,7 @@ def order_edit(request, slug, order_id):
     return shell(request, restaurant, membership, 'order_edit', order=order, existing_json=existing,
                  categories=categories, items_json=serialize_menu_items(categories),
                  can_edit=order_edit_allowed(order, order.history.filter(new_status='preparing').exists()),
-                 can_add_order=order.session_token == order.table.session_token and order.table.active
+                 can_add_order=bool(order.table_id) and order.session_token == order.table.session_token and order.table.active
                  and restaurant.active and branch.active and branch.accepting_orders and restaurant.subscription.valid())
 
 def kitchen(request, slug):
@@ -1363,9 +1364,11 @@ def reports(request, slug):
                    ['رقم الطلب', 'الطاولة', 'الحالة', 'حالة الدفع', 'المصدر', 'إجمالي الطلب', 'وقت الإنشاء'])
         if all_branches:
             headers.append('Branch' if request.LANGUAGE_CODE == 'en' else 'الفرع')
+        csv_english = request.LANGUAGE_CODE == 'en'
         labels = {}
         for field in ('status', 'payment_status', 'source'):
             labels[field] = {key: gettext(label) for key, label in Order._meta.get_field(field).choices}
+        labels['source']['online'] = 'Online' if csv_english else 'أونلاين'
 
         def csv_rows():
             yield '\ufeff'
@@ -1376,7 +1379,9 @@ def reports(request, slug):
             for order in orders.select_related('table', 'branch').order_by('pk').iterator(chunk_size=1000):
                 buffer.seek(0)
                 buffer.truncate(0)
-                name = str(order.table.name)
+                name = (str(order.table.name) if order.table_id else
+                        (('Delivery' if csv_english else 'توصيل') if order.fulfillment == 'delivery'
+                         else ('Branch pickup' if csv_english else 'استلام من الفرع')))
                 if name.lstrip().startswith(('=','+','-','@')):
                     name = "'" + name
                 row = [order.pk, name, labels['status'].get(order.status, order.status),
@@ -1677,11 +1682,28 @@ def restaurant_settings(request, slug):
     action = request.POST.get('action', 'profile')
     branding_initial = {key: getattr(restaurant, key) for key in MENU_COLOR_DEFAULTS}
     branding_post = request.method == 'POST' and action == 'branding'
+    online_post = request.method == 'POST' and action == 'online'
+    online_form = OnlineOrderingForm(request.POST if online_post else None,
+        initial={key: getattr(restaurant, key) for key in OnlineOrderingForm.base_fields}, prefix='online')
     branding_form = MenuBrandingForm(request.POST if branding_post else None,
                                     request.FILES if branding_post else None, initial=branding_initial,
                                     prefix='branding')
     profile_post = request.method == 'POST' and action == 'profile'
     profile_form = RestaurantProfileForm(request.POST if profile_post else None, initial=initial)
+    if online_post and online_form.is_valid():
+        if online_form.cleaned_data['online_ordering_enabled'] and not restaurant.subscription.valid():
+            online_form.add_error(None, localized('جدّد الاشتراك قبل تفعيل الطلب أونلاين.', 'Renew the subscription before enabling online ordering.'))
+        else:
+            with transaction.atomic():
+                venue = Restaurant.objects.select_for_update().get(pk=restaurant.pk)
+                fields = list(online_form.cleaned_data)
+                before = {key: str(getattr(venue, key)) for key in fields}
+                for key, value in online_form.cleaned_data.items():
+                    setattr(venue, key, value)
+                venue.save(update_fields=fields)
+                audit_change(venue, request.user, 'restaurant.online', venue, before, fields)
+            messages.success(request, localized('تم حفظ إعدادات الطلب أونلاين.', 'Online ordering settings saved.'))
+            return redirect(reverse('restaurant_settings', args=[slug]) + '#onlineOrdering')
     if branding_post and branding_form.is_valid():
         data = branding_form.cleaned_data
         with transaction.atomic():
@@ -1745,6 +1767,7 @@ def restaurant_settings(request, slug):
         if selected_plan:
             plan_preview = preview_plan_usage(restaurant, selected_plan)
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
+                 online_form=online_form, online_url=request.build_absolute_uri(reverse('online_menu', args=[slug])),
                  branding_form=branding_form, branding_defaults=MENU_COLOR_DEFAULTS,
                  menu_theme=menu_theme({key: branding_form[key].value() for key in MENU_COLOR_DEFAULTS}),
                  subscription_agreements=subscription.agreements.select_related('payment', 'actor').order_by('-created_at', '-pk')[:20],
@@ -1812,14 +1835,63 @@ def create_call(request, token):
     except ValidationError as exc: messages.error(request, error_text(exc))
     return redirect('public_menu', token=token)
 
+@never_cache
 def track_order(request, token):
-    order = get_object_or_404(Order.objects.select_related('table__branch__restaurant').prefetch_related('lines'), public_token=token)
-    table, branch = order.table, order.table.branch
+    order = get_object_or_404(Order.objects.select_related('table', 'branch__restaurant').prefetch_related('lines'), public_token=token)
+    table, branch = order.table, order.branch
+    if order.source == 'online':
+        return render(request, 'online_track.html', {'order': order, 'restaurant': branch.restaurant,
+            'branch': branch, 'menu_theme': restaurant_menu_theme(branch.restaurant)})
     subscription = getattr(branch.restaurant, 'subscription', None)
     can_add_order = (order.session_token is not None and order.session_token == table.session_token
                      and table.active and branch.active and branch.accepting_orders
                      and branch.restaurant.active and subscription is not None and subscription.valid())
     return render(request, 'track.html', {'order': order, 'can_add_order': can_add_order})
+
+
+@never_cache
+@require_GET
+def online_menu(request, slug):
+    restaurant = get_object_or_404(Restaurant.objects.select_related('subscription'), slug=slug)
+    subscription = getattr(restaurant, 'subscription', None)
+    ctx = {'restaurant': restaurant, 'menu_theme': restaurant_menu_theme(restaurant)}
+    if (not restaurant.active or not restaurant.online_ordering_enabled or subscription is None
+            or subscription.status == 'pending'):
+        return render(request, 'online_unavailable.html', ctx, status=404)
+    branches = restaurant.branches.filter(active=True, archived=False).order_by('pk')
+    branch_key = request.GET.get('branch')
+    branch = (get_object_or_404(branches, pk=valid_pk(branch_key)) if branch_key else branches.first())
+    if branch is None:
+        return render(request, 'online_unavailable.html', ctx, status=404)
+    categories = Category.objects.filter(branch=branch, visible=True).prefetch_related('items__sizes', 'items__modifier_groups__options')
+    items = serialize_menu_items(categories)
+    names = {category.pk: category.name for category in categories}
+    menu_categories = {}
+    for item in items:
+        item['category_name'] = menu_categories[item['category']] = names[item['category']]
+        item['photo'] = menu_photo(item['name'], item['image'])
+    accepting = branch.accepting_orders and subscription.valid() and (
+        restaurant.online_pickup_enabled or restaurant.online_delivery_enabled)
+    ctx.update(branch=branch, branches=branches, items_json=items, menu_categories=list(menu_categories.items()),
+               accepting=accepting, online_store=True, illustrative_photos=any(not item['image'] for item in items))
+    return render(request, 'online_menu.html', ctx)
+
+
+@never_cache
+@require_POST
+def place_online_order(request, slug, branch_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    branch = get_object_or_404(Branch, restaurant=restaurant, pk=branch_id)
+    if not consume_limits(request, 'online-order', limit=20, seconds=60):
+        response = JsonResponse({'ok': False, 'error': localized('طلبات كثيرة. انتظر دقيقة ثم حاول مجددًا.',
+                                                               'Too many requests. Wait a minute and try again.')}, status=429)
+        response['Retry-After'] = '60'
+        return response
+    try:
+        order = create_online_order(branch, load_json_payload(request.body))
+        return JsonResponse({'ok': True, 'order_url': reverse('track_order', args=[order.public_token]), 'order_number': order.pk})
+    except ValidationError as exc:
+        return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
 
 
 @require_POST

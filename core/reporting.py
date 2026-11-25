@@ -56,7 +56,10 @@ def collection_csv(activity, english=False):
                 label = ('تصحيح قيد' if not english else 'Entry correction') if kind == 'correction' else ('تحصيل يدوي' if not english else 'Manual collection')
                 buffer.seek(0)
                 buffer.truncate(0)
-                writer.writerow([order.pk, csv_safe(order.branch.name), csv_safe(order.table.name), label,
+                destination = order.table.name if order.table_id else (
+                    ('Delivery' if english else 'توصيل') if order.fulfillment == 'delivery'
+                    else ('Branch pickup' if english else 'استلام من الفرع'))
+                writer.writerow([order.pk, csv_safe(order.branch.name), csv_safe(destination), label,
                     -amount if kind == 'correction' else amount, timestamp.isoformat(),
                     csv_safe(record.reason) if kind == 'correction' else ''])
                 yield buffer.getvalue()

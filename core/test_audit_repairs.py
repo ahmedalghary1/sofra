@@ -187,7 +187,7 @@ class AuditRepairTests(TestCase):
     def test_normalization_uses_bounded_queries(self):
         rows = [{'item_id': self.item.pk, 'quantity': 1}] * 40
         with CaptureQueriesContext(connection) as queries:
-            normalized, total = normalize_order_lines(self.table, rows)
+            normalized, total = normalize_order_lines(self.branch, rows)
         self.assertLessEqual(len(queries), 4)
         self.assertEqual(len(normalized), 40)
         self.assertEqual(total, Decimal('400.00'))

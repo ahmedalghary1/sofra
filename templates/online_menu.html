@@ -1,0 +1,28 @@
+{% extends 'online_base.html' %}{% load static i18n showroom %}
+{% block online_content %}
+<section class="guest-hero menu-heading"><div><h1>{% bi 'أكلك المفضل، اطلبه من هنا' 'Your favorites, ordered from here' %}</h1><p>{% bi 'اختَر الفرع والأصناف، ثم راجع طريقة الاستلام والإجمالي وأرسل طلبك. من غير حساب.' 'Choose your branch and items, then review fulfillment and the total before placing your order. No account needed.' %}</p></div>{% if accepting and items_json %}<a class="guest-order-start" href="#foodGrid">{% bi 'ابدأ الطلب' 'Start ordering' %} {% symbol 'chevron-down' %}</a>{% endif %}</section>
+<section class="online-branch" aria-label="{% bi 'فرع الطلب وخيارات الاستلام' 'Order branch and fulfillment options' %}">
+  <form method="get" class="online-branch-form"><label for="onlineBranch">{% bi 'هتطلب من أي فرع؟' 'Which branch are you ordering from?' %}</label><div><select name="branch" id="onlineBranch">{% for choice in branches %}<option value="{{ choice.pk }}" {% if choice.pk == branch.pk %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}</select><button type="submit" class="guest-order-start">{% bi 'اختيار الفرع' 'Choose branch' %}</button></div>{% if english %}<input type="hidden" name="lang" value="en">{% endif %}</form>
+  {% if branch.address %}<p class="online-location">{% symbol 'store' %} {{ branch.address }}</p>{% endif %}
+  {% if branch.opening_hours %}<p>{{ branch.opening_hours }}</p>{% endif %}
+  <div class="online-fulfillment-options">{% if restaurant.online_pickup_enabled %}<span>{% symbol 'store' %} {% bi 'استلام من الفرع · بدون رسوم' 'Branch pickup · No fee' %}</span>{% endif %}{% if restaurant.online_delivery_enabled %}<span>{% symbol 'package-open' %} {% bi 'التوصيل' 'Delivery' %} · {{ restaurant.delivery_fee }} {% bi 'ج.م' 'EGP' %}</span>{% endif %}</div>
+  <p>{% bi 'السداد عند الاستلام. يتولى المطعم تجهيز الطلب والتواصل معك وترتيب التوصيل.' 'Pay on pickup or delivery. The restaurant prepares your order, contacts you and arranges delivery.' %}</p>
+</section>
+{% if not accepting %}<p class="account-notice" role="status">{% bi 'هذا الفرع لا يستقبل طلبات أونلاين حاليًا. تقدر تتصفح المنيو أو تختار فرعًا آخر.' 'This branch is not accepting online orders right now. Browse the menu or choose another branch.' %}</p>{% endif %}
+<p id="cartMenuChange" class="account-notice" role="status" hidden>{% bi 'تغيّرت بعض الأسعار أو الاختيارات. راجع سلتك قبل الإرسال.' 'Some prices or options changed. Review your cart before sending.' %}</p>
+{% if items_json %}{% include '_menu_catalog.html' %}{% if illustrative_photos %}<p class="menu-photo-note">{% bi 'تظهر صور توضيحية للأصناف التي لم يضف المطعم صورها بعد.' 'Items without a restaurant photo use illustrative images.' %}</p>{% endif %}{% else %}<div class="empty-state"><h2>{% bi 'لا توجد أصناف متاحة في هذا الفرع' 'No items are available in this branch' %}</h2><p>{% bi 'اختَر فرعًا آخر أو تواصل مع المطعم.' 'Choose another branch or contact the restaurant.' %}</p></div>{% endif %}
+{% endblock %}
+{% block online_scripts %}
+{% include '_guest_cart.html' with english=english only %}
+<template id="onlineCustomerFields"><form id="onlineCheckout" class="online-customer-fields">
+  <p class="online-checkout-branch"><strong>{{ branch.name }}</strong>{% if branch.address %}<span>{{ branch.address }}</span>{% endif %}</p>
+  <label>{% bi 'طريقة الاستلام' 'Fulfillment method' %}<select name="fulfillment" required>{% if restaurant.online_pickup_enabled %}<option value="pickup">{% bi 'استلام من الفرع · بدون رسوم' 'Branch pickup · No fee' %}</option>{% endif %}{% if restaurant.online_delivery_enabled %}<option value="delivery">{% bi 'توصيل للعنوان' 'Delivery to your address' %} · {{ restaurant.delivery_fee }} {% bi 'ج.م' 'EGP' %}</option>{% endif %}</select></label>
+  <label>{% bi 'اسمك' 'Your name' %}<input name="customer_name" required maxlength="100" autocomplete="name"></label>
+  <label>{% bi 'رقم الموبايل للتواصل' 'Contact phone number' %}<input name="customer_phone" type="tel" required maxlength="24" autocomplete="tel" inputmode="tel" dir="ltr"></label>
+  <label data-delivery-address>{% bi 'عنوان التوصيل بالتفصيل' 'Full delivery address' %}<textarea name="delivery_address" maxlength="500" autocomplete="street-address" rows="3"></textarea></label>
+  <p>{% bi 'الدفع عند الاستلام. راجع الفرع وبياناتك قبل تأكيد الطلب.' 'Pay on pickup or delivery. Check the branch and your details before confirming.' %}</p>
+</form></template>
+{{ items_json|json_script:'menu-data' }}
+<script>window.SAFRA={onlineMode:true,cartTable:'online-{{ branch.pk }}',cartSession:'online',orderUrl:'{% url "place_online_order" restaurant.slug branch.pk %}',csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},pickupEnabled:{{ restaurant.online_pickup_enabled|yesno:'true,false' }},deliveryEnabled:{{ restaurant.online_delivery_enabled|yesno:'true,false' }},deliveryFee:'{{ restaurant.delivery_fee|stringformat:'.2f' }}'};</script>
+<script src="{% static 'js/guest.js' %}"></script>
+{% endblock %}
