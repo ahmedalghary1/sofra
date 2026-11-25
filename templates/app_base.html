@@ -47,7 +47,7 @@
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <div class="main-wrap">
     <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-controls="sidebar" aria-expanded="false" aria-label="{% translate 'فتح القائمة' %}">{% symbol 'menu' %}</button><a class="mobile-brand" href="{% url 'dashboard' restaurant.slug %}">{% include '_brand_logo.html' only %}</a><div class="breadcrumb">{% translate 'مساحة العمل' %} <span>/</span> {% block crumb %}{% translate 'نظرة عامة' %}{% endblock %}</div><div class="topbar-actions">{% include '_ops_language.html' %}<span class="today-date">{% symbol 'calendar-days' %} {% now "l، j F Y" %}</span><span class="user-pill">{{ request.user.first_name|default:request.user.username|slice:':1' }}</span></div></header>
-    <main class="main-content" id="workspaceMain" tabindex="-1">{% block content %}{% endblock %}</main>
+    <main class="main-content" id="workspaceMain" tabindex="-1">{% if membership.role != 'kitchen' %}{% include '_service_inbox.html' %}{% endif %}{% block content %}{% endblock %}</main>
   </div>
 </div>
 

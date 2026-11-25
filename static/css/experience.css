@@ -21,6 +21,33 @@ body {text-rendering:optimizeLegibility}
 .plan-feature-options>div {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
 .plan-feature-options label {display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
 .plan-feature-options input {width:18px!important;min-height:18px!important;flex:none}
+.service-panel {display:block;margin-block:14px 24px;padding:16px;background:var(--menu-surface,#eff6f3);border:1px solid var(--menu-border,#d2e2d9);color:var(--menu-text,var(--navy,#163143))}
+.service-panel .service-panel-heading {display:flex;align-items:start;gap:10px;margin-block-end:12px}
+.service-panel h2 {font-size:1.1rem;margin:0 0 5px;color:inherit}
+.service-panel .service-panel-heading p {font-size:.88rem;line-height:1.7;margin:0;color:inherit;max-width:70ch}
+.service-panel .service-buttons {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+.service-panel .service-buttons form {min-width:0}
+.service-panel .service-buttons button {display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;white-space:normal;background:var(--menu-bg,#fff);color:inherit;border-color:var(--menu-border,#bdcfc5)}
+.service-panel .service-buttons button:disabled {opacity:.65;cursor:default}
+.service-panel [data-service-state],.service-panel-note {font-size:.85rem;line-height:1.7;margin:7px 0 0;overflow-wrap:anywhere}
+.service-panel [data-service-state]:empty,.service-panel-note:empty {display:none}
+.demo-service-queue {margin-block-start:16px;padding-block-start:12px;border-block-start:1px solid #b8cdc2}
+.demo-service-queue[hidden] {display:none}
+.demo-service-queue h3 {font-size:1rem;margin:0 0 5px}
+.demo-service-queue>p {font-size:.85rem;margin:0 0 10px}
+[data-demo-service-cards] {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
+.demo-service-ticket {padding:14px;border:1px solid #bdd4c6;border-radius:12px;background:#fff;min-width:0}
+.demo-service-ticket h4 {font-size:1rem;margin:0 0 7px;overflow-wrap:anywhere}
+.demo-service-ticket p {font-size:.9rem;margin:0 0 12px}
+.demo-service-ticket button {min-height:44px;width:100%}
+.service-inbox {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;margin-block-end:16px;padding:12px 16px;border:1px solid #cbded3;border-radius:12px;background:#edf5f0;min-width:0}
+.service-inbox>a {display:grid;gap:3px;flex:1 1 260px;min-width:0;color:#204a3a;text-decoration:none;overflow-wrap:anywhere}
+.service-inbox strong {display:flex;align-items:center;gap:7px;font-size:.94rem}
+.service-inbox [data-service-summary] {font-size:.85rem;line-height:1.7}
+.service-inbox>small {color:#3e5c50;font-size:.78rem}
+.service-inbox.has-requests {border-inline-start:4px solid #287656;background:#e7f5ed}
+.service-inbox.service-offline {border-color:#af8342;background:#fff5e8}
+@media print {.service-inbox,.service-panel {display:none!important}}
 :where(button,input,select,textarea,summary,a) {-webkit-tap-highlight-color:transparent}
 :where(button,input,select,textarea,summary):focus-visible {outline:3px solid var(--focus,#20786d);outline-offset:3px}
 :where(button,summary) {touch-action:manipulation}

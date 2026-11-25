@@ -367,18 +367,18 @@ def advance_call(call, actor, status):
 @transaction.atomic
 def create_service_call(table, kind, session_token=None):
     if kind not in ('waiter', 'bill'):
-        raise ValidationError('نوع الاستدعاء غير صالح.')
+        raise ValidationError(localized('نوع الاستدعاء غير صالح.', 'Invalid service request type.'))
     table = type(table).objects.select_for_update(of=('self',)).get(pk=table.pk)
     table.branch = Branch.objects.select_related('restaurant').get(pk=table.branch_id)
     if session_token is not None and str(session_token) != str(table.session_token):
-        raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.')
-    if not table.active or not table.branch.active or not table.branch.accepting_orders or not table.branch.restaurant.active:
-        raise ValidationError('الطاولة لا تستقبل استدعاءات حاليًا.')
+        raise ValidationError(localized('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد.', 'This table session ended. Scan the QR code again.'))
+    if not table.active or table.archived or not table.branch.active or table.branch.archived or not table.branch.accepting_orders or not table.branch.restaurant.active:
+        raise ValidationError(localized('الطاولة لا تستقبل استدعاءات حاليًا.', 'This table is not accepting service requests.'))
     subscription = getattr(table.branch.restaurant, 'subscription', None)
     if not subscription or not subscription.valid():
-        raise ValidationError('الخدمة متوقفة مؤقتًا. يرجى التواصل مع المطعم.')
+        raise ValidationError(localized('الخدمة متوقفة مؤقتًا. يرجى التواصل مع المطعم.', 'Service is temporarily paused. Please speak to the restaurant team.'))
     if ServiceCall.objects.filter(table=table, kind=kind, status__in=['open', 'acknowledged', 'in_progress']).exists():
-        raise ValidationError('طلبك السابق ما زال قيد التنفيذ.')
+        raise ValidationError(localized('طلبك السابق ما زال قيد التنفيذ.', 'Your previous request is still being handled.'))
     if ServiceCall.objects.filter(table=table, created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 3:
-        raise ValidationError('انتظر قليلًا قبل إرسال استدعاء جديد.')
+        raise ValidationError(localized('انتظر قليلًا قبل إرسال استدعاء جديد.', 'Please wait before sending another service request.'))
     return ServiceCall.objects.create(table=table, kind=kind)

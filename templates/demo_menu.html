@@ -18,6 +18,7 @@
         <span>{% bi 'مطبخ مصري على الفحم' 'Egyptian charcoal kitchen' %}</span></div>
       <img src="{% static 'demo/tawook-menu.webp' %}" width="320" height="213" alt="{% bi 'شيش طاووق في منيو دار الليمون التجريبية' 'Grilled chicken in Dar El Limoun’s demo menu' %}">
     </section>
+    {% include "_guest_service.html" with demo_service=True accepting=True %}
     {% include '_menu_catalog.html' %}
   </main>
   <footer>{% include '_powered_by.html' only %}</footer>

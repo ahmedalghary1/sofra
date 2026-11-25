@@ -456,7 +456,9 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
                         if tier=='starter':expect(online.locator('s')).to_be_visible()
                         else:expect(online.locator('s')).to_have_count(0)
                         expect(card.locator('[data-service=multi_branch_reports]')).to_have_attribute('data-included','true' if tier=='business' else 'false')
-                        if width in (390,1366):card.screenshot(path=str(output/f'{tier}-{language}-{width}.png'))
+                        if width in (390,1366):
+                            card.screenshot(path=str(output/f'{tier}-{language}-{width}.png'),
+                                style='.mk-header,.mk-skip,.whatsapp-button{display:none!important}')
                     layout=page.evaluate(LAYOUT_AUDIT)
                     self.assertFalse(layout['overflow'] or layout['clipped'])
                 page.set_viewport_size({'width':360,'height':900})

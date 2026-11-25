@@ -59,6 +59,7 @@ from .plan_preview import preview_plan_usage
 from .showcase_catalog import public_tier_records
 from .presentation import localized_url
 from .demo_menu import demo_order_total, sample_menu
+from .service_queue import ACTIVE_CALLS, public_call_states, service_call_page
 from .menu_photos import menu_photo
 from .invitations import accept_staff_invitation, invitation_for_token, invited_account
 
@@ -1296,23 +1297,28 @@ def manage_calls(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager','waiter','cashier'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
-    queue = request.GET.get('queue', 'all')
-    calls = ServiceCall.objects.filter(table__branch=branch).select_related('table', 'assigned_to')
-    if queue == 'open':
-        calls = calls.filter(status__in=['open', 'acknowledged', 'in_progress'])
-    elif queue == 'bill':
-        calls = calls.filter(kind='bill')
-    else:
-        queue = 'all'
-    calls = Paginator(calls.order_by('-created_at', '-pk'), 30).get_page(request.GET.get('page'))
-    now = timezone.now()
-    for call in calls:
-        limit = branch.bill_response_minutes if call.kind == 'bill' else branch.waiter_response_minutes
-        response_at = call.acknowledged_at or now
-        call.response_overdue = response_at > call.created_at + timedelta(minutes=limit)
-        call.awaiting_overdue = call.status == 'open' and call.response_overdue
-    return shell(request, restaurant, membership, 'calls', calls=calls, queue=queue,
-                 overdue_count=sum(call.awaiting_overdue for call in calls))
+    return shell(request, restaurant, membership, 'calls', **service_call_page(
+        branch, request.GET.get('queue', 'all'), request.GET.get('page')))
+
+
+@never_cache
+@require_GET
+def service_call_feed(request, slug):
+    restaurant, membership, denied = scope(request, slug, ['owner', 'manager', 'waiter', 'cashier'])
+    if denied: return denied
+    branch = branch_for(request, restaurant, membership)
+    active = ServiceCall.objects.filter(table__branch=branch, status__in=ACTIVE_CALLS)
+    latest = [{'id': call.pk, 'table': call.table.name, 'kind': call.kind, 'status': call.status}
+              for call in active.select_related('table').order_by('-created_at', '-pk')[:3]]
+    data = {'branch': branch.pk, 'active_count': active.count(), 'new_count': active.filter(status='open').count(),
+            'latest': latest}
+    if request.GET.get('board') == '1':
+        context = service_call_page(branch, request.GET.get('queue', 'all'), request.GET.get('page'))
+        data.update(signature=context['signature'], overdue_count=context['overdue_count'])
+        if request.GET.get('signature') != context['signature']:
+            data['html'] = render_to_string('_service_call_cards.html', dict(context, restaurant=restaurant,
+                english=request.LANGUAGE_CODE == 'en'), request=request)
+    return JsonResponse(data)
 
 @require_POST
 def call_status_change(request, slug, call_id):
@@ -1818,6 +1824,7 @@ def public_menu(request, token):
     accepting = table.branch.accepting_orders and subscription.valid()
     return render(request, 'public_menu.html', {
         'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,
+        'service_calls': public_call_states(table),
         'illustrative_photos': any(not item['image'] for item in items),
         'menu_theme': restaurant_menu_theme(table.branch.restaurant),
         'cart_session': hashlib.sha256(table.session_token.bytes).hexdigest(),
@@ -1846,6 +1853,7 @@ def place_order(request, token):
     except (json.JSONDecodeError, ValidationError) as exc:
         return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
 
+@never_cache
 @require_POST
 def create_call(request, token):
     table = get_object_or_404(DiningTable, public_token=token)
@@ -1854,9 +1862,30 @@ def create_call(request, token):
         if not session_token:
             raise ValidationError('حدّث صفحة الطاولة قبل إرسال الاستدعاء.')
         create_service_call(table, request.POST.get('kind'), session_token=session_token)
-        messages.success(request, 'وصل طلبك لفريق الخدمة.')
-    except ValidationError as exc: messages.error(request, error_text(exc))
+        message = localized('وصل طلبك لفريق الخدمة في الفرع.', 'Your request reached the branch service team.')
+        if request.headers.get('Accept') == 'application/json':
+            return JsonResponse({'ok': True, 'message': message, 'calls': public_call_states(table)})
+        messages.success(request, message)
+    except (ValidationError, IntegrityError) as exc:
+        message = error_text(exc) if isinstance(exc, ValidationError) else localized(
+            'طلب مشابه مسجل بالفعل. انتظر فريق الخدمة.', 'A matching request is already recorded. Please wait for the service team.')
+        if request.headers.get('Accept') == 'application/json':
+            return JsonResponse({'ok': False, 'error': message}, status=400)
+        messages.error(request, message)
     return redirect('public_menu', token=token)
+
+
+@never_cache
+@require_GET
+def table_service_status(request, token):
+    table = get_object_or_404(DiningTable.objects.select_related('branch__restaurant__subscription'), public_token=token)
+    if request.headers.get('X-Table-Session') != str(table.session_token):
+        return JsonResponse({'ok': False, 'error': localized('انتهت جلسة الطاولة. امسح QR من جديد.',
+            'This table session ended. Scan the QR code again.')}, status=409)
+    subscription = getattr(table.branch.restaurant, 'subscription', None)
+    available = bool(table.active and not table.archived and table.branch.active and not table.branch.archived
+        and table.branch.restaurant.active and table.branch.accepting_orders and subscription and subscription.valid())
+    return JsonResponse({'ok': True, 'available': available, 'calls': public_call_states(table)})
 
 @never_cache
 def track_order(request, token):
