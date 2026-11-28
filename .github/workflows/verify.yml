@@ -49,7 +49,9 @@ jobs:
       - run: python manage.py collectstatic --noinput
       - name: Install test browser
         run: python -m playwright install --with-deps chrome
+      - name: Install isolated headless browser for PDF downloads
+        run: python -m playwright install --with-deps --only-shell chromium
       - name: Browser regressions together
-        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui --noinput
+        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui scripts.test_recommendations_ui scripts.test_table_codes_ui --noinput --settings=config.browser_test_settings
       - name: Browser regressions in reverse order
-        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui --noinput --reverse
+        run: python manage.py test scripts.test_restaurant_ui scripts.test_login_ui scripts.test_subscription_ui scripts.test_audit_repairs_ui scripts.test_menu_branding_ui scripts.test_workspace_guidance_ui scripts.test_online_ordering_ui scripts.test_responsive_ux scripts.test_service_calls_ui scripts.test_recommendations_ui scripts.test_table_codes_ui --noinput --reverse --settings=config.browser_test_settings

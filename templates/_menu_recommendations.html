@@ -1,0 +1,23 @@
+{% load showroom %}
+<section class="modifier-section recommendation-editor" id="item-recommendations-{{ item.pk }}" aria-label="{% bi 'أصناف مناسبة معه' 'Goes well with' %}">
+  <strong>{% bi 'أصناف مناسبة معه' 'Goes well with' %}</strong>
+  <p>{% bi 'اختر أصنافًا مكملة من الفرع نفسه. الترتيب الأصغر يظهر أولًا؛ لا تظهر الأصناف الموجودة في السلة أو غير المتاحة.' 'Choose complementary items from this branch. Lower priority numbers appear first; unavailable items and items already in the cart are excluded.' %}</p>
+  {% for link in item.recommendations.all %}
+  <div class="recommendation-link">
+    <form method="post" class="modifier-form">{% csrf_token %}
+      <input type="hidden" name="action" value="recommendation_save"><input type="hidden" name="item_id" value="{{ item.pk }}"><input type="hidden" name="link_id" value="{{ link.pk }}"><input type="hidden" name="target_item" value="{{ link.target_item_id }}">
+      <span>{{ link.target_item.name }}{% if not link.target_item.available or link.target_item.archived or not link.target_item.category.visible %} <small class="muted">{% bi 'لا يظهر حاليًا: الصنف متوقف أو مؤرشف أو تصنيفه مخفي.' 'Currently hidden: item unavailable, archived, or category hidden.' %}</small>{% endif %}</span>
+      <label>{% bi 'الأولوية' 'Priority' %}<input name="priority" type="number" min="0" max="999" value="{{ link.priority }}" required></label>
+      <label class="check-label"><input name="active" type="checkbox" {% if link.active %}checked{% endif %}>{% bi 'مفعّل' 'Enabled' %}</label>
+      <button>{% bi 'حفظ الاقتراح' 'Save suggestion' %}</button>
+    </form>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="recommendation_delete"><input type="hidden" name="item_id" value="{{ item.pk }}"><input type="hidden" name="link_id" value="{{ link.pk }}"><button class="text-button">{% bi 'حذف الرابط' 'Remove link' %}</button></form>
+  </div>
+  {% endfor %}
+  <form method="post" class="modifier-form recommendation-create">{% csrf_token %}<input type="hidden" name="action" value="recommendation_save"><input type="hidden" name="item_id" value="{{ item.pk }}"><input type="hidden" name="active" value="on">
+    <label>{% bi 'بحث عن صنف مكمل' 'Find a complementary item' %}<input type="search" data-recommendation-search placeholder="{% bi 'اكتب اسم الصنف' 'Search item name' %}" autocomplete="off"></label>
+    <label>{% bi 'الصنف المقترح' 'Suggested item' %}<select name="target_item" data-recommendation-loaded="{% if request.GET.recommend_item == item.pk|stringformat:'s' %}true{% else %}false{% endif %}" required><option value="">{% bi 'اختر صنفًا' 'Choose an item' %}</option>{% if request.GET.recommend_item == item.pk|stringformat:'s' %}{% for target in recommendation_targets %}{% if target.pk != item.pk %}<option value="{{ target.pk }}">{{ target.name }}</option>{% endif %}{% endfor %}{% endif %}</select></label>
+    <label>{% bi 'الأولوية' 'Priority' %}<input name="priority" type="number" min="0" max="999" value="0" required></label><button>{% bi 'إضافة اقتراح' 'Add suggestion' %}</button>
+  </form>
+  {% if request.GET.recommend_item != item.pk|stringformat:'s' %}<noscript><p><a href="?recommend_item={{ item.pk }}#item-recommendations-{{ item.pk }}">{% bi 'افتح إعداد اقتراحات هذا الصنف' 'Open this item’s suggestion settings' %}</a></p></noscript>{% endif %}
+</section>

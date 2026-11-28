@@ -50,12 +50,12 @@ HIGHLIGHT_KEYS = {
 }
 # These topics contain planned modules as well as smaller live functions.
 INCLUDED_TITLES = {
-    'upselling': ('الأحجام والإضافات المدفوعة', 'Paid sizes and extras'),
+    'upselling': ('اقتراحات الأصناف والأحجام والإضافات', 'Item suggestions, sizes and extras'),
     'promotions': ('تحديث أسعار المنيو', 'Menu price updates'),
     'customer-experience': ('مساعدة الضيف من الطاولة', 'Guest assistance at the table'),
     'multi-branch': ('إدارة عدة فروع', 'Multi-branch management'),
 }
-ROADMAP_PREVIEWS = {'promotions', 'reservations', 'upselling'}
+ROADMAP_PREVIEWS = {'promotions', 'reservations'}
 TOPIC_BY_SLUG = {topic.slug: topic for topic in TOPICS}
 SOLUTION_BY_SLUG = {solution.slug: solution for solution in SOLUTIONS}
 

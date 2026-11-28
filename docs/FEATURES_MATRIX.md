@@ -49,10 +49,10 @@ Detail route `/features/tables/`. Implementation references include `DiningTable
 
 | Fragment | State | Scope |
 | --- | --- | --- |
-| `#table-code` | available | Downloadable, printable PNG codes, table activation and code rotation. |
+| `#table-code` | available | Permanent random links with pinned origins, dark QR and label colors, and separate session rotation. Emergency revocation is owner-only with exact-label confirmation, a reason and reprint acknowledgement. |
 | `#session` | available | Multiple guests on one table session, with session validation on orders and calls. |
 | `#layout` | planned | Interactive floor plans, zones, floors, occupancy, session duration, transfers and merges. |
-| `#print-pack` | planned | Custom QR templates and a printable PDF pack. |
+| `#print-pack` | available | Atomic, idempotent numbered table batches within plan limits; A4 PDF cards and ZIP packages with PNG, SVG and a URL/checksum manifest. Local origins are marked as previews. Physical and deployed-domain checks remain required. |
 
 ### Live orders
 
@@ -102,13 +102,15 @@ Detail route `/features/billing/`. Implementation references include `record_man
 
 ### Upselling
 
-Detail route `/features/upselling/`. Implementation references include `MenuSize, ModifierOption, normalize_order_lines. No recommendation models.`.
+Detail route `/features/upselling/`. The bilingual catalog in `core/showcase_data.py` is the source. Implemented paths include `ItemRecommendation`, `RecommendationExposure`, `RecommendationConversion`, `RecommendationPairStat`, and `core/recommendations.py`. Deployment verification is separate; each branch opts in after linking its own items.
 
 | Fragment | State | Scope |
 | --- | --- | --- |
 | `#modifiers` | available | Priced sizes and optional paid modifiers selected by the guest. |
-| `#suggestions` | planned | Complementary items, combos and dessert suggestions at checkout or after ordering, with timing and availability rules. |
-| `#measurement` | planned | Acceptance and revenue tracking, A/B testing and recommendations based on time, margin and consent. |
+| `#suggestions` | available | Up to three complementary items in QR and online carts, restricted to approved links, current availability and items absent from the cart. Optional activation per branch. |
+| `#measurement` | available | Actual impressions, adds, acceptance and attributed saved line value. Cancelled orders are excluded; this is not proof of incremental revenue. |
+| `#learning` | available | Rank approved links from completed orders after sufficient evidence and a fresh daily rebuild. Manual priorities prevail; sparse or stale data falls back to rules. |
+| `#advanced` | planned | Meal bundles, promotions, A/B experiments and post-order suggestions. |
 
 ### Promotions
 

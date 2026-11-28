@@ -161,6 +161,8 @@ def create_order(table, payload, user=None, require_session=False):
                 quantity=quantity, modifiers=mods, line_total=subtotal)
                 for item, quantity, size_name, base_price, mods, unit, subtotal in normalized])
             OrderHistory.objects.create(order=order, old_status='', new_status='new', actor=user)
+            from .recommendations import attribute_order
+            attribute_order(order, payload)
             return order
     except IntegrityError:
         existing = Order.objects.get(table=table, idempotency_key=key)

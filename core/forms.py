@@ -14,6 +14,53 @@ from .validation import localized
 from .plan_features import FEATURES, enabled_features
 
 
+class TableBatchForm(forms.Form):
+    branch_id = forms.IntegerField(widget=forms.HiddenInput(attrs={'id':'table_batch_branch'}))
+    submission_key = forms.UUIDField(widget=forms.HiddenInput)
+    count = forms.IntegerField(min_value=1, max_value=200, label=_('عدد الطاولات'))
+    start_number = forms.IntegerField(min_value=1, max_value=99999, label=_('ابدأ من رقم'))
+
+    def clean(self):
+        values=super().clean()
+        if values.get('count') and values.get('start_number') and values['count']+values['start_number']-1>99999:
+            raise forms.ValidationError('Table numbering must end at 99999 or below.' if get_language()=='en'
+                                        else 'يجب ألا يتجاوز آخر رقم طاولة 99999.')
+        return values
+
+
+class TableQRStyleForm(forms.ModelForm):
+    branch_id = forms.IntegerField(widget=forms.HiddenInput(attrs={'id':'table_qr_style_branch'}))
+
+    class Meta:
+        from .models import Restaurant
+        model = Restaurant
+        fields = ('qr_color','qr_number_color')
+        widgets = {'qr_color':forms.TextInput(attrs={'type':'color'}),
+                   'qr_number_color':forms.TextInput(attrs={'type':'color'})}
+
+    def clean(self):
+        from .table_codes import validate_qr_color
+        values=super().clean()
+        for field in ('qr_color','qr_number_color'):
+            if field in values:
+                try: validate_qr_color(values[field])
+                except forms.ValidationError as error: self.add_error(field,error)
+        return values
+
+
+class ItemRecommendationForm(forms.Form):
+    target_item = forms.ModelChoiceField(queryset=None)
+    priority = forms.IntegerField(min_value=0, max_value=999, initial=0)
+    active = forms.BooleanField(required=False)
+
+    def __init__(self, *args, branch, source, current_target=None, **kwargs):
+        from .models import MenuItem
+        from django.db.models import Q
+        super().__init__(*args, **kwargs)
+        self.fields['target_item'].queryset = MenuItem.objects.filter(category__branch=branch).filter(
+            Q(archived=False) | Q(pk=current_target)).exclude(pk=source.pk).order_by('name', 'pk')
+
+
 class PlatformPlanForm(forms.ModelForm):
     reason = forms.CharField(max_length=120)
     enabled_features = forms.MultipleChoiceField(required=False, widget=forms.CheckboxSelectMultiple)

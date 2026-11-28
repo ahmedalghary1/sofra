@@ -13,6 +13,10 @@ from .branding import validate_menu_color
 def token(): return secrets.token_urlsafe(24)
 
 
+def default_qr_origin():
+    return settings.SITE_URL.rstrip('/')
+
+
 class DemoRequest(models.Model):
     STATES = [('new', 'جديد'), ('contacted', 'تم التواصل'), ('closed', 'مغلق')]
     status = models.CharField(max_length=12, choices=STATES, default='new')
@@ -66,6 +70,9 @@ class Restaurant(models.Model):
     menu_primary_color = models.CharField(max_length=7, default='#1d6150', validators=[validate_menu_color])
     menu_background_color = models.CharField(max_length=7, default='#f8f8f4', validators=[validate_menu_color])
     menu_text_color = models.CharField(max_length=7, default='#193b34', validators=[validate_menu_color])
+    qr_color = models.CharField(max_length=7, default='#193b34', validators=[validate_menu_color])
+    qr_number_color = models.CharField(max_length=7, default='#193b34', validators=[validate_menu_color])
+    qr_public_origin = models.URLField(max_length=255, default=default_qr_origin, editable=False)
     online_ordering_enabled = models.BooleanField(default=False)
     online_pickup_enabled = models.BooleanField(default=True)
     online_delivery_enabled = models.BooleanField(default=False)
@@ -74,6 +81,12 @@ class Restaurant(models.Model):
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name
+
+    def save(self, *args, **kwargs):
+        if self.pk and Restaurant.objects.filter(pk=self.pk).exclude(qr_public_origin=self.qr_public_origin).exists():
+            raise ValidationError('The printed QR domain is fixed. Keep the existing domain serving its links.' if get_language() == 'en'
+                                  else 'دومين QR المطبوع ثابت. حافظ على خدمة الروابط من الدومين الحالي.')
+        return super().save(*args, **kwargs)
 
 class Branch(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.PROTECT, related_name='branches')
@@ -87,6 +100,8 @@ class Branch(models.Model):
     kitchen_opened_at = models.DateTimeField(null=True, blank=True)
     show_contact_on_menu = models.BooleanField(default=False)
     accepting_orders = models.BooleanField(default=True)
+    recommendations_enabled = models.BooleanField(default=False)
+    recommendations_learning_enabled = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
     def __str__(self): return f'{self.restaurant.name} · {self.name}'
@@ -176,6 +191,14 @@ class Category(models.Model):
         constraints = [models.UniqueConstraint(fields=['branch','name'], name='unique_branch_category')]
     def __str__(self): return self.name
 
+    def save(self, *args, **kwargs):
+        if self.pk and Category.objects.filter(pk=self.pk).exclude(branch_id=self.branch_id).exists():
+            if ItemRecommendation.objects.filter(models.Q(source_item__category_id=self.pk) |
+                                                 models.Q(target_item__category_id=self.pk)).exists():
+                raise ValidationError('Remove recommendation links before moving this category.' if get_language() == 'en'
+                                      else 'احذف روابط الاقتراحات قبل نقل التصنيف إلى فرع آخر.')
+        return super().save(*args, **kwargs)
+
 class KitchenStation(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='stations')
     name = models.CharField(max_length=80)
@@ -199,6 +222,15 @@ class MenuItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return self.name
 
+    def save(self, *args, **kwargs):
+        if self.pk and self.category_id:
+            branch_id = Category.objects.values_list('branch_id', flat=True).get(pk=self.category_id)
+            if ItemRecommendation.objects.filter(models.Q(source_item_id=self.pk) |
+                    models.Q(target_item_id=self.pk)).exclude(branch_id=branch_id).exists():
+                raise ValidationError('Remove recommendation links before moving this item.' if get_language() == 'en'
+                                      else 'احذف روابط الاقتراحات قبل نقل الصنف إلى فرع آخر.')
+        return super().save(*args, **kwargs)
+
 class MenuSize(models.Model):
     item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='sizes')
     name = models.CharField(max_length=80)
@@ -207,6 +239,98 @@ class MenuSize(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['item', 'name'], name='unique_item_size')]
     def __str__(self): return f'{self.item.name} · {self.name}'
+
+
+class ItemRecommendation(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    source_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='recommendations')
+    target_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='recommended_by')
+    priority = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['priority', 'pk']
+        constraints = [
+            models.UniqueConstraint(fields=['branch', 'source_item', 'target_item'], name='unique_recommendation_pair'),
+            models.CheckConstraint(condition=~models.Q(source_item=models.F('target_item')), name='recommendation_not_self'),
+        ]
+        indexes = [models.Index(fields=['branch', 'source_item', 'active'])]
+
+    def clean(self):
+        super().clean()
+        ids = {self.source_item_id, self.target_item_id}
+        if (None in ids or len(ids) != 2 or not self.branch_id or
+                MenuItem.objects.filter(pk__in=ids, category__branch_id=self.branch_id).count() != 2):
+            raise ValidationError('Choose two different items from this branch.' if get_language() == 'en'
+                                  else 'اختر صنفين مختلفين من الفرع نفسه.')
+
+    def save(self, *args, **kwargs):
+        # Enforce tenant validation on every normal writer, including Django admin.
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class RecommendationExposure(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    scope_key = models.CharField(max_length=64)
+    cart_key = models.CharField(max_length=64)
+    channel = models.CharField(max_length=6, choices=[('qr', 'QR'), ('online', 'Online')])
+    candidates = models.JSONField(default=list)
+    version = models.CharField(max_length=20, default='rules-v1')
+    created_at = models.DateTimeField(auto_now_add=True)
+    shown_at = models.DateTimeField(null=True)
+    expires_at = models.DateTimeField()
+    order = models.ForeignKey('Order', null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        indexes = [models.Index(fields=['branch', 'scope_key', 'cart_key']), models.Index(fields=['created_at'])]
+
+
+class RecommendationEvent(models.Model):
+    exposure = models.ForeignKey(RecommendationExposure, on_delete=models.CASCADE, related_name='events')
+    item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
+    kind = models.CharField(max_length=5, default='added', choices=[('added', 'Added')])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['exposure', 'item', 'kind'], name='unique_recommendation_event')]
+
+
+class RecommendationConversion(models.Model):
+    exposure = models.ForeignKey(RecommendationExposure, null=True, on_delete=models.SET_NULL, related_name='conversions')
+    impression_id = models.UUIDField()
+    shown_at = models.DateTimeField()
+    line = models.OneToOneField('OrderLine', on_delete=models.CASCADE, related_name='recommendation_conversion')
+    quantity = models.PositiveSmallIntegerField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+class RecommendationDailySummary(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    day = models.DateField()
+    shown = models.PositiveIntegerField(default=0)
+    added = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['branch', 'day'], name='unique_recommendation_daily_summary')]
+
+
+class RecommendationPairStat(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    source_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='+')
+    target_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='+')
+    eligible_orders = models.PositiveIntegerField()
+    source_orders = models.PositiveIntegerField()
+    target_orders = models.PositiveIntegerField()
+    pair_orders = models.PositiveIntegerField()
+    period_start = models.DateTimeField()
+    built_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['branch', 'source_item', 'target_item'], name='unique_recommendation_stat')]
 
 class MenuImportBatch(models.Model):
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -231,17 +355,40 @@ class ModifierOption(models.Model):
     class Meta:
         ordering = ['sort_order', 'id']
 
+class TableBatch(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='table_batches')
+    submission_key = models.UUIDField()
+    start_number = models.PositiveIntegerField()
+    count = models.PositiveSmallIntegerField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['branch', 'submission_key'], name='unique_table_batch_request')]
+
+
 class DiningTable(models.Model):
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='tables')
     name = models.CharField(max_length=40)
+    number = models.PositiveIntegerField(null=True, blank=True)
+    batch = models.ForeignKey(TableBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name='tables')
     public_token = models.CharField(max_length=48, unique=True, default=token)
     session_token = models.UUIDField(default=uuid.uuid4)
     active = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
-        constraints = [models.UniqueConstraint(fields=['branch','name'], name='unique_branch_table')]
+        constraints = [models.UniqueConstraint(fields=['branch','name'], name='unique_branch_table'),
+                       models.UniqueConstraint(fields=['branch','number'], condition=models.Q(number__isnull=False), name='unique_branch_table_number')]
     def __str__(self): return self.name
+
+    def save(self, *args, **kwargs):
+        if self.pk and DiningTable.objects.filter(pk=self.pk).exclude(public_token=self.public_token, branch_id=self.branch_id).exists():
+            raise ValidationError('Use the owner emergency revocation flow to replace a QR code. Tables cannot move between branches.'
+                                  if get_language() == 'en' else 'تغيير QR متاح عبر إجراء الطوارئ للمالك فقط. لا يمكن نقل الطاولة بين الفروع.')
+        if self.batch_id and not TableBatch.objects.filter(pk=self.batch_id, branch_id=self.branch_id).exists():
+            raise ValidationError('Invalid table batch.' if get_language() == 'en' else 'دفعة الطاولات غير صالحة.')
+        return super().save(*args, **kwargs)
 
 class Order(models.Model):
     STATUSES = [('new','جديد'),('accepted','تم الاستلام'),('preparing','قيد التحضير'),('ready','جاهز'),('served','تم التقديم'),('cancelled','ملغي')]

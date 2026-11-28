@@ -129,6 +129,8 @@ def create_online_order(branch, payload):
                 modifiers=mods, line_total=line_total)
                 for item, quantity, size_name, base_price, mods, unit, line_total in normalized])
             OrderHistory.objects.create(order=order, old_status='', new_status='new')
+            from .recommendations import attribute_order
+            attribute_order(order, payload)
             return order
     except IntegrityError:
         prior = prior_order()

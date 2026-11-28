@@ -23,7 +23,7 @@ AVAILABLE = (
 )
 UNAVAILABLE = (
     ("الدفع الإلكتروني والربط المباشر بنقاط البيع", "Online payments and direct POS integration"),
-    ("الحجوزات والعروض واقتراحات البيع الآلية", "Reservations, promotions and automated upselling"),
+    ("الحجوزات والعروض وباقات الوجبات الآلية", "Reservations, promotions and automated meal bundles"),
 )
 FIRST_EDITION = date(2026, 11, 20)
 SEO_EDITION = date(2026, 11, 21)

@@ -30,6 +30,15 @@ let modalBackground = [];
 let previousOverflow = '';
 const draftKey = window.SAFRA.cartSession ? (window.SAFRA.staffMode ? 'serveza:staff-cart:' : 'serveza:table-cart:') + window.SAFRA.cartTable : null;
 let pendingOrder = null;
+let recommendationReturn = null;
+let recommendationRequest = 0;
+let recommendationContext = newRequestKey();
+try {
+  const key = (draftKey || 'serveza') + ':recommendation-context';
+  const previous = sessionStorage.getItem(key);
+  if (/^[a-f0-9-]{36}$/i.test(previous)) recommendationContext = previous;
+  else sessionStorage.setItem(key, recommendationContext);
+} catch { /* Suggestions also work without browser storage. */ }
 const money = v => Number(v).toLocaleString(guestEnglish ? 'en-EG' : 'ar-EG-u-nu-latn', {minimumFractionDigits: 0, maximumFractionDigits: 2});
 const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!==undefined)n.textContent=txt; return n; };
 
@@ -56,6 +65,8 @@ function saveDraft() {
     }
     sessionStorage.setItem(draftKey, JSON.stringify({session: window.SAFRA.cartSession, requestKey,
       lines: orderLines(), prices: cart.map(row => row.unit.toFixed(2)), note: cartNote, pending: pendingOrder,
+      recommendationOrigins: cart.map(row => row.recommendation || null),
+      onlineDetails: onlineMode ? onlineDetails : null,
       fulfillment: onlineMode ? onlineDetails.fulfillment : null,
       deliveryFee: onlineMode ? deliveryFee().toFixed(2) : null}));
   } catch { /* Ordering also works when browser storage is unavailable. */ }
@@ -89,8 +100,17 @@ function restoreDraft() {
       return;
     }
     const restored = draft.lines.map(restoreLine);
+    restored.forEach((row, index) => {
+      const origin = draft.recommendationOrigins?.[index];
+      if (row && origin && /^[a-f0-9-]{36}$/i.test(origin.exposure) && Number.isInteger(origin.quantity))
+        row.recommendation = {exposure: origin.exposure, quantity: Math.min(row.quantity, Math.max(0, origin.quantity))};
+    });
     let changed = restored.some((row, index) => !row || row.unit.toFixed(2) !== draft.prices?.[index]);
     cart.push(...restored.filter(Boolean));
+    if (onlineMode && draft.onlineDetails && typeof draft.onlineDetails === 'object') {
+      for (const [name, limit] of [['customer_name',100],['customer_phone',24],['delivery_address',500]])
+        if (typeof draft.onlineDetails[name] === 'string') onlineDetails[name] = draft.onlineDetails[name].slice(0,limit);
+    }
     if (onlineMode && ((draft.fulfillment === 'pickup' && window.SAFRA.pickupEnabled)
         || (draft.fulfillment === 'delivery' && window.SAFRA.deliveryEnabled))) onlineDetails.fulfillment = draft.fulfillment;
     if (onlineMode && draft.deliveryFee !== deliveryFee().toFixed(2)) changed = true;
@@ -184,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 }, {once:true});
 
 function show(node) {
+  recommendationRequest++;
   const opening = backdrop.hidden;
   if (opening) {
     modalOpener = document.activeElement;
@@ -191,6 +212,7 @@ function show(node) {
   }
   content.replaceChildren(node);
   backdrop.hidden = false;
+  closeModal.setAttribute('aria-label', recommendationReturn ? guestCopy('رجوع للسلة', 'Back to cart') : guestCopy('إغلاق', 'Close'));
   document.body.style.overflow = 'hidden';
   const heading = content.querySelector('h2');
   heading.id = 'guestModalTitle';
@@ -201,6 +223,14 @@ function show(node) {
 
 function hide() {
   if (submitting || backdrop.hidden) return;
+  recommendationRequest++;
+  if (recommendationReturn) {
+    const itemId = recommendationReturn.itemId;
+    recommendationReturn = null;
+    openCart();
+    content.querySelector(`[data-recommendation-item="${itemId}"] button`)?.focus();
+    return;
+  }
   backdrop.hidden = true;
   modalBackground.forEach(node => { node.inert = false; });
   modalBackground = [];
@@ -333,10 +363,11 @@ function updateCart() {
   saveDraft();
 }
 
-function openItem(id){
-  if (!backdrop.hidden) return;
+function openItem(id, recommendation=null){
+  if (!backdrop.hidden && !recommendation) return;
   if (pendingOrder) { showPendingOrder(); return; }
   current=items.find(x=>x.id===id); if(!current)return;
+  if (recommendation) recommendationReturn = {itemId:id};
   const wrap=el('div','item-modal');
   wrap.append(el('span','eyebrow',guestCopy("اختار صنفك", "Customize item")),el('h2','',current.name),el('p','muted',current.description||guestCopy("طبق محضّر بعناية", "Prepared to order")));
   const form=el('form','item-options');form.id='itemOptions';
@@ -419,7 +450,12 @@ function openItem(id){
     }
     const sizeId=form.querySelector('input[name="size"]:checked')?.value||null;
     const size=current.sizes?.find(x=>String(x.id)===sizeId);
-    cart.push({item:current,quantity:count,options:selected,sizeId:size?.id||null,sizeName:size?.name||'',unit:Number(size?.price??current.price)+extra});updateCart();hide();};
+    const row = {item:current,quantity:count,options:selected,sizeId:size?.id||null,sizeName:size?.name||'',unit:Number(size?.price??current.price)+extra};
+    if (recommendation?.exposure) {
+      row.recommendation = {exposure:recommendation.exposure,quantity:count};
+      recommendationEvent('added',recommendation.exposure,current.id);
+    }
+    cart.push(row);updateCart();hide();};
   wrap.append(form);show(wrap);
 }
 function cartTotal(){return deliveryFee()+cart.reduce((s,x)=>s+x.quantity*x.unit,0)+existingRows.reduce((s,x)=>s+x.quantity*Number(x.unit_price),0)}
@@ -510,6 +546,9 @@ function openCart(focusLine){
     list.append(line);
   });
   wrap.append(list);
+  const suggestions = el('section','cart-recommendations');
+  suggestions.hidden = true;
+  if (window.SAFRA.recommendationUrl && !editing && !window.SAFRA.staffMode && !demoMode) wrap.append(suggestions);
 
   let onlineForm;
   if (onlineMode) {
@@ -579,6 +618,7 @@ function openCart(focusLine){
         return;
       }
       pendingOrder = {idempotency_key: requestKey, note: cartNote, lines: newLines, reviewed_total: cartTotal().toFixed(2)};
+      if (window.SAFRA.recommendationUrl) Object.assign(pendingOrder, recommendationMetadata());
       if (onlineMode) Object.assign(pendingOrder, onlineDetails, {reviewed_delivery_fee: deliveryFee().toFixed(2)});
       if (window.SAFRA.staffMode) {
         pendingOrder.table_id = Number(chosen);
@@ -655,10 +695,80 @@ function openCart(focusLine){
   footer.append(...priceRows, total, error, send);
   wrap.append(footer);
   show(wrap);
+  loadRecommendations(suggestions);
   if (Number.isInteger(focusLine)) {
     const line=list.children[Math.min(focusLine,list.children.length-1)];
     line?.querySelector('.remove-item')?.focus();
   }
+}
+
+function recommendationMetadata() {
+  return {recommendation_context:recommendationContext, recommendations:cart.flatMap((row,index) =>
+    row.recommendation ? [{line_index:index,exposure:row.recommendation.exposure,
+      quantity:Math.min(row.quantity,row.recommendation.quantity)}] : [])};
+}
+
+function recommendationBody(extra) {
+  return {context:recommendationContext,session_token:window.SAFRA.sessionToken,...extra};
+}
+
+async function recommendationEvent(kind,exposure,itemId) {
+  if (!exposure || !window.SAFRA.recommendationUrl) return;
+  try {
+    await fetch(window.SAFRA.recommendationUrl,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':window.SAFRA.csrf},
+      body:JSON.stringify(recommendationBody({kind,exposure,item_id:itemId})),keepalive:true});
+  } catch { /* Measurement is optional; ordering remains available. */ }
+}
+
+async function loadRecommendations(section) {
+  if (!section.isConnected || !window.SAFRA.recommendationUrl || !window.SAFRA.accepting ||
+      pendingOrder || submitting || !cart.length || cart.length>=40 || window.SAFRA.editMode || window.SAFRA.staffMode || demoMode) return;
+  const request = recommendationRequest;
+  const signature = [...new Set(cart.map(row=>row.item.id))].sort((a,b)=>a-b).join(',');
+  try {
+    await new Promise(resolve=>setTimeout(resolve,120));
+    if (request!==recommendationRequest || !section.isConnected || backdrop.hidden) return;
+    const response = await fetch(window.SAFRA.recommendationUrl,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':window.SAFRA.csrf},
+      body:JSON.stringify(recommendationBody({item_ids:[...new Set(cart.map(row=>row.item.id))]}))});
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data.ok || !Array.isArray(data.items) || request!==recommendationRequest || !section.isConnected ||
+        backdrop.hidden || pendingOrder || submitting ||
+        signature!==[...new Set(cart.map(row=>row.item.id))].sort((a,b)=>a-b).join(',')) return;
+    const candidates = data.items.filter(item=>!cart.some(row=>row.item.id===item.id)).slice(0,3);
+    if (!candidates.length) return;
+    section.append(el('h3','',guestCopy('كمّل طلبك','Complete your order')),
+      el('p','muted',guestCopy('أصناف مناسبة لاختياراتك. الإضافة باختيارك.','Items that go well with your choices. Adding is optional.')));
+    for (const item of candidates) {
+      const card = el('div','cart-recommendation');
+      card.dataset.recommendationItem = item.id;
+      const photo = el('img');photo.src=item.photo;photo.alt='';photo.loading='lazy';photo.width=64;photo.height=64;
+      photo.onerror=()=>{photo.hidden=true};
+      const info = el('div');
+      info.append(el('strong','',item.name),el('span','',
+        (item.starting_price?guestCopy('يبدأ من ','From '):'')+money(item.minimum_price)+guestCopy(' ج.م',' EGP')));
+      const add = el('button','btn btn-outline',guestCopy('أضف لطلبك','Add to order'));add.type='button';
+      add.setAttribute('aria-label',guestCopy('أضف لطلبك: ','Add to order: ')+item.name);
+      add.onclick=()=>{
+        const index=items.findIndex(entry=>entry.id===item.id);
+        if(index>=0)items[index]=item;else items.push(item);
+        openItem(item.id,{exposure:data.exposure});
+      };
+      card.append(photo,info,add);section.append(card);
+    }
+    section.hidden=false;
+    // Observe actual visibility inside the scrolling cart before recording an impression.
+    const observer=new IntersectionObserver(entries=>{
+      if(!section.isConnected || request!==recommendationRequest){observer.disconnect();return;}
+      if(entries.some(entry=>entry.isIntersecting)){
+        observer.disconnect();recommendationEvent('shown',data.exposure);
+      }
+    },{threshold:0.1});
+    observer.observe(section);
+    document.addEventListener('guestmodalclosed',()=>observer.disconnect(),{once:true});
+  } catch { /* A suggestion failure must never block checkout. */ }
 }
 
 function showDemoConfirmation(total) {

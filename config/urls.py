@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import platform_console, views
+from core import platform_console, views, recommendation_views, table_code_views
 
 handler500 = 'core.marketing.server_error'
 
@@ -50,6 +50,7 @@ urlpatterns = [
     path('app/<slug:slug>/menu/', views.manage_menu, name='manage_menu'),
     path('app/<slug:slug>/menu/import/', views.menu_import, name='menu_import'),
     path('app/<slug:slug>/tables/', views.manage_tables, name='manage_tables'),
+    path('app/<slug:slug>/tables/print/<int:branch_id>/', table_code_views.table_qr_pack, name='table_qr_pack'),
     path('app/<slug:slug>/orders/', views.manage_orders, name='manage_orders'),
     path('app/<slug:slug>/orders/new/', views.staff_order, name='staff_order'),
     path('app/<slug:slug>/orders/<int:order_id>/edit/', views.order_edit, name='order_edit'),
@@ -73,9 +74,11 @@ urlpatterns = [
     path('app/<slug:slug>/tables/<int:table_id>/summary/', views.table_summary, name='table_summary'),
     path('t/<str:token>/', views.public_menu, name='public_menu'),
     path('t/<str:token>/order/', views.place_order, name='place_order'),
+    path('t/<str:token>/recommendations/', recommendation_views.recommendations, name='table_recommendations'),
     path('t/<str:token>/call/', views.create_call, name='create_call'),
     path('t/<str:token>/service-status/', views.table_service_status, name='table_service_status'),
     path('track/<str:token>/', views.track_order, name='track_order'),
     path('order/<slug:slug>/', views.online_menu, name='online_menu'),
     path('order/<slug:slug>/<int:branch_id>/submit/', views.place_online_order, name='place_online_order'),
+    path('order/<slug:slug>/<int:branch_id>/recommendations/', recommendation_views.recommendations, name='online_recommendations'),
 ] + (static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) if settings.DEBUG else [])

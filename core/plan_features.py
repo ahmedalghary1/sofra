@@ -20,6 +20,7 @@ SERVICES = (
         ('photo_menu', ('منيو بالصور والتصنيفات والأسعار', 'Photo menu, categories and prices'), None, None),
         ('branding', ('لوجو المطعم وألوانه', 'Restaurant logo and colors'), None, None),
         ('modifiers', ('الأحجام والإضافات المدفوعة', 'Sizes and paid extras'), None, None),
+        ('recommendations', ('اقتراحات أصناف اختيارية بتفعيل لكل فرع', 'Optional item suggestions enabled per branch'), None, None),
         ('menu_import', FEATURES['menu_import'], 'menu_import', None),
     )),
     ('orders', ('الطلبات والخدمة', 'Orders and service'), (

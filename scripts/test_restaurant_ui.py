@@ -321,7 +321,10 @@ class ServiceAcrossRolesTests(StaticLiveServerTestCase):
             self.assertIn('Window 4,Served,Paid,QR,80.00', export.text())
             owner.goto(self.live_server_url + reverse('manage_tables', args=[venue.slug]))
             owner.on('dialog', lambda dialog: dialog.accept())
-            owner.locator('.table-card form').filter(has=owner.locator('input[value="close_session"]')).get_by_role('button').click()
+            with owner.expect_response(lambda response: response.request.method == 'POST' and
+                                       '/tables/' in response.url) as close_response:
+                owner.locator('.table-card form').filter(has=owner.locator('input[value="close_session"]')).get_by_role('button').click()
+            self.assertEqual(close_response.value.status, 302)
             owner.goto(self.live_server_url + summary)
             expect(owner.locator('.ops-receipt .empty-state')).to_be_visible()
             browser.close()

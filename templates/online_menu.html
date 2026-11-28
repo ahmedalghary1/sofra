@@ -25,6 +25,6 @@
   <p>{% bi 'الدفع عند الاستلام. راجع الفرع وبياناتك قبل تأكيد الطلب.' 'Pay on pickup or delivery. Check the branch and your details before confirming.' %}</p>
 </form></template>
 {{ items_json|json_script:'menu-data' }}
-<script>window.SAFRA={onlineMode:true,cartTable:'online-{{ branch.pk }}',cartSession:'online',orderUrl:'{% url "place_online_order" restaurant.slug branch.pk %}',csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},pickupEnabled:{{ restaurant.online_pickup_enabled|yesno:'true,false' }},deliveryEnabled:{{ restaurant.online_delivery_enabled|yesno:'true,false' }},deliveryFee:'{{ restaurant.delivery_fee|stringformat:'.2f' }}'};</script>
+<script>window.SAFRA={onlineMode:true,cartTable:'online-{{ branch.pk }}',cartSession:'online',orderUrl:'{% url "place_online_order" restaurant.slug branch.pk %}',{% if branch.recommendations_enabled %}recommendationUrl:'{% url "online_recommendations" restaurant.slug branch.pk %}',{% endif %}csrf:'{{ csrf_token }}',accepting:{{ accepting|yesno:'true,false' }},pickupEnabled:{{ restaurant.online_pickup_enabled|yesno:'true,false' }},deliveryEnabled:{{ restaurant.online_delivery_enabled|yesno:'true,false' }},deliveryFee:'{{ restaurant.delivery_fee|stringformat:'.2f' }}'};</script>
 <script src="{% static 'js/guest.js' %}"></script>
 {% endblock %}

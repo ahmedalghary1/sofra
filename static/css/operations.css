@@ -369,3 +369,12 @@
   .app-body .table-scroll:has(.data-table:not(.order-list)) td {max-width:20rem}
 }
 
+.recommendation-editor,.recommendation-link {min-width:0}
+.recommendation-link {border-block-end:1px solid #dce4de;padding-block:10px}
+.recommendation-link .modifier-form>span {flex:1 1 180px;overflow-wrap:anywhere}
+.recommendation-editor .modifier-form label {display:grid;gap:5px;flex:1 1 130px;min-width:0;max-width:100%}
+.recommendation-editor .modifier-form input,.recommendation-editor .modifier-form select {min-width:0;width:100%}
+.recommendation-editor .modifier-form .check-label {display:flex;flex:0 1 auto;align-items:center}
+.recommendation-editor .check-label input {width:auto}
+[data-recommendation-report] .time-metrics {grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+

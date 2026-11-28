@@ -68,6 +68,15 @@
   .sample-cover img {max-height:130px}
 }
 @media (max-width:300px) {.menu-grid {grid-template-columns:1fr}.sample-header {flex-wrap:wrap}}
+.cart-recommendations {border-block-start:1px solid #dce4de;margin-block:16px;padding-block-start:16px;min-width:0}
+.cart-recommendations h3 {font-size:1.1rem;margin:0 0 6px}
+.cart-recommendations>p {font-size:.85rem;margin:0 0 12px}
+.cart-recommendation {display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #dce4de;border-radius:14px;padding:10px;margin-block:8px;background:var(--menu-background,#f8f8f4)}
+.cart-recommendation img {width:56px;height:56px;object-fit:cover;border-radius:10px}
+.cart-recommendation>div {display:grid;gap:4px;overflow-wrap:anywhere;min-width:0}
+.cart-recommendation>div span {font-size:.85rem}
+.cart-recommendation button {min-height:44px;white-space:normal;font-size:.85rem;padding:8px 12px}
+@media(max-width:400px){.cart-recommendation{grid-template-columns:48px minmax(0,1fr)}.cart-recommendation img{width:48px;height:48px}.cart-recommendation button{grid-column:1/-1;width:100%}}
 @media (scripting:none) {
   .menu-search-row,.menu-filter-bar>#categoryPills {display:none}
   .menu-filter-bar noscript {display:block;min-width:0;width:100%}

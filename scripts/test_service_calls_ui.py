@@ -86,7 +86,15 @@ class LiveServiceUITests(StaticLiveServerTestCase):
                 first.locator('[data-call="'+call_id+'"] button').click()
                 expect(second.locator('[data-call]')).to_have_count(1)
                 bill_id=second.locator('[data-call]').get_attribute('data-call')
-                for _ in range(3):second.locator('[data-call="'+bill_id+'"] button').click()
+                for next_status in ('acknowledged','in_progress','done'):
+                    card=second.locator('[data-call="'+bill_id+'"]')
+                    expect(card.locator('input[name=status]')).to_have_value(next_status)
+                    with second.expect_navigation(wait_until='domcontentloaded') as rendered:
+                        with second.expect_response(lambda response: response.request.method=='POST' and
+                                                    '/calls/'+bill_id+'/status/' in response.url) as saved:
+                            card.locator('button').click()
+                    self.assertEqual(saved.value.status,302)
+                    self.assertEqual(rendered.value.status,200,'Service page reload failed')
                 expect(first.locator('[data-service-count]')).to_have_text('0')
                 expect(second.locator('[data-call]')).to_have_count(0)
                 expect(waiter.locator('button')).to_be_enabled()

@@ -774,10 +774,13 @@ def manage_menu(request, slug):
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
     if request.method == 'POST':
-        action = request.POST.get('action')
+        action = request.POST.get('action', '')
         try:
             ensure_active_subscription(restaurant)
-            if action == 'category':
+            if action.startswith('recommendation_'):
+                from .recommendations import manage_recommendations
+                manage_recommendations(branch, request.user, request.POST)
+            elif action == 'category':
                 name = request.POST.get('name','').strip()[:80]
                 if not name: raise ValidationError('أدخل اسم التصنيف.')
                 Category.objects.create(branch=branch, name=name)
@@ -942,8 +945,11 @@ def manage_menu(request, slug):
             messages.success(request, 'تم حفظ التغيير بنجاح.')
         except (ValidationError, InvalidOperation, IntegrityError, ValueError) as exc: messages.error(request, error_text(exc))
         return redirect('manage_menu', slug=slug)
-    categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options')
+    from .models import ItemRecommendation
+    categories = Category.objects.filter(branch=branch).prefetch_related('items__sizes', 'items__modifier_groups__options',
+        Prefetch('items__recommendations', queryset=ItemRecommendation.objects.filter(branch=branch).select_related('target_item__category')))
     return shell(request, restaurant, membership, 'menu_manage', categories=categories,
+                 recommendation_targets=MenuItem.objects.filter(category__branch=branch, archived=False).order_by('name', 'pk'),
                  stations=KitchenStation.objects.filter(branch=branch, active=True),
                  item_count=MenuItem.objects.filter(category__branch=branch, archived=False).count(), limit=restaurant.subscription.limit('max_items', branch))
 
@@ -1006,16 +1012,43 @@ def manage_tables(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
+    from .forms import TableBatchForm, TableQRStyleForm
+    from .table_codes import create_table_batch, revoke_table_code, table_number
+    from .table_code_views import save_style, table_context
+    batch_form=style_form=None
     if request.method == 'POST':
         try:
             ensure_active_subscription(restaurant)
             action = request.POST.get('action')
-            if action == 'create':
+            if action in ('bulk_create','qr_style'):
+                form=(TableBatchForm(request.POST) if action=='bulk_create' else TableQRStyleForm(request.POST,instance=restaurant))
+                if action=='bulk_create':batch_form=form
+                else:style_form=form
+                if not form.is_valid():
+                    raise ValidationError(localized('راجع الحقول الموضحة أدناه.', 'Review the fields below.'))
+                if form.cleaned_data['branch_id']!=branch.pk:
+                    raise ValidationError(localized('تغيّر الفرع. أعد فتح الصفحة قبل الحفظ.', 'The branch changed. Reopen the page before saving.'))
+                if action=='qr_style':
+                    save_style(restaurant,request.user,form)
+                    messages.success(request,localized('حُفظت ألوان QR. الروابط المطبوعة لم تتغير.', 'QR colors saved. Printed links are unchanged.'))
+                    return redirect(reverse('manage_tables',args=[slug])+'#qrDesign')
+                data=form.cleaned_data
+                batch,created=create_table_batch(restaurant,branch,request.user,submission_key=data['submission_key'],
+                    count=data['count'],start_number=data['start_number'])
+                messages.success(request,localized(f'الدفعة جاهزة: {batch.count} طاولة. لم يتكرر الإنشاء عند إعادة المحاولة.',
+                    f'Batch ready: {batch.count} tables. Retrying this request does not duplicate them.'))
+                return redirect(reverse('manage_tables',args=[slug])+f'?batch={batch.pk}#qrDownloads')
+            elif action == 'create':
                 name = request.POST.get('name','').strip()[:40]
                 if not name: raise ValidationError('أدخل اسم الطاولة.')
                 with transaction.atomic():
                     check_creation_limit(restaurant, 'table', branch)
-                    DiningTable.objects.create(branch=branch, name=name)
+                    table=DiningTable(branch=branch,name=name)
+                    number=table_number(table)
+                    if number is not None and any(table_number(existing)==number for existing in branch.tables.all()):
+                        raise ValidationError(localized('رقم الطاولة مستخدم بالفعل، بما فيه الأرشيف.', 'This table number is already used, including archived tables.'))
+                    table.number=number
+                    table.save()
                 audit(restaurant, request.user, 'table.create', name)
             else:
                 table = get_object_or_404(DiningTable, pk=valid_pk(request.POST.get('table_id')), branch=branch)
@@ -1029,8 +1062,7 @@ def manage_tables(request, slug):
                         table.active = not table.active
                         table.save(update_fields=['active'])
                 elif action == 'rotate':
-                    table.public_token = secrets.token_urlsafe(24)
-                    table.save(update_fields=['public_token'])
+                    revoke_table_code(restaurant,branch,membership,table.pk,request.POST)
                 elif action == 'close_session':
                     with transaction.atomic():
                         table = DiningTable.objects.select_for_update().get(pk=table.pk)
@@ -1045,21 +1077,17 @@ def manage_tables(request, slug):
                 else: raise ValidationError('إجراء غير معروف.')
                 audit(restaurant, request.user, f'table.{action}', str(table.pk))
             messages.success(request, 'تم حفظ التغيير بنجاح.')
-        except (ValidationError, IntegrityError) as exc: messages.error(request, error_text(exc))
+        except (ValidationError, IntegrityError) as exc:
+            messages.error(request, error_text(exc))
+            if request.POST.get('action') in ('bulk_create','qr_style'):
+                return shell(request,restaurant,membership,'tables',**table_context(request,restaurant,branch,
+                    batch_form=batch_form,style_form=style_form))
         return redirect('manage_tables', slug=slug)
-    return shell(request, restaurant, membership, 'tables', tables=branch.tables.filter(archived=False), limit=restaurant.subscription.limit('max_tables', branch))
+    return shell(request, restaurant, membership, 'tables', **table_context(request,restaurant,branch))
 
 def table_qr(request, slug, table_id):
-    restaurant, membership, denied = scope(request, slug, ['owner','manager'])
-    if denied: return denied
-    import qrcode
-    branch = branch_for(request, restaurant, membership)
-    table = get_object_or_404(DiningTable, pk=table_id, branch=branch)
-    buffer = io.BytesIO()
-    qrcode.make(request.build_absolute_uri(reverse('public_menu', args=[table.public_token]))).save(buffer, format='PNG')
-    response = HttpResponse(buffer.getvalue(), content_type='image/png')
-    response['Content-Disposition'] = f'attachment; filename="table-{table.id}-qr.png"'
-    return response
+    from .table_code_views import table_qr_file
+    return table_qr_file(request,slug,table_id)
 
 @require_http_methods(['GET', 'HEAD'])
 def table_summary(request, slug, table_id):
@@ -1456,7 +1484,11 @@ def reports(request, slug):
             metrics = totals.get(row.pk, {})
             comparison.append({'branch': row, 'count': metrics.get('count', 0),
                 'value': metrics.get('value') or Decimal('0'), 'net': activity['by_branch'].get(row.pk, Decimal('0'))})
+    from .recommendations import recommendation_report
+    recommendation_metrics = recommendation_report(Branch.objects.filter(restaurant=restaurant) if all_branches else [branch],
+        start_at if start_date else None, end_at if end_date else None)
     return shell(request, restaurant, membership, 'reports', total=orders.count(),
+                 recommendation_metrics=recommendation_metrics,
                  all_branches=all_branches, branch_comparison=comparison, collection_activity=activity,
                  collection_export_query=export_query.replace('export=csv', 'export=collections'),
                  by_status=by_status,
@@ -1837,18 +1869,9 @@ def public_menu(request, token):
     })
 
 def serialize_menu_items(categories):
-    items = []
-    for category in categories:
-        for item in category.items.all():
-            if item.available and not item.archived:
-                items.append({'id': item.pk, 'category': category.pk, 'name': item.name, 'description': item.description,
-                              'price': str(item.price), 'image': item.image.url if item.image else '',
-                              'sizes': [{'id': size.pk, 'name': size.name, 'price': str(size.price)}
-                                        for size in item.sizes.all() if size.available],
-                              'groups': [{'name': g.name, 'min': g.min_select, 'max': g.max_select,
-                                          'options': [{'id': o.pk, 'name': o.name, 'price': str(o.price)} for o in g.options.all() if o.available]}
-                                         for g in item.modifier_groups.all()]})
-    return items
+    from .menu_catalog import serialize_menu_item
+    return [serialize_menu_item(item) for category in categories for item in category.items.all()
+            if item.available and not item.archived]
 
 @require_POST
 def place_order(request, token):

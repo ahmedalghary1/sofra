@@ -170,4 +170,23 @@
   document.querySelectorAll('.table-scroll').forEach(container => {
     if (container.scrollWidth > container.clientWidth) container.tabIndex = 0;
   });
+  document.querySelectorAll('[data-recommendation-search]').forEach(input => {
+    const select=input.closest('form').querySelector('select[name=target_item]');
+    function loadChoices(){
+      if(select.dataset.recommendationLoaded==='true')return;
+      const template=document.getElementById('recommendationTargetOptions');
+      if(!template)return;
+      select.append(template.content.cloneNode(true));
+      const source=input.closest('form').querySelector('[name=item_id]').value;
+      select.querySelector(`option[value="${source}"]`)?.remove();
+      select.dataset.recommendationLoaded='true';
+    }
+    select.addEventListener('focus',loadChoices);
+    input.addEventListener('input',()=>{
+      loadChoices();
+      const query=input.value.trim().toLocaleLowerCase();
+      for(const option of select.options) option.hidden=!!option.value && !option.textContent.toLocaleLowerCase().includes(query);
+      if(select.selectedOptions[0]?.hidden) select.value='';
+    });
+  });
 })();

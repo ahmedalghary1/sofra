@@ -450,7 +450,8 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
                     page.goto(self.live_server_url+reverse('pricing')+'?lang='+language)
                     for tier in ('starter','growth','business'):
                         card=page.locator('#plan-'+tier)
-                        expect(card.locator('[data-service]')).to_have_count(16)
+                        expect(card.locator('[data-service]')).to_have_count(17)
+                        expect(card.locator('[data-service=recommendations]')).to_have_attribute('data-included','true')
                         online=card.locator('[data-service=online_ordering]')
                         expect(online).to_have_attribute('data-included','false' if tier=='starter' else 'true')
                         if tier=='starter':expect(online.locator('s')).to_be_visible()
