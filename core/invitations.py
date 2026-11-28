@@ -39,7 +39,7 @@ def accept_staff_invitation(raw_token, name='', password='', authenticated_user=
     if not invitation.restaurant.active or not invitation.branch.active:
         raise ValidationError('المطعم أو الفرع متوقف حاليًا.')
     inviter_membership = Membership.objects.filter(user=invitation.invited_by, restaurant=invitation.restaurant,
-                                                  active=True).first()
+                                                  active=True, archived=False, user__is_active=True).first()
     if not inviter_membership or inviter_membership.role not in ('owner', 'manager') or (
             invitation.role == 'manager' and inviter_membership.role != 'owner'):
         raise ValidationError('لم تعد صلاحية الداعي كافية لإكمال هذه الدعوة.')

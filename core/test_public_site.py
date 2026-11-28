@@ -281,7 +281,11 @@ class PublicSiteTests(TestCase):
         staff.user_permissions.add(Permission.objects.get(codename="view_demorequest"))
         link = reverse("admin:core_demorequest_changelist")
         self.client.force_login(staff)
-        self.assertEqual(self.client.get(link).status_code, 403)
+        response = self.client.get(link)
+        # The site-wide superuser gate now rejects delegated staff before
+        # individual model permissions run, using Django's login redirect.
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse('admin:login')))
         admin = User.objects.create_superuser(username="ops", email="ops@example.org")
         self.client.force_login(admin)
         self.assertEqual(self.client.get(link).status_code, 200)

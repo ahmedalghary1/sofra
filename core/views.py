@@ -967,7 +967,7 @@ def menu_import(request, slug):
         writer.writerow(['category', 'name', 'price', 'description'])
         writer.writerow(['الأطباق الرئيسية', 'طبق تجريبي', '120.00', 'وصف اختياري'])
         return response
-    remaining = max(0, restaurant.subscription.limit('max_items', branch) - MenuItem.objects.filter(category__branch=branch).count())
+    remaining = max(0, restaurant.subscription.limit('max_items', branch) - MenuItem.objects.filter(category__branch=branch, archived=False).count())
     errors, rows, batch = [], [], None
     if request.method == 'POST':
         try:
@@ -1537,8 +1537,6 @@ def staff(request, slug):
                         revoked_at__isnull=True, expires_at__gt=timezone.now())
                     if pending.filter(email=email).exists():
                         raise ValidationError('توجد دعوة نشطة لهذا البريد بالفعل.')
-                    if restaurant.memberships.count() + pending.count() >= subscription.limit('max_staff'):
-                        raise ValidationError('الدعوات الحالية تملأ المقاعد المتاحة في الباقة.')
                     if StaffInvitation.objects.filter(restaurant=restaurant,
                             created_at__gte=timezone.now()-timedelta(hours=1)).count() >= 20:
                         raise ValidationError('بلغت حد الدعوات لهذه الساعة. حاول لاحقًا.')
@@ -1568,28 +1566,29 @@ def staff(request, slug):
                 messages.success(request, 'أُلغيت الدعوة.')
             return redirect('staff', slug=slug)
         if action in ('role','toggle','branch'):
-            target = get_object_or_404(Membership, pk=valid_pk(request.POST.get('membership_id')), restaurant=restaurant)
-            if target.role == 'owner' or target.user_id == request.user.pk:
-                return render(request, '403.html', status=403)
-            if membership.role == 'manager' and target.role == 'manager':
-                return render(request, '403.html', status=403)
-            if action == 'role':
-                if membership.role != 'owner':
-                    return render(request, '403.html', status=403)
-                role = request.POST.get('role')
-                if role not in ('manager','cashier','kitchen','waiter'):
-                    messages.error(request, 'الدور غير صالح.')
-                else:
-                    target.role = role
-                    target.save(update_fields=['role'])
-                    if role in ('cashier','kitchen','waiter') and not target.branches.exists():
-                        target.branches.add(branch_for(request, restaurant, membership))
-                    audit(restaurant, request.user, 'staff.role', f'{target.user_id}: {role}')
-                    messages.success(request, 'تم تحديث الدور.')
-            elif action == 'toggle':
-                try:
-                    with transaction.atomic():
-                        target = lock_resource(restaurant, Membership, target.pk)
+            target_id = valid_pk(request.POST.get('membership_id'))
+            get_object_or_404(Membership, pk=target_id, restaurant=restaurant)
+            try:
+                with transaction.atomic():
+                    target = lock_resource(restaurant, Membership, target_id)
+                    # Role and owner protection must use the row acquired under
+                    # the lock, not the earlier object from an open browser tab.
+                    if (target.role == 'owner' or target.user_id == request.user.pk or
+                            (membership.role == 'manager' and target.role == 'manager')):
+                        return render(request, '403.html', status=403)
+                    if action == 'role':
+                        if membership.role != 'owner':
+                            return render(request, '403.html', status=403)
+                        role = request.POST.get('role')
+                        if role not in ('manager','cashier','kitchen','waiter'):
+                            raise ValidationError('الدور غير صالح.')
+                        target.role = role
+                        target.save(update_fields=['role'])
+                        if role in ('cashier','kitchen','waiter') and not target.branches.exists():
+                            target.branches.add(branch_for(request, restaurant, membership))
+                        audit(restaurant, request.user, 'staff.role', f'{target.user_id}: {role}')
+                        messages.success(request, 'تم تحديث الدور.')
+                    elif action == 'toggle':
                         if target.archived:
                             raise ValidationError(localized('استعد العضوية من الأرشيف أولًا.', 'Restore the membership from the archive first.'))
                         if not target.active:
@@ -1597,14 +1596,14 @@ def staff(request, slug):
                         target.active = not target.active
                         target.save(update_fields=['active'])
                         audit(restaurant, request.user, 'staff.toggle', f'{target.user_id}: {target.active}')
-                    messages.success(request, 'تم تحديث حالة العضو.')
-                except ValidationError as exc:
-                    messages.error(request, error_text(exc))
-            else:
-                branch = get_object_or_404(Branch, pk=valid_pk(request.POST.get('branch_id')), restaurant=restaurant, active=True)
-                target.branches.set([branch])
-                audit(restaurant, request.user, 'staff.branch', f'{target.user_id}: {branch.pk}')
-                messages.success(request, 'تم تحديث فرع العضو.')
+                        messages.success(request, 'تم تحديث حالة العضو.')
+                    else:
+                        branch = get_object_or_404(Branch, pk=valid_pk(request.POST.get('branch_id')), restaurant=restaurant, active=True, archived=False)
+                        target.branches.set([branch])
+                        audit(restaurant, request.user, 'staff.branch', f'{target.user_id}: {branch.pk}')
+                        messages.success(request, 'تم تحديث فرع العضو.')
+            except ValidationError as exc:
+                messages.error(request, error_text(exc))
             return redirect('staff', slug=slug)
         email = request.POST.get('email','').strip().lower()
         role = request.POST.get('role','')

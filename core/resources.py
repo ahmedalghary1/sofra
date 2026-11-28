@@ -1,12 +1,12 @@
 """Explicit archiving frees capacity while preserving historical relationships."""
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils.translation import get_language
 from django.utils import timezone
 import uuid
 
 from .limits import check_creation_limit
-from .models import Branch, DiningTable, KitchenStation, Membership, MenuItem, Order, ServiceCall, StaffInvitation, Subscription
+from .models import Branch, DiningTable, KitchenStation, Membership, MenuItem, Order, Restaurant, ServiceCall, StaffInvitation, Subscription
 from .services import audit
 
 
@@ -31,14 +31,21 @@ def archive_resource(restaurant, actor, resource, pk, *, restore=False):
     # Use the same lock order as resource creation: subscription, then resource.
     Subscription.objects.select_for_update().get(restaurant=restaurant)
     if resource == 'branch':
-        # Intake locks a table first; finish table locks before acquiring the parent branch.
+        # Match current intake: restaurant, branch, then tables. Do not lock
+        # joined tenant rows implicitly when archiving another resource type.
+        Restaurant.objects.select_for_update(of=('self',), no_key=True).get(pk=restaurant.pk)
+        Branch.objects.select_for_update(of=('self',), no_key=True).filter(pk=pk, restaurant=restaurant).first()
         list(DiningTable.objects.select_for_update(of=('self',)).filter(branch_id=pk, branch__restaurant=restaurant).order_by('pk').values_list('pk', flat=True))
-    query = models[resource].objects.select_for_update()
+    query = models[resource].objects.select_for_update(of=('self',), no_key=resource == 'branch')
     scope = {'restaurant': restaurant} if resource in ('branch', 'staff') else (
         {'category__branch__restaurant': restaurant} if resource == 'item' else {'branch__restaurant': restaurant})
     obj = query.filter(pk=pk, **scope).first()
     if obj is None:
         fail('المورد غير متاح لهذا المطعم.', 'Resource unavailable for this restaurant.')
+    membership = Membership.objects.filter(user=actor, restaurant=restaurant, active=True, archived=False,
+        user__is_active=True, role__in=('owner','manager')).first()
+    if membership is None or (resource == 'staff' and membership.role != 'owner' and obj.role in ('owner','manager')):
+        raise PermissionDenied
     if obj.archived == (not restore):
         return obj
     branch = obj.category.branch if resource == 'item' else getattr(obj, 'branch', None)
