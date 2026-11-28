@@ -1,9 +1,9 @@
 {% extends 'base.html' %}{% load static i18n showroom %}
 {% block title %}{% translate 'منيو' %} {{ table.branch.restaurant.name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>.restaurant-menu { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/geofencing.css' %}"><link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>.restaurant-menu { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
 {% block bodyclass %}guest-body catalog-body menu-theme restaurant-menu{% endblock %}
 {% block body %}
-<main class="guest-shell menu-shell">
+<main class="guest-shell menu-shell">{% if table.branch.geofence_enabled %}<p class="guest-location-note">{% bi 'لتأكيد طلب الطاولة سنطلب موقعك للتحقق من قربك من الفرع، دون حفظ إحداثياتك.' 'To confirm a table order, we will request your location to check proximity to this branch without storing your coordinates.' %} {% bi 'النطاق المسموح:' 'Allowed radius:' %} {{ table.branch.geofence_radius_m }} {% bi 'مترًا.' 'metres.' %}</p>{% endif %}
   <a class="ops-skip" href="#guest-menu">{% bi 'انتقل إلى أصناف المنيو' 'Skip to menu items' %}</a>
   <header class="guest-header">
     <a class="guest-brand" href="{% url 'public_menu' table.public_token %}">{% if table.branch.restaurant.logo %}<img class="restaurant-logo" src="{{ table.branch.restaurant.logo.url }}" alt="{{ table.branch.restaurant.name }}" width="64" height="64">{% else %}<span class="restaurant-avatar">{{ table.branch.restaurant.name|slice:':1' }}</span>{% endif %}
@@ -37,4 +37,4 @@
     {% else %}
       <div class="empty-state">{% symbol 'utensils-crossed' %}<h2>{% translate 'المنيو في طريقه إليك' %}</h2><p>{% translate 'اسأل فريق المطعم عن الأصناف المتاحة اليوم.' %}</p></div>
     {% endif %}
-    </div>{% include '_powered_by.html' only %}</main>{% include '_guest_cart.html' with english=english only %}{{ items_json|json_script:'menu-data' }}<script>window.SAFRA={cartTable:{{ table.pk }},cartSession:'{{ cart_session }}',orderUrl:'{% url "place_order" table.public_token %}',{% if table.branch.recommendations_enabled %}recommendationUrl:'{% url "table_recommendations" table.public_token %}',{% endif %}csrf:'{{ csrf_token }}',sessionToken:'{{ table.session_token }}',accepting:{{ accepting|yesno:'true,false' }}};</script><script src="{% static 'js/guest.js' %}"></script>{% endblock %}
+    </div>{% include '_powered_by.html' only %}</main>{% include '_guest_cart.html' with english=english only %}{{ items_json|json_script:'menu-data' }}<script>window.SAFRA={cartTable:{{ table.pk }},cartSession:'{{ cart_session }}',orderUrl:'{% url "place_order" table.public_token %}',presenceUrl:'{% url "table_presence" table.public_token %}',{% if table.branch.recommendations_enabled %}recommendationUrl:'{% url "table_recommendations" table.public_token %}',{% endif %}csrf:'{{ csrf_token }}',sessionToken:'{{ table.session_token }}',accepting:{{ accepting|yesno:'true,false' }}};</script><script src="{% static 'js/guest-presence.js' %}"></script><script src="{% static 'js/guest.js' %}"></script>{% endblock %}

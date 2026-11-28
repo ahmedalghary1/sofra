@@ -1729,6 +1729,19 @@ def restaurant_settings(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
     if denied: return denied
     branch = branch_for(request, restaurant, membership)
+    from .geofence_forms import GeofenceForm
+    geofence_post = request.method == 'POST' and request.POST.get('action') == 'geofence'
+    geofence_form = GeofenceForm(request.POST if geofence_post else None, instance=branch, prefix='geofence')
+    if geofence_post and geofence_form.is_valid():
+        from .geofencing import save_geofence
+        try:
+            ensure_active_subscription(restaurant)
+            save_geofence(branch, request.user, geofence_form)
+        except ValidationError as error:
+            geofence_form.add_error(None, error_text(error))
+        else:
+            messages.success(request, localized('تم حفظ موقع الفرع ونطاق طلبات الطاولات.', 'Branch location and table-order radius saved.'))
+            return redirect(reverse('restaurant_settings', args=[slug]) + '#branchLocation')
     initial = {'name': restaurant.name, 'name_en': restaurant.name_en,
                'description': restaurant.description, 'branch_name': branch.name,
                'address': branch.address, 'phone': branch.phone,
@@ -1834,7 +1847,7 @@ def restaurant_settings(request, slug):
     return shell(request, restaurant, membership, 'settings', profile_form=profile_form, subscription=subscription,
                  subscribed_services=service_groups([key for key in FEATURES if has_feature(subscription, key)],
                      {field: subscription.limit(field, branch) for field in ('max_branches', 'max_stations')}, request.LANGUAGE_CODE == 'en'),
-                 online_form=online_form, online_url=request.build_absolute_uri(reverse('online_menu', args=[slug])),
+                 geofence_form=geofence_form, online_form=online_form, online_url=request.build_absolute_uri(reverse('online_menu', args=[slug])),
                  branding_form=branding_form, branding_defaults=MENU_COLOR_DEFAULTS,
                  menu_theme=menu_theme({key: branding_form[key].value() for key in MENU_COLOR_DEFAULTS}),
                  subscription_agreements=subscription.agreements.select_related('payment', 'actor').order_by('-created_at', '-pk')[:20],
@@ -1877,10 +1890,13 @@ def serialize_menu_items(categories):
 def place_order(request, token):
     table = get_object_or_404(DiningTable, public_token=token)
     try:
-        order = create_order(table, load_json_payload(request.body), require_session=True)
+        payload = load_json_payload(request.body)
+        order = create_order(table, payload, require_session=True,
+                             recover_only=isinstance(payload, dict) and payload.get('recover_only') is True)
         return JsonResponse({'ok': True, 'order_url': reverse('track_order', args=[order.public_token]), 'order_number': order.pk})
     except (json.JSONDecodeError, ValidationError) as exc:
-        return JsonResponse({'ok': False, 'error': error_text(exc)}, status=400)
+        code = getattr(exc, 'code', '')
+        return JsonResponse({'ok': False, 'error': error_text(exc), 'code': code}, status=404 if code == 'order_not_found' else 400)
 
 @never_cache
 @require_POST

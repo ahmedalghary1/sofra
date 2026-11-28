@@ -137,23 +137,33 @@ function showPendingOrder() {
   status.setAttribute('role', 'status');
   const retry = el('button', 'btn btn-primary btn-full', guestCopy('التحقق من الطلب', 'Check order'));
   retry.type = 'button';
-  retry.onclick = () => sendGuestOrder(status, retry);
+  retry.onclick = () => sendGuestOrder(status, retry, true);
   panel.append(el('h2', '', guestCopy('بانتظار تأكيد المطعم', 'Awaiting order confirmation')),
     el('strong', '', guestCopy('إجمالي الطلب · ', 'Order total · ') + money(pendingOrder.reviewed_total) + guestCopy(' ج.م', ' EGP')), status, retry);
   show(panel);
 }
 
-async function sendGuestOrder(status, button) {
+async function sendGuestOrder(status, button, recover = false) {
   if (submitting) return;
   submitting = true;
   button.disabled = closeModal.disabled = true;
   backdrop.querySelectorAll('textarea, .cart-list').forEach(node => { node.inert = true; });
   status.textContent = guestCopy('جارٍ إرسال الطلب…', 'Sending order…');
   try {
-    const response = await fetch(window.SAFRA.orderUrl, {method: 'POST',
+    const post = payload => fetch(window.SAFRA.orderUrl, {method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.SAFRA.csrf},
-      body: JSON.stringify({...pendingOrder, session_token: window.SAFRA.sessionToken})});
-    const result = await response.json();
+      body: JSON.stringify(payload)});
+    const payload = {...pendingOrder, session_token: window.SAFRA.sessionToken};
+    let response, result;
+    if (recover && window.SAFRA.presenceUrl) {
+      response = await post({...payload, recover_only:true});
+      result = await response.json();
+    }
+    if (!response || (response.status === 404 && result.code === 'order_not_found')) {
+      const proof = window.SAFRA.presenceUrl ? await window.acquireTablePresence(status) : {};
+      response = await post({...payload, ...proof});
+      result = await response.json();
+    }
     if (response.ok && result.ok && result.order_url) {
       cart.length = 0;
       pendingOrder = null;
@@ -173,12 +183,24 @@ async function sendGuestOrder(status, button) {
       const refresh = el('button', 'text-button', guestCopy('تحديث المنيو والأسعار', 'Refresh menu and prices'));
       refresh.type = 'button';
       refresh.onclick = () => location.reload();
-      content.querySelector('.cart-modal h2').after(error, refresh);
+      if (result.code?.startsWith('presence_')) content.querySelector('.cart-modal h2').after(error);
+      else content.querySelector('.cart-modal h2').after(error, refresh);
     } else {
       showPendingOrder();
     }
-  } catch {
-    showPendingOrder();
+  } catch (failure) {
+    if (failure.locationCheck) {
+      submitting = false;
+      if (recover) showPendingOrder();
+      else {
+        pendingOrder = null;
+        saveDraft();
+        openCart();
+      }
+      const error = el('p', 'form-error', failure.message);
+      error.setAttribute('role','alert');
+      content.querySelector('.cart-modal h2').after(error);
+    } else showPendingOrder();
   } finally {
     submitting = false;
     button.disabled = closeModal.disabled = false;

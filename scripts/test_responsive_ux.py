@@ -120,6 +120,7 @@ class ResponsiveUXTests(StaticLiveServerTestCase):
                   ('activation',reverse('subscription_activation',args=['ux-pending']),200)]
         operator = [(name,reverse(name),200) for name in ('platform_dashboard','platform_accounts','platform_requests','platform_receipts','platform_activity','platform_account_create','platform_create_restaurant','platform_plan_create')]
         operator += [('platform-plans',reverse('platform_dashboard')+'?status=plans',200),
+                     ('platform-location',reverse('platform_geofence',args=[self.venue.pk,self.branch.pk]),200),
                      ('platform-people',reverse('platform_dashboard')+'?status=people',200),
                      ('platform-plan-edit',reverse('platform_plan_edit',args=[self.plan.pk]),200),
                      ('platform-account-edit',reverse('platform_account_edit',args=[self.owner.pk]),200),

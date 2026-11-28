@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import platform_console, views, recommendation_views, table_code_views
+from core import platform_console, views, recommendation_views, table_code_views, geofence_views
 
 handler500 = 'core.marketing.server_error'
 
@@ -41,6 +41,7 @@ urlpatterns = [
     path('platform/<int:restaurant_id>/members/<int:member_id>/', views.platform_member_update, name='platform_member_update'),
     path('platform/restaurants/new/', views.platform_create_restaurant, name='platform_create_restaurant'),
     path('platform/<int:restaurant_id>/branches/', views.platform_branch_change, name='platform_branch_change'),
+    path('platform/<int:restaurant_id>/branches/<int:branch_id>/location/', geofence_views.platform_geofence, name='platform_geofence'),
     path('platform/<int:restaurant_id>/update/', views.platform_update_restaurant, name='platform_update_restaurant'),
     path('platform/<int:restaurant_id>/payments/', views.platform_record_payment, name='platform_record_payment'),
     path('platform/<int:restaurant_id>/trial/', views.platform_start_trial, name='platform_start_trial'),
@@ -74,6 +75,7 @@ urlpatterns = [
     path('app/<slug:slug>/tables/<int:table_id>/summary/', views.table_summary, name='table_summary'),
     path('t/<str:token>/', views.public_menu, name='public_menu'),
     path('t/<str:token>/order/', views.place_order, name='place_order'),
+    path('t/<str:token>/location/', geofence_views.table_presence, name='table_presence'),
     path('t/<str:token>/recommendations/', recommendation_views.recommendations, name='table_recommendations'),
     path('t/<str:token>/call/', views.create_call, name='create_call'),
     path('t/<str:token>/service-status/', views.table_service_status, name='table_service_status'),

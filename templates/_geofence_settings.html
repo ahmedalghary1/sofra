@@ -1,0 +1,24 @@
+{% load i18n showroom %}
+<section class="panel spaced-panel geofence-panel" id="branchLocation" data-geofence-editor>
+  <div class="panel-head"><div><h2>{% bi 'موقع الفرع ونطاق طلبات الطاولات' 'Branch location and table-order radius' %}</h2><p>{{ branch.name }} · {% bi 'إعداد مستقل لهذا الفرع' 'Independent settings for this branch' %}</p></div></div>
+  <p>{% bi 'حدد مركز المكان والمسافة المسموحة حوله. عند التفعيل، يحتاج العميل إلى السماح بموقعه لتأكيد طلب الطاولة. تصفح المنيو وطلبات الموظفين والتوصيل والاستلام تظل متاحة كالمعتاد.' 'Choose the venue centre and allowed distance around it. When enabled, guests must allow location access to confirm table orders. Menu browsing, staff orders, delivery and pickup continue as usual.' %}</p>
+  <form method="post" class="stack-form compact" data-geofence-form>{% csrf_token %}<input type="hidden" name="action" value="geofence">{{ geofence_form.branch_id }}{{ geofence_form.version }}
+    {% for error in geofence_form.non_field_errors %}<p class="form-error" role="alert">{{ error }}</p>{% endfor %}
+    {% for hidden in geofence_form.hidden_fields %}{% for error in hidden.errors %}<p class="form-error" role="alert">{{ error }}</p>{% endfor %}{% endfor %}
+    <label class="check-row">{{ geofence_form.geofence_enabled }} {{ geofence_form.geofence_enabled.label }}</label>{{ geofence_form.geofence_enabled.errors }}
+    <div class="form-row">
+      <label>{{ geofence_form.latitude.label }}{{ geofence_form.latitude }}{{ geofence_form.latitude.errors }}</label>
+      <label>{{ geofence_form.longitude.label }}{{ geofence_form.longitude }}{{ geofence_form.longitude.errors }}</label>
+    </div>
+    <label>{{ geofence_form.geofence_radius_m.label }}{{ geofence_form.geofence_radius_m }}{{ geofence_form.geofence_radius_m.errors }}</label>
+    <p class="form-hint">{% bi 'الافتراضي 50 مترًا. المسموح من 10 إلى 5000 متر. المسافة نصف قطر دائرة حول النقطة، وليست حدود المبنى؛ لا نوسعها تلقائيًا عند ضعف دقة الموقع.' 'Default: 50 metres. Choose 10–5000 metres. This is a circle radius around the point, not the building boundary; low location accuracy never expands it automatically.' %}</p>
+    <div class="page-actions"><button type="button" class="btn btn-outline" data-locate-branch>{% bi 'استخدم موقعي الحالي' 'Use my current location' %}</button><button type="button" class="btn btn-outline" data-open-geofence-map>{% bi 'فتح الخريطة واختيار النقطة' 'Open map and choose a point' %}</button></div>
+    <p class="form-hint">{% bi 'استخدم موقعك وأنت في مركز المكان، ثم راجع النقطة قبل الحفظ. فتح الخريطة يتصل بخدمة OpenStreetMap الخارجية؛ يمكنك إدخال الإحداثيات يدويًا دون فتحها.' 'Use your location while at the venue centre, then review the point before saving. Opening the map connects to the external OpenStreetMap service; you can enter coordinates manually without opening it.' %}</p>
+    <p class="form-hint" role="status" aria-live="polite" data-geofence-status></p>
+    <div class="geofence-map" data-geofence-map hidden role="region" aria-label="{% bi 'خريطة اختيار موقع الفرع' 'Branch location selection map' %}"></div>
+    <p class="form-hint" data-geofence-map-help hidden>{% bi 'انقر لاختيار المركز أو اسحب العلامة. يمكنك تعديل الإحداثيات بالحقول أعلاه أيضًا. معاينة غير محفوظة حتى تضغط حفظ.' 'Click to choose the centre or drag the marker. You can also edit the coordinate fields above. This preview is not saved until you press Save.' %}</p>
+    {% if geofence_platform %}<label>{{ geofence_form.reason.label }}{{ geofence_form.reason }}{{ geofence_form.reason.errors }}</label>{% endif %}
+    <p class="form-hint">{% bi 'نستخدم موقع العميل للتحقق من الطلب فقط دون حفظ إحداثياته. تعتمد الدقة على الجهاز وقد تحتاج تجربة داخل المبنى؛ إن تعذر التحقق يستطيع الويتر تسجيل الطلب من حسابه.' 'Guest coordinates are used only to check the order and are not stored. Accuracy depends on the device and needs on-site testing; if verification fails, the waiter can place the order from their staff account.' %}</p>
+    <button class="btn btn-primary" type="submit">{% bi 'حفظ الموقع والمسافة' 'Save location and radius' %}</button>
+  </form>
+</section>

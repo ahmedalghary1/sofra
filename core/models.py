@@ -3,7 +3,7 @@ import uuid
 from typing import ClassVar
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
@@ -102,8 +102,22 @@ class Branch(models.Model):
     accepting_orders = models.BooleanField(default=True)
     recommendations_enabled = models.BooleanField(default=False)
     recommendations_learning_enabled = models.BooleanField(default=False)
+    geofence_enabled = models.BooleanField(default=False)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True,
+                                  validators=[MinValueValidator(-90), MaxValueValidator(90)])
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True,
+                                   validators=[MinValueValidator(-180), MaxValueValidator(180)])
+    geofence_radius_m = models.PositiveIntegerField(default=50, validators=[MinValueValidator(10), MaxValueValidator(5000)])
+    geofence_version = models.UUIDField(default=uuid.uuid4, editable=False)
     active = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(geofence_radius_m__gte=10, geofence_radius_m__lte=5000), name='branch_geofence_radius_range'),
+            models.CheckConstraint(condition=(models.Q(latitude__isnull=True, longitude__isnull=True, geofence_enabled=False) |
+                models.Q(latitude__isnull=False, longitude__isnull=False, latitude__gte=-90, latitude__lte=90,
+                         longitude__gte=-180, longitude__lte=180)), name='branch_geofence_valid_location'),
+        ]
     def __str__(self): return f'{self.restaurant.name} · {self.name}'
 
 class Membership(models.Model):

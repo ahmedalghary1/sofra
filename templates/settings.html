@@ -1,10 +1,10 @@
 {% extends 'app_base.html' %}{% load static i18n showroom %}
 {% block title %}{% translate 'الإعدادات' %}{% endblock %}{% block crumb %}{% translate 'الإعدادات' %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>#menuBrandingPreview { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
+{% block head %}{% include '_geofence_assets.html' %}<link rel="stylesheet" href="{% static 'css/menu-catalog.css' %}"><link rel="stylesheet" href="{% static 'css/menu-branding.css' %}"><style>#menuBrandingPreview { {% include '_menu_theme_variables.html' %} }</style>{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">{% translate 'إعدادات المطعم' %}</span><h1>{% translate 'الإعدادات' %}</h1><p>{% translate 'بيانات المطعم وحالة استقبال الطلبات في' %} {{ branch.name }}.</p></div></div>
 {% if not restaurant.active %}<div class="account-notice"><strong>{% translate 'المطعم معلق حاليًا' %}</strong><p>{% translate 'البيانات متاحة للمراجعة. عمليات التعديل والطلب متوقفة حتى إعادة التفعيل من إدارة المنصة.' %}</p></div>{% elif not subscription.valid %}<div class="account-notice"><strong>{% translate 'انتهت فترة الاشتراك أو التجربة' %}</strong><p>{% translate 'يمكنك الاطلاع على البيانات السابقة وتصديرها. إضافة الموارد والطلبات الجديدة متوقفة حتى تجديد الاشتراك بواسطة إدارة المنصة.' %}</p></div>{% elif over_limit %}<div class="account-notice"><strong>{% translate 'الاستخدام أعلى من حدود الباقة الحالية' %}</strong><p>{% translate 'بياناتك محفوظة. إنشاء موارد إضافية في المجالات المتجاوزة للحد متوقف حتى تعديل الباقة أو تقليل الاستخدام.' %}</p></div>{% endif %}
-<nav class="section-tabs" aria-label="{% bi 'أقسام الإعدادات' 'Settings sections' %}"><a href="#branchProfile">{% bi 'بيانات الفرع' 'Branch details' %}</a><a href="#menuBranding">{% bi 'اللوجو والألوان' 'Logo and colors' %}</a><a href="#onlineOrdering">{% bi 'الطلب أونلاين' 'Online ordering' %}</a><a href="#subscriptionPlan">{% bi 'الباقة والحدود' 'Plan and limits' %}</a></nav>
+<nav class="section-tabs" aria-label="{% bi 'أقسام الإعدادات' 'Settings sections' %}"><a href="#branchProfile">{% bi 'بيانات الفرع' 'Branch details' %}</a><a href="#branchLocation">{% bi 'الموقع ونطاق الطلب' 'Location and order radius' %}</a><a href="#menuBranding">{% bi 'اللوجو والألوان' 'Logo and colors' %}</a><a href="#onlineOrdering">{% bi 'الطلب أونلاين' 'Online ordering' %}</a><a href="#subscriptionPlan">{% bi 'الباقة والحدود' 'Plan and limits' %}</a></nav>
 <div class="two-cols">
   <section class="panel" id="branchProfile"><div class="panel-head"><div><h2>{{ restaurant.name }}</h2><p>{{ branch.name }}</p></div></div>
     <form method="post" class="stack-form compact">{% csrf_token %}
@@ -29,6 +29,7 @@
     <div class="plan-limits"><span>{% translate 'الفروع' %} <b>{{ usage.branches }} / {{ limits.branches }}</b></span><span>{% translate 'طاولات هذا الفرع' %} <b>{{ usage.tables }} / {{ limits.tables }}</b></span><span>{% translate 'أصناف هذا الفرع' %} <b>{{ usage.items }} / {{ limits.items }}</b></span><span>{% translate 'محطات هذا الفرع' %} <b>{{ usage.stations }} / {{ limits.stations }}</b></span><span>{% bi 'إجمالي حسابات الفريق، شاملة المالك' 'Total team accounts, including the owner' %} <b>{{ usage.staff }} / {{ limits.staff }}</b></span></div>
   </section>
 </div>
+{% include '_geofence_settings.html' %}
 {% include '_menu_branding_settings.html' %}
 {% include '_online_ordering_settings.html' %}
 {% if membership.role == 'owner' %}<section class="panel plan-preview"><div class="panel-head"><div><h2>{% translate 'معاينة حدود باقة أخرى' %}</h2><p>{% translate 'اختر باقة لمعرفة أثر حدودها على موارد مطعمك وفروعه قبل طلب التغيير.' %}</p></div></div>

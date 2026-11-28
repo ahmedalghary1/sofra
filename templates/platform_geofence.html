@@ -1,0 +1,5 @@
+{% extends 'platform_base.html' %}{% load i18n showroom %}
+{% block head %}{{ block.super }}{% include '_geofence_assets.html' %}{% endblock %}
+{% block title %}{% bi 'موقع الفرع ونطاق الطلب' 'Branch location and order radius' %}{% endblock %}
+{% block mainclass %}platform-form-page{% endblock %}
+{% block workspace %}<div class="page-head"><div><span class="eyebrow">{% bi 'إدارة المنصة' 'Platform administration' %}</span><h1>{{ restaurant.name }}</h1><p>{{ branch.name }}</p></div><a class="btn btn-outline" href="{% url 'platform_dashboard' %}#restaurant-{{ restaurant.pk }}">{% bi 'العودة للمطاعم' 'Back to restaurants' %}</a></div>{% include '_geofence_settings.html' %}{% endblock %}

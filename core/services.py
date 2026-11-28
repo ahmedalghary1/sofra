@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from .models import AuditLog, Branch, CollectionCorrection, Membership, MenuItem, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OrderRevision, ServiceCall
+from .models import AuditLog, Branch, CollectionCorrection, Membership, MenuItem, Order, OrderHistory, OrderLine, OrderLinePrepHistory, OrderRevision, Restaurant, ServiceCall
 from .validation import TOTAL_MAX, identifier, money
 
 ORDER_NEXT = {'new': 'accepted', 'accepted': 'preparing', 'preparing': 'ready', 'ready': 'served'}
@@ -95,7 +95,7 @@ def normalize_order_lines(branch, raw_lines, allow_empty=False):
         raise ValidationError('إجمالي الطلب أكبر من الحد المسموح.')
     return normalized, total
 
-def create_order(table, payload, user=None, require_session=False):
+def create_order(table, payload, user=None, require_session=False, *, recover_only=False):
     if not isinstance(payload, dict):
         raise ValidationError('توجد بيانات غير صالحة في السلة.')
     try:
@@ -121,6 +121,15 @@ def create_order(table, payload, user=None, require_session=False):
         if existing.request_hash != digest:
             raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
         return existing
+    if recover_only:
+        with transaction.atomic():
+            type(table).objects.select_for_update(of=('self',)).get(pk=table.pk)
+            saved = Order.objects.filter(table=table, idempotency_key=key).first()
+            if saved:
+                if saved.request_hash != digest:
+                    raise ValidationError('مفتاح الطلب مستخدم بالفعل لطلب آخر.')
+                return saved
+        raise ValidationError('No matching saved order.', code='order_not_found')
     if not table.active or table.archived or not table.branch.active or table.branch.archived or not table.branch.accepting_orders or not table.branch.restaurant.active:
         raise ValidationError('الطاولة لا تستقبل طلبات حاليًا.')
     subscription = getattr(table.branch.restaurant, 'subscription', None)
@@ -130,8 +139,14 @@ def create_order(table, payload, user=None, require_session=False):
         raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
     try:
         with transaction.atomic():
+            # Match online/settings lock order before taking a table lock.
+            # NO KEY UPDATE permits audit/FK key-share locks during archiving
+            # and emergency QR changes, avoiding an inverse lock dependency.
+            locked_venue = Restaurant.objects.select_for_update(of=('self',), no_key=True).get(pk=table.branch.restaurant_id)
+            locked_branch = Branch.objects.select_for_update(of=('self',), no_key=True).get(pk=table.branch_id)
+            locked_branch.restaurant = locked_venue
             locked_table = type(table).objects.select_for_update(of=('self',)).get(pk=table.pk)
-            locked_table.branch = Branch.objects.select_related('restaurant').get(pk=locked_table.branch_id)
+            locked_table.branch = locked_branch
             prior = Order.objects.filter(table=locked_table, idempotency_key=key).first()
             if prior:
                 if prior.request_hash != digest:
@@ -145,6 +160,9 @@ def create_order(table, payload, user=None, require_session=False):
                 raise ValidationError('استقبال الطلبات متوقف مؤقتًا. يرجى التواصل مع المطعم.')
             if require_session and str(payload.get('session_token', '')) != str(locked_table.session_token):
                 raise ValidationError('انتهت جلسة هذه الطاولة. امسح رمز QR من جديد قبل إرسال الطلب.')
+            if user is None:
+                from .geofencing import validate_presence
+                validate_presence(locked_table, payload)
             if Order.objects.filter(table=locked_table,
                     created_at__gte=timezone.now()-timedelta(minutes=1)).count() >= 12:
                 raise ValidationError('عدد الطلبات مرتفع على هذه الطاولة. انتظر دقيقة وحاول مرة أخرى.')

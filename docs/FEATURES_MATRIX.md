@@ -40,6 +40,7 @@ Detail route `/features/qr-ordering/`. Implementation references include `public
 | --- | --- | --- |
 | `#cart` | available | Table identity, sizes and extras, quantity controls and a note for the whole order. |
 | `#track` | available | Confirmation, tracking, additional orders in the current session, waiter calls and bill requests. |
+| `#location` | available | Optional per-branch table-order proximity checks. Owner/manager or platform admin sets the centre and a 10–5000 m radius (default 50). Server checks current policy, a signed short-lived challenge, coordinate age/accuracy and distance. Guest coordinates are not retained. Does not attest device location or apply to staff/online orders or service calls; requires HTTPS, permission and on-site testing. |
 | `#history` | planned | Optional guest profiles, personal history, repeat baskets and per-item notes. |
 | `#takeaway` | available | Owner-enabled `/order/<restaurant-slug>/` storefront using the saved logo/colors. Branch-specific menus, pickup at no fee or delivery with a restaurant-wide flat fee, guest contact details, server-priced totals and immutable fee/item snapshots. Orders enter branch kitchen and staff queues. Payment and delivery are handled by the restaurant; no courier integration or custom-subdomain provisioning. Deployment validation remains separate. |
 

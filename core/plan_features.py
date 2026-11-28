@@ -24,7 +24,7 @@ SERVICES = (
         ('menu_import', FEATURES['menu_import'], 'menu_import', None),
     )),
     ('orders', ('الطلبات والخدمة', 'Orders and service'), (
-        ('qr', ('QR لكل طاولة وطلب مباشر للمطبخ', 'Table QR ordering directly to the kitchen'), None, None),
+        ('qr', ('QR لكل طاولة وطلب للمطبخ مع نطاق موقع اختياري', 'Table QR ordering to the kitchen with optional proximity checks'), None, None),
         ('staff_orders', ('إنشاء الطلب بواسطة الموظف', 'Staff-assisted orders'), None, None),
         ('kitchen', ('شاشة المطبخ ومتابعة حالة الطلب', 'Kitchen display and order status'), None, None),
         ('stations', ('توزيع التحضير على أكثر من محطة', 'Preparation across multiple stations'), None, 'max_stations'),
