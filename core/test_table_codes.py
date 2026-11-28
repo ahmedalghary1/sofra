@@ -25,6 +25,39 @@ from .table_codes import (artwork,create_table_batch,qr_pdf,qr_png,qr_svg,qr_zip
 
 
 class TableCodeTests(TestCase):
+    def test_print_font_covers_shaped_arabic_letters_in_every_caption(self):
+        from reportlab.pdfbase.ttfonts import TTFont
+        from .table_codes import FONT, visual_text
+        face = TTFont('QRArabicCoverage', str(FONT)).face
+        samples = ['طاولة', 'رموز الطاولات', 'امسح لعرض المنيو', 'مطعم السلام',
+                   'فرع القاهرة ١٢ · Cairo 12', 'ركن النافذة · Window', 'لا إله إلا الله']
+        # Include isolated and contextual forms: the old font missed isolated waw/alef/reh.
+        for letter in 'ءآأؤإئابتثجحخدذرزسشصضطظعغفقكلمنهويىة':
+            samples.extend([letter, 'ب' + letter + 'ب', letter + 'ب', 'ب' + letter])
+        missing = {character for text in samples for character in visual_text(text)
+                   if not face.charToGlyph.get(ord(character))}
+        self.assertFalse(missing, 'The QR export font is missing shaped Arabic glyphs: ' + repr(missing))
+
+    def test_svg_and_pdf_embed_the_same_arabic_print_font_and_preserve_the_label(self):
+        import base64
+        import re
+        from .table_codes import FONT
+        self.restaurant.name = 'مطعم السلام · Garden 12'
+        self.branch.name = 'فرع القاهرة ١٢ · Cairo'
+        table = DiningTable.objects.create(branch=self.branch, name='طاولة العائلة ١٢ · VIP 12')
+        original_url = stable_table_url(table, self.restaurant)
+        svg = qr_svg(table, self.restaurant).decode()
+        embedded = re.search(r'data:font/ttf;base64,([A-Za-z0-9+/=]+)', svg)
+        self.assertIsNotNone(embedded)
+        self.assertEqual(base64.b64decode(embedded[1]), FONT.read_bytes())
+        self.assertIn(table.name, svg)
+        document = fitz.open(stream=qr_pdf([table], self.restaurant, self.branch), filetype='pdf')
+        self.assertTrue(any('Amiri-Regular' in item[3] for item in document[0].get_fonts()))
+        self.assertEqual(self.decode(qr_png(table, self.restaurant)), original_url)
+        table.refresh_from_db()
+        self.assertEqual(table.name, 'طاولة العائلة ١٢ · VIP 12')
+        self.assertEqual(stable_table_url(table, self.restaurant), original_url)
+
     def setUp(self):
         self.restaurant=Restaurant.objects.create(name='مطعم الحديقة · Garden restaurant',slug='table-code-tests')
         self.plan=Plan.objects.create(name='Table QR test',max_tables=60,max_branches=2)

@@ -29,7 +29,11 @@ from .services import audit
 from .validation import localized
 
 MAX_BATCH = 200
-FONT = settings.BASE_DIR / 'static/fonts/cairo/Cairo-Variable.ttf'
+# A static font with complete Arabic Presentation Forms coverage is required by
+# the explicit reshaper + BASIC/ReportLab renderers. Cairo's variable web font
+# omits isolated presentation forms, producing .notdef boxes in PNG and PDF.
+FONT = settings.BASE_DIR / 'static/fonts/amiri/Amiri-Regular.ttf'
+PDF_FONT = 'AmiriQR'
 _font_lock = RLock()
 
 
@@ -211,7 +215,7 @@ def qr_png(table, restaurant):
 
 @lru_cache(maxsize=1)
 def svg_font():
-    return base64.b64encode((settings.BASE_DIR/'static/fonts/cairo/Cairo-Variable.woff2').read_bytes()).decode('ascii')
+    return base64.b64encode(FONT.read_bytes()).decode('ascii')
 
 
 def qr_svg(table, restaurant):
@@ -222,7 +226,7 @@ def qr_svg(table, restaurant):
                    f'style="unicode-bidi:plaintext">{escape(text)}</text>' for text,baseline,size,color in texts)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="90mm" height="110mm" viewBox="0 0 900 1100">'
         f'<title>{escape(restaurant.name)} - {escape(table.name)}</title><style>'
-        f'@font-face{{font-family:CairoQR;src:url(data:font/woff2;base64,{svg_font()})}}text{{font-family:CairoQR,Arial,sans-serif}}'
+        f'@font-face{{font-family:AmiriQR;src:url(data:font/ttf;base64,{svg_font()}) format("truetype")}}text{{font-family:AmiriQR,serif}}'
         f'</style><rect width="900" height="1100" fill="white"/><rect x="4" y="4" width="892" height="1092" rx="15" fill="white" stroke="#dce5df"/>'
         f'<rect x="28" y="18" width="844" height="5" rx="2" fill="{restaurant.qr_color}"/>'
         f'<path d="{path}" fill="{restaurant.qr_color}" shape-rendering="crispEdges"/>{labels}</svg>').encode('utf-8')
@@ -236,17 +240,17 @@ def qr_pdf(tables, restaurant, branch):
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.lib.units import mm
     with _font_lock:
-        if 'CairoQR' not in pdfmetrics.getRegisteredFontNames():
-            pdfmetrics.registerFont(TTFont('CairoQR', str(FONT)))
+        if PDF_FONT not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(PDF_FONT, str(FONT)))
     output=io.BytesIO()
     pdf=canvas.Canvas(output,pagesize=(210*mm,297*mm),pageCompression=1)
     pdf.setTitle('Table QR codes'); pdf.setAuthor('Serveza')
     pages=(len(tables)+3)//4
     for offset in range(0,len(tables),4):
-        pdf.setFillColor(HexColor('#193b34')); pdf.setFont('CairoQR',12)
+        pdf.setFillColor(HexColor('#193b34')); pdf.setFont(PDF_FONT,12)
         pdf.drawCentredString(105*mm,285*mm,visual_text('رموز الطاولات · Table QR codes'))
         branch_lines, branch_size=text_lines(branch.name,28,16,1800,1)
-        pdf.setFont('CairoQR',branch_size*.3)
+        pdf.setFont(PDF_FONT,branch_size*.3)
         pdf.drawCentredString(105*mm,278*mm,visual_text(branch_lines[0]))
         for index, table in enumerate(tables[offset:offset+4]):
             x=(12+(index%2)*96)*mm; y=(157-(index//2)*120)*mm; scale=90*mm/900; height=110*mm
@@ -261,9 +265,9 @@ def qr_pdf(tables, restaurant, branch):
                         pdf.rect(x+(left+column*step)*scale,y+height-(220+(row+1)*step)*scale,
                                  step*scale,step*scale,stroke=0,fill=1)
             for text,baseline,size,color in texts:
-                pdf.setFillColor(HexColor(color));pdf.setFont('CairoQR',size*scale)
+                pdf.setFillColor(HexColor(color));pdf.setFont(PDF_FONT,size*scale)
                 pdf.drawCentredString(x+450*scale,y+height-baseline*scale,visual_text(text))
-        pdf.setFont('CairoQR',8);pdf.setFillColor(HexColor('#52675d'))
+        pdf.setFont(PDF_FONT,8);pdf.setFillColor(HexColor('#52675d'))
         pdf.drawCentredString(105*mm,20*mm,f'{offset//4+1} / {pages}  |  90 x 110 mm  |  Print at 100%')
         pdf.showPage()
     pdf.save();return output.getvalue()
