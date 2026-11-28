@@ -58,7 +58,7 @@ class TableCodeBrowserTests(StaticLiveServerTestCase):
             form.locator('[name=count]').fill('50');form.locator('[name=start_number]').fill('1')
             expect(form.locator('[data-batch-summary]')).to_contain_text('50')
             data=form.evaluate('form=>Object.fromEntries(new FormData(form))')
-            form.locator('button').click();page.wait_for_url('**?batch=*#qrDownloads')
+            form.locator('button[type=submit]').click();page.wait_for_url('**?batch=*#qrDownloads')
             expect(page.locator('.table-card')).to_have_count(51)
             expect(page.locator('.qr-batch-ready')).to_contain_text('50')
             replay=page.request.post(self.live_server_url+reverse('manage_tables',args=[self.restaurant.slug]),form=data)
@@ -82,6 +82,46 @@ class TableCodeBrowserTests(StaticLiveServerTestCase):
             self.assertEqual(len(PdfReader(str(self.output/'fifty-table-batch.pdf')).pages),13)
             context.close();browser.close()
         self.assertEqual(self.branch.tables.filter(number__isnull=False).count(),50)
+
+    def test_manager_creates_fifty_from_dashboard_with_custom_numbering_and_all_code_download(self):
+        errors=[]
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='chrome',headless=True)
+            for language in ('ar','en'):
+                for width in (320,390,768,1366):
+                    context=self.context(browser,role='manager',width=width)
+                    page=context.new_page();page.on('pageerror',lambda error:errors.append(str(error)))
+                    response=page.goto(self.live_server_url+reverse('dashboard',args=[self.restaurant.slug])+'?lang='+language)
+                    self.assertEqual(response.status,200)
+                    expect(page.locator('html')).to_have_attribute('dir','rtl' if language=='ar' else 'ltr')
+                    panel=page.locator('#dashboardTableBatch')
+                    expect(panel).to_be_visible()
+                    panel.locator('[data-table-preset="50"]').click()
+                    panel.locator('[name=start_number]').fill('101')
+                    expect(panel.locator('[name=count]')).to_have_value('50')
+                    expect(panel.locator('[data-batch-summary]')).to_contain_text('150')
+                    self.assert_layout(page)
+                    panel.screenshot(path=str(self.output/f'dashboard-manager-{language}-{width}.png'))
+                    context.close()
+            context=self.context(browser,role='manager');page=context.new_page()
+            page.goto(self.live_server_url+reverse('dashboard',args=[self.restaurant.slug])+'?lang=ar')
+            form=page.locator('#dashboardTableBatch [data-table-batch]')
+            form.locator('[data-table-preset="50"]').click()
+            form.locator('[name=start_number]').fill('101')
+            form.locator('button[type=submit]').click();page.wait_for_url('**?batch=*#qrDownloads')
+            expect(page.locator('.qr-batch-ready')).to_contain_text('50')
+            page.goto(self.live_server_url+reverse('dashboard',args=[self.restaurant.slug]))
+            panel=page.locator('#dashboardTableBatch')
+            expect(panel.locator('[data-table-preset="50"]')).to_be_disabled()
+            download=panel.locator('a[download][href*="format=pdf"]')
+            response=page.request.get(download.get_attribute('href'))
+            self.assertEqual(response.status,200)
+            self.assertEqual(len(PdfReader(io.BytesIO(response.body())).pages),13)
+            context.close();browser.close()
+        self.assertFalse(errors,errors)
+        self.assertEqual(list(self.branch.tables.filter(number__isnull=False).order_by('number').values_list('number',flat=True)),
+                         list(range(101,151)))
+        self.table.refresh_from_db();self.assertEqual(stable_table_url(self.table,self.restaurant),self.pinned)
 
     def test_saved_colors_preview_error_states_and_fixed_links_in_both_languages_and_sizes(self):
         errors=[]

@@ -72,6 +72,58 @@ class TableCodeTests(TestCase):
     def batch(self,count=50,start=1,key=None,branch=None):
         return create_table_batch(self.restaurant,branch or self.branch,self.owner,submission_key=key or uuid4(),count=count,start_number=start)
 
+    def test_manager_can_create_fifty_from_dashboard_and_download_all_without_changing_existing_tables(self):
+        self.member.role = 'manager'
+        self.member.save(update_fields=['role'])
+        original = DiningTable.objects.create(branch=self.branch, name='Window corner')
+        token = original.public_token
+        for language in ('ar', 'en'):
+            response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]), {'lang': language})
+            self.assertContains(response, 'id="dashboardTableBatch"')
+            self.assertContains(response, f'action="{self.url}"')
+            self.assertContains(response, 'data-table-preset="50"')
+            self.assertEqual(response.context['batch_form'].initial['branch_id'], self.branch.pk)
+        form = response.context['batch_form']
+        payload = dict(form.initial, action='bulk_create', count=50, start_number=101)
+        result = self.client.post(self.url, payload)
+        self.assertEqual(result.status_code, 302)
+        self.assertEqual(list(self.branch.tables.exclude(pk=original.pk).order_by('number').values_list('number', flat=True)),
+                         list(range(101, 151)))
+        self.assertFalse(self.other.tables.exists())
+        self.client.post(self.url, payload)
+        self.assertEqual(self.branch.tables.count(), 51)
+        download = self.client.get(reverse('table_qr_pack', args=[self.restaurant.slug, self.branch.pk]), {'format': 'pdf'})
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(len(PdfReader(io.BytesIO(b''.join(download.streaming_content))).pages), 13)
+        original.refresh_from_db()
+        self.assertEqual(original.public_token, token)
+        self.assertEqual(original.name, 'Window corner')
+
+    def test_dashboard_batch_form_is_hidden_from_other_staff_and_respects_plan_and_branch(self):
+        for role in ('cashier', 'kitchen', 'waiter'):
+            self.member.role = role
+            self.member.save(update_fields=['role'])
+            self.member.branches.add(self.branch)
+            response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]))
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'data-table-batch')
+            self.assertEqual(self.client.post(self.url, {'action': 'bulk_create', 'branch_id': self.branch.pk,
+                'submission_key': uuid4(), 'count': 50, 'start_number': 1}).status_code, 403)
+        self.member.role = 'manager'
+        self.member.save(update_fields=['role'])
+        self.plan.max_tables = 20
+        self.plan.save(update_fields=['max_tables'])
+        response = self.client.get(reverse('dashboard', args=[self.restaurant.slug]))
+        self.assertContains(response, 'data-table-preset="50" disabled')
+        self.assertEqual(response.context['remaining_tables'], 20)
+        payload = dict(response.context['batch_form'].initial, action='bulk_create', count=50)
+        self.client.post(self.url, payload)
+        self.assertFalse(self.branch.tables.exists())
+        payload.update(count=10, branch_id=self.other.pk)
+        self.client.post(self.url, payload)
+        self.assertFalse(self.other.tables.exists())
+        self.assertFalse(self.branch.tables.exists())
+
     def decode(self,png):
         codes=zxingcpp.read_barcodes(Image.open(io.BytesIO(png)),formats=zxingcpp.BarcodeFormat.QRCode)
         self.assertEqual(len(codes),1)

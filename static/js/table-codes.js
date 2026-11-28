@@ -5,5 +5,10 @@
     output.textContent=Number.isInteger(count)&&count>0&&count<=200&&Number.isInteger(start)&&start>0&&start+count-1<=99999
       ?(english?`${count} new tables, numbered ${start}–${start+count-1}.`:`${count} طاولة جديدة، بالأرقام من ${start} إلى ${start+count-1}.`):'';
   }
+  form.querySelectorAll('[data-table-preset]').forEach(button=>button.addEventListener('click',()=>{
+    form.elements.count.value=button.dataset.tablePreset;
+    form.elements.count.dispatchEvent(new Event('input',{bubbles:true}));
+    form.elements.start_number.focus();
+  }));
   form.addEventListener('input',preview);preview();
 })();

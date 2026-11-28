@@ -1,5 +1,6 @@
 .qr-fieldset{margin:0;padding:0;border:0;min-width:0}.qr-fieldset>button{margin-block-start:12px}
 .qr-fieldset>[data-batch-summary]{display:block;margin-block-start:10px}
+.qr-batch-presets{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-block-end:16px}.qr-batch-presets small{flex:1 1 200px;color:var(--ops-muted,#52675d)}.qr-batch-downloads{margin-block-start:18px;flex-wrap:wrap}.qr-dashboard-setup{scroll-margin-block-start:90px}
 .qr-design-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,320px);gap:28px;align-items:start}.qr-design-panel>*{min-width:0}
 .qr-design-preview{text-align:center;background:#f5f8f6;border-radius:16px;padding:18px}.qr-design-preview img{display:block;width:100%;height:auto;border-radius:12px;background:white}.qr-design-preview small{display:block;margin-block-start:10px;color:#52675d}
 .qr-color-fields input[type=color]{width:100%;max-width:140px;height:54px;padding:4px;cursor:pointer}.qr-color-fields label>span:not(.form-error){direction:ltr;text-align:start;font-size:.85rem}

@@ -17,17 +17,27 @@ from .table_codes import MAX_BATCH, qr_pdf, qr_png, qr_svg, qr_zip, stable_table
 from .validation import localized
 
 
+def table_batch_context(restaurant, branch, *, batch_form=None):
+    current = list(branch.tables.only('name', 'number', 'archived'))
+    count = sum(not table.archived for table in current)
+    limit = restaurant.subscription.limit('max_tables', branch)
+    used = [number for table in current if (number := table_number(table)) is not None]
+    return {
+        'limit': limit, 'remaining_tables': max(limit-count, 0), 'batch_table_count': count,
+        'batch_form': batch_form if batch_form is not None else TableBatchForm(initial={
+            'branch_id': branch.pk, 'submission_key': uuid.uuid4(),
+            'count': min(50, max(limit-count, 1)), 'start_number': max(used, default=0)+1}),
+    }
+
+
 def table_context(request, restaurant, branch, *, batch_form=None, style_form=None):
     tables=list(branch.tables.filter(archived=False).order_by('pk'))
-    count=len(tables);limit=restaurant.subscription.limit('max_tables',branch)
-    used=[number for table in branch.tables.all() if (number:=table_number(table)) is not None]
     batch=None
     if request.GET.get('batch'):
         from .views import valid_pk
         batch=get_object_or_404(TableBatch,pk=valid_pk(request.GET['batch']),branch=branch)
-    return {'tables':tables,'limit':limit,'remaining_tables':max(limit-count,0),'selected_batch':batch,
-        'batch_form':batch_form or TableBatchForm(initial={'branch_id':branch.pk,'submission_key':uuid.uuid4(),
-            'count':min(50,max(limit-count,1)),'start_number':max(used,default=0)+1}),
+    return {**table_batch_context(restaurant, branch, batch_form=batch_form),
+        'tables':tables,'selected_batch':batch,
         'qr_style_form':style_form or TableQRStyleForm(instance=restaurant,initial={'branch_id':branch.pk}),
         'qr_preview_table':tables[0] if tables else None,'qr_origin':restaurant.qr_public_origin}
 

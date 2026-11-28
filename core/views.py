@@ -730,7 +730,10 @@ def dashboard(request, slug):
     orders = Order.objects.filter(branch=branch)
     setup_steps = None
     activity_context = {}
+    table_setup_context = {}
     if membership.role in ('owner', 'manager'):
+        from .table_code_views import table_batch_context
+        table_setup_context = table_batch_context(restaurant, branch)
         period = 14 if request.GET.get('period') == '14' else 7
         start = timezone.localdate() - timedelta(days=period - 1)
         period_orders = orders.filter(created_at__date__range=(start, timezone.localdate()))
@@ -767,7 +770,7 @@ def dashboard(request, slug):
         open_calls=ServiceCall.objects.filter(table__branch=branch, status__in=['open','acknowledged','in_progress']).count(),
         tables_count=branch.tables.count(), items_count=MenuItem.objects.filter(category__branch=branch).count(),
         setup_steps=setup_steps, setup_done=sum(step['done'] for step in setup_steps) if setup_steps else 0,
-        setup_total=len(setup_steps) if setup_steps else 0, **activity_context)
+        setup_total=len(setup_steps) if setup_steps else 0, **activity_context, **table_setup_context)
 
 def manage_menu(request, slug):
     restaurant, membership, denied = scope(request, slug, ['owner','manager'])
