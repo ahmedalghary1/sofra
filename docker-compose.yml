@@ -1,6 +1,6 @@
 # Docker Compose >= 2.30. First run: see docs/DOCKER.md.
 x-app: &app
-  image: serveza-app:local
+  image: "${COMPOSE_PROJECT_NAME}-app:local"
   build: .
   init: true
   restart: unless-stopped
@@ -102,6 +102,7 @@ services:
       - "443:443"
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docker/app_routes.caddy:/etc/caddy/app_routes.caddy:ro
       - static_data:/srv/static:ro
       - media_data:/srv/media:ro
       - app_socket:/run/gunicorn:ro

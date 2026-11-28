@@ -1,5 +1,7 @@
 .env
 .env.docker
+.env.compose
+.gateway-route.caddy
 .docker-secrets/
 .venv/
 __pycache__/

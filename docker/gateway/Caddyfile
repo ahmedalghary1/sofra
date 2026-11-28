@@ -1,0 +1,11 @@
+{
+	# Admin API is confined to this container's loopback, for atomic reloads.
+	admin 127.0.0.1:2019
+}
+
+import sites/*.caddy
+
+http://127.0.0.1:8081 {
+	bind 127.0.0.1
+	respond /health/ 200
+}

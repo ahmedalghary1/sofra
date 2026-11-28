@@ -14,10 +14,50 @@ from django.test import SimpleTestCase, TestCase
 
 from config.container_env import configure_environment, file_secret
 from config.database import postgres_database
-from scripts.configure_docker import configure, normalized_domain
+from scripts.configure_docker import configure, gateway_route, normalized_domain, normalized_project
 
 
 class DockerConfigurationTests(SimpleTestCase):
+    def test_two_sites_have_independent_secrets_and_unique_routes_and_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            roots = [Path(directory) / name for name in ('first', 'second')]
+            for root, project in zip(roots, ('site-one', 'site-two')):
+                root.mkdir()
+                configure(root, project + '.example.com', 'admin@example.com',
+                          project=project, shared_proxy=True)
+                config = (root / '.env.compose').read_text()
+                self.assertIn(f'COMPOSE_PROJECT_NAME={project}', config)
+                self.assertIn('docker-compose.yml:docker-compose.multi.yml', config)
+                self.assertIn(f'{project}-proxy:8080', (root / '.gateway-route.caddy').read_text())
+                self.assertNotIn('site-other', config)
+            for name in ('django_secret_key', 'db_password', 'admin_password'):
+                self.assertNotEqual((roots[0] / '.docker-secrets' / name).read_text(),
+                                    (roots[1] / '.docker-secrets' / name).read_text())
+
+    def test_shared_mode_requires_safe_project_and_gateway_before_writing_files(self):
+        for project in ('', 'Site-One', '../site', 'one_site', 'site\nKEY=1', 'site:80', 's' * 41):
+            with self.subTest(project=project), self.assertRaises(ValueError):
+                normalized_project(project)
+        with tempfile.TemporaryDirectory() as directory:
+            for options in ({'shared_proxy': True},
+                            {'shared_proxy': True, 'project': 'one', 'edge_ip': '8.8.8.8'},
+                            {'shared_proxy': True, 'project': 'one', 'edge_ip': '0.0.0.0'},
+                            {'shared_proxy': True, 'project': 'one', 'edge_network': '../network'}):
+                with self.assertRaises(ValueError):
+                    configure(directory, 'example.com', 'admin@example.com', **options)
+                self.assertEqual(list(Path(directory).iterdir()), [])
+        with self.assertRaises(ValueError):
+            gateway_route('example.com { respond bad }', 'site-one')
+
+    def test_repeat_shared_configuration_preserves_domain_route_and_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            configure(root, 'one.example.com', 'admin@example.com', project='site-one', shared_proxy=True)
+            original = (root / '.gateway-route.caddy').read_text()
+            with self.assertRaises(ValueError):
+                configure(root, 'two.example.com', 'admin@example.com', project='site-two', shared_proxy=True)
+            self.assertEqual((root / '.gateway-route.caddy').read_text(), original)
+
     def test_secrets_are_unique_and_rerun_preserves_everything(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -1,0 +1,19 @@
+# Combine with docker-compose.yml using the generated .env.compose.
+# The shared gateway owns public ports. Only this site's proxy joins its network.
+services:
+  proxy:
+    ports: !reset []
+    environment:
+      EDGE_PROXY_IP: ${EDGE_PROXY_IP:-10.240.0.2}
+    volumes:
+      - ./docker/Caddyfile.backend:/etc/caddy/Caddyfile:ro
+    networks:
+      default:
+      edge:
+        aliases:
+          - "${COMPOSE_PROJECT_NAME}-proxy"
+
+networks:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-serveza-edge}

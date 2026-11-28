@@ -127,17 +127,17 @@ def main():
     cookies = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=CONTEXT),
                                        urllib.request.HTTPCookieProcessor(cookies))
-    with opener.open('https://localhost/admin/login/') as response:
+    with opener.open('https://localhost/django-admin/login/') as response:
         token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', response.read().decode()).group(1)
     data = urllib.parse.urlencode({
         'username': 'smoke@example.com',
         'password': Path('.docker-secrets/admin_password').read_text().strip(),
-        'csrfmiddlewaretoken': token, 'next': '/admin/',
+        'csrfmiddlewaretoken': token, 'next': '/django-admin/',
     }).encode()
-    login = urllib.request.Request('https://localhost/admin/login/', data=data,
-                                   headers={'Referer': 'https://localhost/admin/login/'})
+    login = urllib.request.Request('https://localhost/django-admin/login/', data=data,
+                                   headers={'Referer': 'https://localhost/django-admin/login/'})
     with opener.open(login) as response:
-        assert response.geturl() == 'https://localhost/admin/'
+        assert response.geturl() == 'https://localhost/django-admin/'
     assert any(cookie.name == 'sessionid' and cookie.secure for cookie in cookies)
     print('Docker acceptance passed: HTTPS, RTL/LTR, static/media, startup, persistence, backup and PostgreSQL restore.')
 

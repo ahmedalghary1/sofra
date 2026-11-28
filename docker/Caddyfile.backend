@@ -1,0 +1,19 @@
+{
+	admin off
+	auto_https off
+}
+
+import app_routes.caddy
+
+http://{$SITE_HOST}:8080 {
+	# A neighboring site's container must not be able to forge client-IP headers.
+	@from_gateway remote_ip {$EDGE_PROXY_IP:10.240.0.2}
+	handle @from_gateway {
+		import app_routes {http.request.header.X-Real-IP} https
+	}
+	handle {
+		respond 403
+	}
+}
+
+import app_health

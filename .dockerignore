@@ -1,5 +1,6 @@
 .env
 .env.*
+.gateway-route.caddy
 .docker-secrets/
 .agents/
 .codex/

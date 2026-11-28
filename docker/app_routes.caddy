@@ -1,0 +1,43 @@
+# Both deployment modes use the same assets, upload policy and application socket.
+(app_routes) {
+	encode zstd gzip
+	header X-Content-Type-Options nosniff
+	handle_path /static/* {
+		root * /srv/static
+		header Cache-Control "public, max-age=3600"
+		file_server
+	}
+	handle_path /media/* {
+		root * /srv/media
+		@image path_regexp image (?i)\.(png|jpe?g|webp)$
+		handle @image {
+			file_server
+		}
+		handle {
+			respond 404
+		}
+	}
+	handle {
+		reverse_proxy unix//run/gunicorn/serveza.sock {
+			header_up X-Real-IP {args[0]}
+			header_up X-Forwarded-Proto {args[1]}
+		}
+	}
+}
+
+(app_health) {
+	# Loopback-only: never reachable through the gateway or a published port.
+	http://127.0.0.1:8081 {
+		bind 127.0.0.1
+		handle /health/ {
+			reverse_proxy unix//run/gunicorn/serveza.sock {
+				header_up Host {$SITE_HOST}
+				header_up X-Forwarded-Proto https
+				header_up X-Real-IP 127.0.0.1
+			}
+		}
+		handle {
+			respond 404
+		}
+	}
+}

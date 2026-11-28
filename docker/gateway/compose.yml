@@ -1,0 +1,38 @@
+name: serveza-edge
+
+services:
+  gateway:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      - certificates:/data
+      - config:/config
+    networks:
+      edge:
+        ipv4_address: ${EDGE_PROXY_IP:-10.240.0.2}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8081/health/]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  edge:
+    name: ${EDGE_NETWORK:-serveza-edge}
+    ipam:
+      config:
+        - subnet: ${EDGE_SUBNET:-10.240.0.0/24}
+
+volumes:
+  certificates:
+  config:

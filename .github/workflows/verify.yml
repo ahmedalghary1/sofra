@@ -4,6 +4,15 @@ permissions:
   contents: read
 
 jobs:
+  docker-multi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build and verify two sites behind one HTTPS gateway
+        run: python3 scripts/docker_multi_smoke.py
   docker:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
