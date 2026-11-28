@@ -1,0 +1,9 @@
+{% load i18n showroom %}
+<header class="guest-header">
+  <a class="guest-brand" href="{% if table %}{% url 'public_menu' table.public_token %}{% else %}{% url 'online_menu' restaurant.slug %}{% if branch %}?branch={{ branch.pk }}{% endif %}{% endif %}">
+    {% if restaurant.logo %}<img class="restaurant-logo" src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" width="64" height="64">{% else %}<span class="restaurant-avatar">{{ restaurant.name|slice:':1' }}</span>{% endif %}
+    <span>{{ restaurant.name }}<small>{% translate 'منيو' %}{% if branch %} {{ branch.name }}{% endif %}</small></span>
+  </a>
+  {% include '_ops_language.html' %}
+  <span class="guest-table">{% if table %}{% symbol 'qr-code' %} {{ table.name }}{% else %}{% symbol 'store' %} {% bi 'أونلاين' 'Online' %}{% endif %}</span>
+</header>

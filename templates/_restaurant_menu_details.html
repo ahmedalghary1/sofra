@@ -1,0 +1,7 @@
+{% load showroom %}
+{% if restaurant.description or restaurant.name_en or branch.show_contact_on_menu and branch.address or branch.show_contact_on_menu and branch.phone or branch.show_contact_on_menu and branch.opening_hours %}
+<details class="guest-venue-details"><summary>{% bi 'معلومات المطعم والفرع' 'Restaurant and branch details' %}</summary>
+  {% if restaurant.description %}<p>{{ restaurant.description }}</p>{% endif %}
+  {% include '_public_contact.html' %}
+</details>
+{% endif %}

@@ -15,6 +15,7 @@ from playwright.sync_api import expect, sync_playwright
 
 from core.branding import MENU_COLOR_DEFAULTS, menu_theme
 from core.models import Branch, Category, DiningTable, Membership, MenuItem, Plan, Restaurant, Subscription
+from scripts.test_responsive_ux import LAYOUT_AUDIT
 
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
@@ -29,7 +30,8 @@ class MenuBrandingBrowserTests(StaticLiveServerTestCase):
         super().setUpClass()
 
     def setUp(self):
-        self.venue = Restaurant.objects.create(name='قهوة ورد · Ward café', slug='branding-ui')
+        self.venue = Restaurant.objects.create(name='قهوة ورد · Ward café', slug='branding-ui',
+            description='قهوة طازجة كل يوم · Fresh coffee daily',name_en='Ward café',online_ordering_enabled=True)
         plan, _ = Plan.objects.get_or_create(name='Brand UI', defaults={'max_branches': 2})
         Subscription.objects.create(restaurant=self.venue, plan=plan, status='active', ends_at=timezone.now() + timedelta(days=30))
         self.branch = Branch.objects.create(restaurant=self.venue, name='فرع النيل')
@@ -65,7 +67,7 @@ class MenuBrandingBrowserTests(StaticLiveServerTestCase):
         ]
         with sync_playwright() as p:
             browser = p.chromium.launch(channel='chrome', headless=True)
-            for width in (360, 1366):
+            for width in (320, 390, 768, 1366):
                 for index, (lang, direction) in enumerate((('ar', 'rtl'), ('en', 'ltr'))):
                     context = self.context(browser, width)
                     page = context.new_page()
@@ -89,25 +91,44 @@ class MenuBrandingBrowserTests(StaticLiveServerTestCase):
                     expect(page.get_by_text('Menu branding saved.' if lang == 'en' else 'تم حفظ هوية المنيو.', exact=True)).to_be_visible()
                     page.locator('#menuBranding').scroll_into_view_if_needed()
                     page.screenshot(path=str(self.artifacts / f'settings-{width}-{lang}.png'))
-                    page.goto(self.live_server_url + reverse('public_menu', args=[self.table.public_token]) + '?lang=' + lang)
-                    expect(page.locator('html')).to_have_attribute('dir', direction)
-                    page.wait_for_function('document.querySelector(".restaurant-logo").naturalWidth > 0')
-                    self.assertEqual(page.locator('body').evaluate('(el) => getComputedStyle(el).getPropertyValue("--menu-background").trim()'), theme['background'])
-                    self.assertEqual(page.locator('.menu-add').first.evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['primary']))
-                    self.assertEqual(page.locator('.menu-product-copy h2').first.evaluate('(el) => getComputedStyle(el).color'), self.rgb(theme['text']))
-                    self.assertEqual(page.locator('body').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['background']))
-                    self.assertEqual(page.locator('#menuSearch').evaluate('(el) => getComputedStyle(el, "::placeholder").color'), self.rgb(theme['muted']))
-                    self.assert_responsive(page, width)
-                    page.screenshot(path=str(self.artifacts / f'menu-{width}-{lang}.png'))
-                    page.locator('.menu-add').first.click()
-                    self.assertEqual(page.locator('.guest-modal').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['surface']))
-                    page.locator('#itemOptions button[type=submit]').click()
-                    self.assertEqual(page.locator('#openCart').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['primary']))
-                    page.locator('#openCart').click()
-                    expect(page.locator('.cart-list')).to_contain_text('لاتيه خاص')
-                    expect(page.locator('.cart-total')).to_contain_text('42.75')
-                    self.assert_responsive(page, width)
-                    page.screenshot(path=str(self.artifacts / f'cart-{width}-{lang}.png'))
+                    shared = None
+                    for mode,menu_path in (('table',reverse('public_menu',args=[self.table.public_token])),
+                                           ('online',reverse('online_menu',args=[self.venue.slug]))):
+                        page.goto(self.live_server_url + menu_path + '?lang=' + lang)
+                        expect(page.locator('html')).to_have_attribute('dir', direction)
+                        page.wait_for_function('document.querySelector(".restaurant-logo").naturalWidth > 0')
+                        self.assertEqual(page.locator('body').evaluate('(el) => getComputedStyle(el).getPropertyValue("--menu-background").trim()'), theme['background'])
+                        self.assertEqual(page.locator('.menu-add').first.evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['primary']))
+                        self.assertEqual(page.locator('.menu-product-copy h2').first.evaluate('(el) => getComputedStyle(el).color'), self.rgb(theme['text']))
+                        self.assertEqual(page.locator('body').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['background']))
+                        self.assertEqual(page.locator('#menuSearch').evaluate('(el) => getComputedStyle(el, "::placeholder").color'), self.rgb(theme['muted']))
+                        self.assert_responsive(page, width)
+                        page.screenshot(path=str(self.artifacts / f'{mode}-menu-{width}-{lang}.png'))
+                        observed = page.evaluate("""() => Object.fromEntries(['.guest-header','.guest-brand','.restaurant-logo',
+                            '.menu-search-field','.menu-filter-bar','.menu-grid','.menu-product','.menu-add'].map(selector=>{
+                            const n=document.querySelector(selector),s=getComputedStyle(n),r=n.getBoundingClientRect();
+                            return [selector,{background:s.backgroundColor,color:s.color,font:s.fontFamily,
+                                radius:s.borderRadius,width:Math.round(r.width),height:Math.round(r.height)}];}))""")
+                        if shared is not None:self.assertEqual(observed,shared)
+                        shared = observed
+                        page.locator('.guest-venue-details summary').click()
+                        expect(page.locator('.guest-venue-details')).to_contain_text('Fresh coffee daily')
+                        expect(page.locator('.guest-venue-details')).to_contain_text('Ward café')
+                        page.locator('.guest-venue-details summary').click()
+                        audit=page.evaluate(LAYOUT_AUDIT)
+                        self.assertFalse(audit['overflow'] or audit['clipped'] or audit['unlabeled'] or audit['small'],audit)
+                        page.locator('.menu-add').first.click()
+                        self.assertEqual(page.locator('.guest-modal').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['surface']))
+                        page.locator('#itemOptions button[type=submit]').click()
+                        self.assertEqual(page.locator('#openCart').evaluate('(el) => getComputedStyle(el).backgroundColor'), self.rgb(theme['primary']))
+                        page.locator('#openCart').click()
+                        expect(page.locator('.cart-list')).to_contain_text('لاتيه خاص')
+                        expect(page.locator('.cart-total')).to_contain_text('42.75')
+                        self.assert_responsive(page, width)
+                        page.screenshot(path=str(self.artifacts / f'{mode}-cart-{width}-{lang}.png'))
+                        if mode == 'online':
+                            self.assertEqual(page.locator('#onlineCheckout [name=customer_name]').evaluate('(n)=>getComputedStyle(n).backgroundColor'),self.rgb(theme['background']))
+                            self.assertEqual(page.locator('#onlineCheckout [name=fulfillment]').evaluate('(n)=>getComputedStyle(n).color'),self.rgb(theme['text']))
                     self.assertEqual(errors, [])
                     context.close()
             browser.close()

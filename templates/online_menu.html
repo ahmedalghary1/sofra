@@ -1,6 +1,6 @@
 {% extends 'online_base.html' %}{% load static i18n showroom %}
 {% block online_content %}
-<section class="guest-hero menu-heading"><div><h1>{% bi 'أكلك المفضل، اطلبه من هنا' 'Your favorites, ordered from here' %}</h1><p>{% bi 'اختَر الفرع والأصناف، ثم راجع طريقة الاستلام والإجمالي وأرسل طلبك. من غير حساب.' 'Choose your branch and items, then review fulfillment and the total before placing your order. No account needed.' %}</p></div>{% if accepting and items_json %}<a class="guest-order-start" href="#foodGrid">{% bi 'ابدأ الطلب' 'Start ordering' %} {% symbol 'chevron-down' %}</a>{% endif %}</section>
+{% include '_restaurant_menu_heading.html' %}
 <section class="online-branch" aria-label="{% bi 'فرع الطلب وخيارات الاستلام' 'Order branch and fulfillment options' %}">
   <form method="get" class="online-branch-form"><label for="onlineBranch">{% bi 'هتطلب من أي فرع؟' 'Which branch are you ordering from?' %}</label><div><select name="branch" id="onlineBranch">{% for choice in branches %}<option value="{{ choice.pk }}" {% if choice.pk == branch.pk %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}</select><button type="submit" class="guest-order-start">{% bi 'اختيار الفرع' 'Choose branch' %}</button></div>{% if english %}<input type="hidden" name="lang" value="en">{% endif %}</form>
   <div class="online-fulfillment-options">{% if restaurant.online_pickup_enabled %}<span>{% symbol 'store' %} {% bi 'استلام من الفرع · بدون رسوم' 'Branch pickup · No fee' %}</span>{% endif %}{% if restaurant.online_delivery_enabled %}<span>{% symbol 'package-open' %} {% bi 'التوصيل' 'Delivery' %} · {{ restaurant.delivery_fee }} {% bi 'ج.م' 'EGP' %}</span>{% endif %}</div>
@@ -10,7 +10,7 @@
     <p>{% bi 'السداد عند الاستلام. يتولى المطعم تجهيز الطلب والتواصل معك وترتيب التوصيل.' 'Pay on pickup or delivery. The restaurant prepares your order, contacts you and arranges delivery.' %}</p>
   </details>
 </section>
-{% if not accepting %}<p class="account-notice" role="status">{% bi 'هذا الفرع لا يستقبل طلبات أونلاين حاليًا. تقدر تتصفح المنيو أو تختار فرعًا آخر.' 'This branch is not accepting online orders right now. Browse the menu or choose another branch.' %}</p>{% endif %}
+{% include '_restaurant_menu_details.html' %}
 <p id="cartMenuChange" class="account-notice" role="status" hidden>{% bi 'تغيّرت بعض الأسعار أو الاختيارات. راجع سلتك قبل الإرسال.' 'Some prices or options changed. Review your cart before sending.' %}</p>
 {% if items_json %}{% include '_menu_catalog.html' %}{% if illustrative_photos %}<p class="menu-photo-note">{% bi 'تظهر صور توضيحية للأصناف التي لم يضف المطعم صورها بعد.' 'Items without a restaurant photo use illustrative images.' %}</p>{% endif %}{% else %}<div class="empty-state"><h2>{% bi 'لا توجد أصناف متاحة في هذا الفرع' 'No items are available in this branch' %}</h2><p>{% bi 'اختَر فرعًا آخر أو تواصل مع المطعم.' 'Choose another branch or contact the restaurant.' %}</p></div>{% endif %}
 {% endblock %}

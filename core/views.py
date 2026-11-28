@@ -1873,6 +1873,7 @@ def public_menu(request, token):
         item['photo'] = menu_photo(item['name'], item['image'])
     accepting = table.branch.accepting_orders and subscription.valid()
     return render(request, 'public_menu.html', {
+        'restaurant': table.branch.restaurant, 'branch': table.branch,
         'table': table, 'menu_categories': list(menu_categories.items()), 'items_json': items, 'accepting': accepting,
         'service_calls': public_call_states(table),
         'illustrative_photos': any(not item['image'] for item in items),

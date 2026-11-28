@@ -1,0 +1,10 @@
+{% load i18n showroom %}
+<div class="guest-hero menu-heading">
+  {% if accepting and items_json %}
+    <div><h1>{% if online_store %}{% bi 'اطلب من هنا' 'Order here' %}{% else %}{% bi 'اطلب من هنا لطاولتك' 'Order here for your table' %}{% endif %}</h1><p>{% if online_store %}{% bi 'اختار أكلك، أضفه للسلة، ثم راجع طريقة الاستلام وأرسل طلبك للمطعم. من غير حساب.' 'Choose your food, add it to your cart, then review fulfillment and send your order to the restaurant. No account needed.' %}{% else %}{% bi 'اختار أكلك، أضفه للسلة، ثم راجع وأرسل طلبك للمطعم. من غير حساب.' 'Choose your food, add it to your cart, then review and send your order to the restaurant. No account needed.' %}{% endif %}</p></div>
+    <a class="guest-order-start" href="#foodGrid">{% bi 'ابدأ الطلب' 'Start ordering' %} {% symbol 'chevron-down' %}</a>
+  {% else %}
+    <h1>{% translate 'قائمة الطعام' %}</h1>
+    {% if not accepting %}<p class="guest-order-paused" role="status">{% if online_store %}{% bi 'هذا الفرع لا يستقبل طلبات أونلاين حاليًا. تقدر تتصفح المنيو أو تختار فرعًا آخر.' 'This branch is not accepting online orders right now. Browse the menu or choose another branch.' %}{% else %}{% bi 'الطلب من المنيو متوقف مؤقتًا. تقدر تتصفح الأصناف وتطلب مساعدة فريق المطعم.' 'Menu ordering is temporarily paused. You can browse the items and ask the restaurant team for help.' %}{% endif %}</p>{% endif %}
+  {% endif %}
+</div>
