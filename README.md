@@ -25,6 +25,16 @@
 
 أدوات التشغيل الجديدة: `audit_release_data` للفحص فقط، و`backup_application --output <new-file>` للنسخ، و`restore_application_backup --source <backup> --destination <empty-folder>` للتحقق والاستعادة المستقلة. التفاصيل وحدود PostgreSQL وحماية النسخ في [دليل النشر](docs/DEPLOYMENT.md).
 
+## التشغيل على السيرفر باستخدام Docker
+
+أُضيف إعداد Docker Compose لـPostgreSQL وGunicorn وHTTPS وتخزين البيانات والصور، مع الترحيلات وتجهيز الملفات وحساب مسؤول أولي تلقائيًا. بعد إعداد الدومين والأسرار والبريد مرة واحدة، يكون التشغيل:
+
+```bash
+docker compose up -d --build --wait --wait-timeout 300
+```
+
+اتبع [دليل Docker خطوة بخطوة](docs/DOCKER.md) قبل أول تشغيل، خصوصًا نقل البيانات القائمة والحفاظ على روابط QR. يحتاج Compose 2.30+ وخادم Linux يدعم Docker. أُضيف اختبار تشغيل كامل إلى CI؛ تشغيل الحاويات والدومين الحقيقي لم يُتحقق منهما على هذا الجهاز لعدم وجود Docker.
+
 ## التشغيل المحلي
 
 يتطلب Python 3.12+.

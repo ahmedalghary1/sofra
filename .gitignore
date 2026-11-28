@@ -1,4 +1,6 @@
 .env
+.env.docker
+.docker-secrets/
 .venv/
 __pycache__/
 *.py[cod]

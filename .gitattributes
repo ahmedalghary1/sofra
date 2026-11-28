@@ -1,0 +1,5 @@
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+docker/** text eol=lf
+scripts/configure_docker.py text eol=lf
+scripts/docker_smoke.py text eol=lf

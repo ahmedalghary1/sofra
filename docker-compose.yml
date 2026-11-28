@@ -1,31 +1,137 @@
+# Docker Compose >= 2.30. First run: see docs/DOCKER.md.
+x-app: &app
+  image: serveza-app:local
+  build: .
+  init: true
+  restart: unless-stopped
+  env_file:
+    - path: .env.docker
+      format: raw
+  environment: &app_environment
+    DJANGO_SETTINGS_MODULE: config.container_settings
+    DJANGO_DEBUG: "0"
+    DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+    POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    DJANGO_EMAIL_HOST_PASSWORD_FILE: /run/secrets/smtp_password
+    PGHOST: db
+    PGPORT: "5432"
+    PGDATABASE: sofra
+    PGUSER: sofra
+    DJANGO_TRUST_PROXY_TLS: "1"
+    DJANGO_TRUST_UNIX_PROXY_IP: "1"
+  secrets:
+    - django_secret_key
+    - db_password
+    - smtp_password
+  read_only: true
+  tmpfs:
+    - /tmp:mode=1777
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: sofra
       POSTGRES_USER: sofra
-      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sofra"]
+      test: [CMD-SHELL, "pg_isready -U sofra -d sofra"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
+    logging: *logging
+
   web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    <<: *app
+    command: [web]
     environment:
-      DJANGO_DEBUG: "1"
-      DJANGO_SECRET_KEY: local-development-only-change-for-production
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
-      DATABASE_URL: postgresql://sofra:local-development-only@db:5432/sofra
-    ports:
-      - "8000:8000"
+      <<: *app_environment
+      BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    secrets:
+      - django_secret_key
+      - db_password
+      - smtp_password
+      - admin_password
     volumes:
-      - .:/app
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+      - backups:/backups
+      - app_socket:/run/gunicorn
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: [CMD, python, docker/healthcheck.py]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 12
+
+  scheduler:
+    <<: *app
+    command: [scheduler]
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, docker/scheduler.py, --healthcheck]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  proxy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        format: raw
+    group_add: ["10001"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - static_data:/srv/static:ro
+      - media_data:/srv/media:ro
+      - app_socket:/run/gunicorn:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8081/health/]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+secrets:
+  django_secret_key:
+    file: .docker-secrets/django_secret_key
+  db_password:
+    file: .docker-secrets/db_password
+  admin_password:
+    file: .docker-secrets/admin_password
+  smtp_password:
+    file: .docker-secrets/smtp_password
+
 volumes:
   postgres_data:
+  static_data:
+  media_data:
+  backups:
+  app_socket:
+  caddy_data:
+  caddy_config:

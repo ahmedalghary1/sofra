@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sofra
+      POSTGRES_USER: sofra
+      POSTGRES_PASSWORD: local-development-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sofra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  web:
+    build: .
+    user: "0:0"
+    entrypoint: [python, docker/dev_entrypoint.py]
+    command: [python, manage.py, runserver, "0.0.0.0:8000"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: local-development-only-change-for-production
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      SITE_URL: http://localhost:8000
+      DJANGO_EMAIL_BACKEND: console
+      DATABASE_URL: postgresql://sofra:local-development-only@db:5432/sofra
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:

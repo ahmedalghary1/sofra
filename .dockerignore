@@ -1,6 +1,15 @@
 .env
+.env.*
+.docker-secrets/
+.agents/
+.codex/
+.aws/
+backups/
+.github/
 .venv
 __pycache__
+**/__pycache__/
+**/*.py[cod]
 *.pyc
 db.sqlite3
 db.sqlite3-*
@@ -10,4 +19,5 @@ staticfiles
 tmp/
 *.log
 *.sqlite3
+*.sqlite3-*
 docs/redesign-evidence/

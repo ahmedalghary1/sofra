@@ -4,6 +4,25 @@ permissions:
   contents: read
 
 jobs:
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: serveza-smoke-ci
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configure isolated localhost deployment
+        run: python3 scripts/configure_docker.py --domain localhost --local --admin-email smoke@example.com
+      - name: Build and test the complete deployment
+        run: python3 scripts/docker_smoke.py
+      - name: Diagnostic logs on failure
+        if: failure()
+        run: docker compose ps -a && docker compose logs --tail 100
+      - name: Remove isolated CI deployment
+        if: always()
+        run: docker compose down -v --remove-orphans
   application:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
