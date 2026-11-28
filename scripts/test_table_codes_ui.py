@@ -114,7 +114,7 @@ class TableCodeBrowserTests(StaticLiveServerTestCase):
             panel=page.locator('#dashboardTableBatch')
             expect(panel.locator('[data-table-preset="50"]')).to_be_disabled()
             download=panel.locator('a[download][href*="format=pdf"]')
-            response=page.request.get(download.get_attribute('href'))
+            response=page.request.get(self.live_server_url+download.get_attribute('href'))
             self.assertEqual(response.status,200)
             self.assertEqual(len(PdfReader(io.BytesIO(response.body())).pages),13)
             context.close();browser.close()
