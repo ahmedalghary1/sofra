@@ -32,7 +32,8 @@ CANONICAL_HOST_REDIRECT = not DEBUG
 SERVEZA_PUBLIC_EMAIL = os.getenv('SERVEZA_PUBLIC_EMAIL', '').strip()
 SERVEZA_LEGAL_NAME = os.getenv('SERVEZA_LEGAL_NAME', '').strip()
 SERVEZA_SOCIAL_URLS = [url.strip() for url in os.getenv(
-    'SERVEZA_SOCIAL_URLS', 'https://www.facebook.com/profile.php?id=61596269777742&locale=ar_AR',
+    'SERVEZA_SOCIAL_URLS', 'https://www.instagram.com/serveza2026/,'
+    'https://www.facebook.com/profile.php?id=61596269777742&open_field=website&sk=directory_links',
 ).split(',')
                        if urlparse(url.strip()).scheme == 'https' and urlparse(url.strip()).hostname]
 SERVEZA_ALLOW_CCBOT = os.getenv('SERVEZA_ALLOW_CCBOT', '1').strip() == '1'

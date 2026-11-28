@@ -5,6 +5,6 @@
   <ul>
     <li><a href="{{ whatsapp_url }}" rel="noopener noreferrer">{% bi 'تواصل مع Serveza على واتساب' 'Chat with Serveza on WhatsApp' %}</a></li>
     {% if public_email %}<li><a href="mailto:{{ public_email }}">{{ public_email }}</a></li>{% endif %}
-    {% for profile in social_urls %}<li><a href="{{ profile }}" rel="noopener noreferrer">{% if 'facebook.com/' in profile %}{% bi 'حساب Serveza الرسمي على فيسبوك' 'Serveza on Facebook' %}{% else %}{% bi 'حساب Serveza الرسمي' 'Official Serveza profile' %}{% endif %}</a></li>{% endfor %}
+    {% for profile in social_profiles %}<li><a href="{{ profile.url }}" rel="noopener noreferrer">Serveza · {{ profile.label }}</a></li>{% endfor %}
   </ul>
 </section>

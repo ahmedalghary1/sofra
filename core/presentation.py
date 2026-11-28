@@ -140,7 +140,16 @@ def site_metadata(request):
 def public_context(request):
     english = request.LANGUAGE_CODE == "en"
     idx = int(english)
+    social_profiles = []
+    for url in settings.SERVEZA_SOCIAL_URLS:
+        host = (urlsplit(url).hostname or '').lower().removeprefix('www.')
+        icon, label = {
+            'instagram.com': ('instagram', ('إنستجرام', 'Instagram')[idx]),
+            'facebook.com': ('facebook', ('فيسبوك', 'Facebook')[idx]),
+        }.get(host, ('globe', ('حساب Serveza', 'Serveza profile')[idx]))
+        social_profiles.append({'url': url, 'icon': icon, 'label': label})
     return {
+        "social_profiles": social_profiles,
         "site_nav": [(name, en if english else ar) for name, ar, en in NAV],
         "feature_groups": [
             (labels[idx], [(t.slug, t.title[idx]) for t in TOPICS if t.group == key])

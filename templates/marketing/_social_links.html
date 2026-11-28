@@ -1,0 +1,4 @@
+{% load showroom %}
+{% if social_profiles %}<nav class="mk-social-links" aria-label="{% bi 'تابع Serveza' 'Follow Serveza' %}">
+{% for profile in social_profiles %}<a class="mk-social-link" href="{{ profile.url }}" target="_blank" rel="noopener noreferrer" aria-label="Serveza · {{ profile.label }}" title="{{ profile.label }}">{% symbol profile.icon %}</a>{% endfor %}
+</nav>{% endif %}
